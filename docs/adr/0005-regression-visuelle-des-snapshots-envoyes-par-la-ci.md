@@ -1,6 +1,6 @@
 # 0005 — Régression visuelle des composants à partir des snapshots envoyés par la CI, comparés au design et au dernier snapshot validé
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-14
 - Décideurs : Muhammed
 

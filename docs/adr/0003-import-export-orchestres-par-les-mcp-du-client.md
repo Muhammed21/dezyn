@@ -1,6 +1,6 @@
 # 0003 — Import et export Figma ou repo orchestrés par l'IA du client via ses MCP, sans intégration d'API tierce
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-14
 - Décideurs : Muhammed
 

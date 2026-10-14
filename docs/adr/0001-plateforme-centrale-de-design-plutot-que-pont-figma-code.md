@@ -1,6 +1,6 @@
 # 0001 — Plateforme centrale de design pensée pour l'IA plutôt que pont Figma → code
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-14
 - Décideurs : Muhammed
 

@@ -1,6 +1,6 @@
 # 0006 — Plan Free à 3 projets et 500 Mo, plan Team à 34,99 €/mois et 20 Go, MCP complet dans tous les plans
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-14
 - Décideurs : Muhammed
 

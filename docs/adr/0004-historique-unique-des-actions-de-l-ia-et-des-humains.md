@@ -1,6 +1,6 @@
 # 0004 — Historique unique des actions de l'IA et des humains pour le suivi, l'auto-correction et l'audit
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-14
 - Décideurs : Muhammed
 

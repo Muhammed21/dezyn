@@ -1,6 +1,6 @@
 # 0002 — L'IA du client lit et écrit via le MCP de la plateforme, sans IA embarquée
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-14
 - Décideurs : Muhammed
 

@@ -1,0 +1,26 @@
+# Catalogue de la documentation
+
+<!-- Généré par packages/docs-catalog. Ne pas modifier à la main : lancer `pnpm generate`. -->
+
+**Type:** reference
+
+Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), statut et objet. La ligne situe la page ; la page elle-même fait foi.
+
+## Charte
+
+- [Documentation](README.md) — _reference_ — Comment la documentation est organisée, où la lire et où écrire.
+- [Momo : synthèse du projet](synthese.md) — _reference_ — Momo construit un outil qui récupère fidèlement un design Figma pour le passer en code.
+
+## ADR — décisions durables
+
+- [0001 — Plateforme centrale de design pensée pour l'IA plutôt que pont Figma → code](adr/0001-plateforme-centrale-de-design-plutot-que-pont-figma-code.md) — _explanation · Accepté_ — Le produit reste-t-il un pont entre Figma et le code, ou devient-il la source de vérité du design que l'IA lit et écrit ?
+- [0002 — L'IA du client lit et écrit via le MCP de la plateforme, sans IA embarquée](adr/0002-ia-du-client-via-mcp-sans-ia-embarquee.md) — _explanation · Accepté_ — Qui exécute l'IA qui alimente et interroge la plateforme, et qui paie ses tokens ?
+- [0003 — Import et export Figma ou repo orchestrés par l'IA du client via ses MCP, sans intégration d'API tierce](adr/0003-import-export-orchestres-par-les-mcp-du-client.md) — _explanation · Accepté_ — La plateforme intègre-t-elle elle-même les API de Figma et des autres outils, ou laisse-t-elle l'IA du client faire le pont avec ses propres MCP ?
+- [0004 — Historique unique des actions de l'IA et des humains pour le suivi, l'auto-correction et l'audit](adr/0004-historique-unique-des-actions-de-l-ia-et-des-humains.md) — _explanation · Accepté_ — Comment savoir qui, de l'IA ou d'un humain, a fait quoi et quand dans la plateforme ?
+- [0005 — Régression visuelle des composants à partir des snapshots envoyés par la CI, comparés au design et au dernier snapshot validé](adr/0005-regression-visuelle-des-snapshots-envoyes-par-la-ci.md) — _explanation · Accepté_ — Comment la plateforme vérifie-t-elle que le composant codé correspond au design et ne régresse pas ?
+- [0006 — Plan Free à 3 projets et 500 Mo, plan Team à 34,99 €/mois et 20 Go, MCP complet dans tous les plans](adr/0006-plans-free-et-team-mcp-complet-dans-tous-les-plans.md) — _explanation · Accepté_ — Sur quoi portent les plans payants, sans retirer la gratuité du MCP ?
+- [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
+
+## Spikes — recherche bornée
+
+- [Spike — seuil par défaut de la régression visuelle](spikes/2026-10-14-seuil-de-regression-visuelle.md) — _explanation_ — Le seuil par défaut de l'ADR 0005 (tolérance de couleur 0,1 par pixel, échec au-delà de 0,1 % de pixels différents) laisse-t-il passer le bruit de rendu entre la plateforme et le…
