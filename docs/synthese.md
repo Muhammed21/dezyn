@@ -4,7 +4,7 @@
 
 Momo construit un outil qui récupère fidèlement un design Figma pour le passer en code. La discussion du 13/10/2026 avec Axel le fait pivoter vers une plateforme centrale de design pensée pour l'IA.
 
-> **Source unique :** [`13_10_2026_transcript.txt`](13_10_2026_transcript.txt), conversation orale du 13/10/2026 entre Axel et Momo (43 lignes, environ 11 Ko).
+> **Source unique :** `13_10_2026_transcript.txt` (non versionné), conversation orale du 13/10/2026 entre Axel et Momo (43 lignes, environ 11 Ko).
 > Les renvois `(L11)` pointent vers les lignes du transcript.
 >
 > ⚠️ **À savoir avant de lire :**
