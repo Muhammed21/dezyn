@@ -1,0 +1,25 @@
+# Tier floors by changed path. Claude's review can raise the tier and never lower it; a PR that matches none starts low.
+# What each tier means: REVIEW.md § Paliers.
+review:critical:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/**/auth/**"
+          - "apps/**/billing/**"
+          - "apps/**/storage/**"
+          - "packages/**/auth/**"
+          - "packages/**/billing/**"
+          - "**/migrations/**"
+          - docker/postgres/**
+          - .oxlintrc.json
+          - .github/workflows/**
+          - .github/scripts/**
+          - .github/actions/**
+
+review:standard:
+  - changed-files:
+      - any-glob-to-any-file:
+          - apps/**
+          - packages/**
+          - docker/**
+          - compose.yaml
+          - docs/adr/**

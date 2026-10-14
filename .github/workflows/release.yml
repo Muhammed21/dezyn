@@ -1,0 +1,57 @@
+name: Release
+
+# A v*.*.* tag on a commit of main publishes a GitHub Release with generated notes.
+# Deployment is not part of it yet: the hosting is not chosen.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+jobs:
+  review-check:
+    name: Review gate before release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: The tag points at a commit of main
+        run: |
+          git fetch --no-tags --quiet origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "::error::$GITHUB_REF_NAME does not point at a commit of main."; exit 1; }
+      - run: .github/scripts/release-review-check.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+  verify:
+    name: Build and generated artefacts
+    needs: [review-check]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/install
+      - run: pnpm generate
+      - name: Committed artefacts match their generators
+        run: git diff --exit-code
+      - run: pnpm build
+
+  github-release:
+    name: Create GitHub Release
+    needs: [verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create Release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
