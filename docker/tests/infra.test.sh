@@ -31,6 +31,11 @@ psql_as() {
     psql -h 127.0.0.1 -U "$role" -d "$database" -v ON_ERROR_STOP=1 -tAc "$sql"
 }
 psql_admin() { psql_as postgres "$POSTGRES_PASSWORD" postgres "$1"; }
+psql_network() {
+  local role="$1" password="$2" database="$3" sql="$4"
+  compose run --rm --no-deps -T -e PGPASSWORD="$password" --entrypoint psql db-init \
+    -h postgres -U "$role" -d "$database" -v ON_ERROR_STOP=1 -tAc "$sql"
+}
 
 cleanup() { compose down -v --remove-orphans >/dev/null 2>&1; }
 trap cleanup EXIT
@@ -53,7 +58,8 @@ check "aucun rôle applicatif n'est superutilisateur" test "$(psql_admin "SELECT
 echo "Cloisonnement de la base"
 check "app se connecte à $PG_DATABASE" psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "SELECT 1"
 check "migrator se connecte à $PG_DATABASE" psql_as migrator "$PG_PASSWORD_MIGRATOR" "$PG_DATABASE" "SELECT 1"
-check_not "app refusé avec un mauvais mot de passe" psql_as app wrong "$PG_DATABASE" "SELECT 1"
+check "app se connecte par le réseau Docker avec son mot de passe" psql_network app "$PG_PASSWORD_APP" "$PG_DATABASE" "SELECT 1"
+check_not "app refusé par le réseau Docker avec un mauvais mot de passe" psql_network app wrong "$PG_DATABASE" "SELECT 1"
 check_not "app ne crée pas de table dans le schéma public" psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "CREATE TABLE infra_test_app (id int)"
 check "migrator crée une table dans le schéma public" psql_as migrator "$PG_PASSWORD_MIGRATOR" "$PG_DATABASE" "CREATE TABLE infra_test_migrator (id int); DROP TABLE infra_test_migrator"
 
