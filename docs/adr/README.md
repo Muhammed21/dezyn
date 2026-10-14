@@ -6,12 +6,16 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 
 | ADR                                                                      | Décision                                                                                                                      | Statut  |
 | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------- |
-| [0001](0001-plateforme-centrale-de-design-plutot-que-pont-figma-code.md) | Plateforme centrale de design pensée pour l'IA plutôt que pont Figma → code                                                   | Proposé |
-| [0002](0002-ia-du-client-via-mcp-sans-ia-embarquee.md)                   | L'IA du client lit et écrit via le MCP de la plateforme, sans IA embarquée                                                    | Proposé |
-| [0003](0003-import-export-orchestres-par-les-mcp-du-client.md)           | Import et export Figma ou repo orchestrés par l'IA du client via ses MCP, sans intégration d'API tierce                       | Proposé |
-| [0004](0004-historique-unique-des-actions-de-l-ia-et-des-humains.md)     | Historique unique des actions de l'IA et des humains pour le suivi, l'auto-correction et l'audit                              | Proposé |
-| [0005](0005-regression-visuelle-des-snapshots-envoyes-par-la-ci.md)      | Régression visuelle des composants à partir des snapshots envoyés par la CI, comparés au design et au dernier snapshot validé | Proposé |
-| [0006](0006-plans-free-et-team-mcp-complet-dans-tous-les-plans.md)       | Plan Free à 3 projets et 500 Mo, plan Team à 34,99 €/mois et 20 Go, MCP complet dans tous les plans                           | Proposé |
+| [0001](0001-plateforme-centrale-de-design-plutot-que-pont-figma-code.md) | Plateforme centrale de design pensée pour l'IA plutôt que pont Figma → code                                                   | Accepté |
+| [0002](0002-ia-du-client-via-mcp-sans-ia-embarquee.md)                   | L'IA du client lit et écrit via le MCP de la plateforme, sans IA embarquée                                                    | Accepté |
+| [0003](0003-import-export-orchestres-par-les-mcp-du-client.md)           | Import et export Figma ou repo orchestrés par l'IA du client via ses MCP, sans intégration d'API tierce                       | Accepté |
+| [0004](0004-historique-unique-des-actions-de-l-ia-et-des-humains.md)     | Historique unique des actions de l'IA et des humains pour le suivi, l'auto-correction et l'audit                              | Accepté |
+| [0005](0005-regression-visuelle-des-snapshots-envoyes-par-la-ci.md)      | Régression visuelle des composants à partir des snapshots envoyés par la CI, comparés au design et au dernier snapshot validé | Accepté |
+| [0006](0006-plans-free-et-team-mcp-complet-dans-tous-les-plans.md)       | Plan Free à 3 projets et 500 Mo, plan Team à 34,99 €/mois et 20 Go, MCP complet dans tous les plans                           | Accepté |
+| [0007](0007-un-seul-backend-api-et-mcp-streamable-http-oauth.md)         | Un seul backend qui expose l'API HTTP et le MCP en Streamable HTTP, authentifié par OAuth 2.1                                 | Proposé |
+| [0008](0008-hono-pour-le-backend-better-auth-pour-l-authentification.md) | Hono pour le backend, better-auth pour l'authentification et le serveur OAuth du MCP                                          | Proposé |
+| [0009](0009-drizzle-pour-postgresql-migrations-hors-demarrage.md)        | Drizzle ORM pour PostgreSQL, migrations appliquées par `migrator` hors du démarrage de l'app                                  | Proposé |
+| [0010](0010-tokens-au-format-dtcg-modes-par-le-resolver.md)              | Tokens de design au format DTCG, modes décrits par le module Resolver                                                         | Proposé |
 
 ## Dépendances principales
 
@@ -26,6 +30,12 @@ graph TD
   0003 --> 0005
   0005 --> 0004
   0002 --> 0006[0006 Plans Free et Team]
+  0002 --> 0007[0007 Backend API + MCP]
+  0004 --> 0007
+  0007 --> 0008[0008 Hono + better-auth]
+  0008 --> 0009[0009 Drizzle + migrations]
+  0001 --> 0010[0010 Tokens DTCG]
+  0009 --> 0010
 ```
 
 ## Points ouverts
