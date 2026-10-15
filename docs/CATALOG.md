@@ -36,6 +36,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0021 — Seuls les appels MCP qui visent un espace ou un projet entrent dans l'historique](adr/0021-seuls-les-appels-mcp-qui-visent-un-espace-ou-un-projet-entrent-dans-l-historique.md) — _explanation · Accepté_ — Un appel d'outil MCP qui ne vise ni un espace ni un projet entre-t-il dans l'historique ?
 - [0022 — Architecture hexagonale à cœur fonctionnel pour le backend](adr/0022-architecture-hexagonale-a-coeur-fonctionnel-pour-le-backend.md) — _explanation · Accepté_ — Quelle architecture le backend suit-il à l'intérieur des modules et des couches de l'ADR 0020 ?
 - [0023 — Réponses ouvertes, enums ouverts et unions extensibles dans les contrats](adr/0023-reponses-ouvertes-enums-ouverts-et-unions-extensibles-dans-les-contrats.md) — _explanation · Accepté_ — Comment s'écrivent les schémas de sortie pour qu'un ajout de la plateforme ne casse pas un client déjà en service ?
+- [0024 — L'état Figma d'un token est déclaré par l'IA du client](adr/0024-l-etat-figma-d-un-token-est-declare-par-l-ia-du-client.md) — _explanation · Accepté_ — Qui établit l'état Figma d'un token, et que devient la valeur trouvée dans Figma quand elle diffère de celle de dezyn ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée
