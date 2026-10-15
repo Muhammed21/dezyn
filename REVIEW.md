@@ -32,7 +32,7 @@ Un finding Important casse un comportement, perd ou fuit des données, ou enfrei
 - **ADR 0001** : une donnée de design (couleur, typo, dimension, effet, animation, composant, décision) a pour référence Figma ou le code au lieu de la plateforme.
 - **ADR 0002** : la plateforme appelle elle-même un modèle d'IA (SDK Anthropic, OpenAI ou autre).
 - **ADR 0003** : la plateforme appelle l'API de Figma, de GitHub ou d'un autre outil tiers, au lieu de laisser l'IA du client ou la CI du client faire le pont.
-- **ADR 0004** : un appel d'outil MCP ou une action humaine (validation, modification du design, décision sur un écart) ne laisse pas d'entrée dans l'historique, ou l'entrée ne dit pas qui a agi. Ou l'historique est servi à l'IA sans pagination par curseur.
+- **ADR 0004** : un appel d'outil MCP qui vise un espace ou un projet (ADR 0021), ou une action humaine (validation, modification du design, décision sur un écart) ne laisse pas d'entrée dans l'historique, ou l'entrée ne dit pas qui a agi. Ou l'historique est servi à l'IA sans pagination par curseur.
 - **ADR 0005** : la comparaison lit le code du composant au lieu de l'image du snapshot. Ou un écart de conformité au design est validé depuis le code. Ou le seuil par défaut (0,1 / 0,1 %) change sans ADR.
 - **ADR 0006** : un quota d'appels MCP, une fonction réservée au plan Team, ou une écriture bloquée à la limite de stockage au lieu de la purge. Ou la purge supprime la référence de régression en cours d'un composant.
 - Un artefact généré (`docs/CATALOG.md`) modifié à la main, ou un générateur modifié sans l'artefact régénéré.
