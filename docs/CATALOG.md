@@ -28,6 +28,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0013 — Lots de propositions déclarés par l'IA, propositions remplacées et écritures identiques](adr/0013-lots-de-propositions-declares-par-l-ia-propositions-remplacees-et-ecritures-identiques.md) — _explanation · Accepté_ — Qu'est-ce qui délimite un lot de propositions, et que devient une écriture de l'IA qui ne change rien ou qui revient sur une proposition encore en attente ?
 - [0014 — La conformité se mesure contre la version validée d'un composant](adr/0014-la-conformite-se-mesure-contre-la-version-validee-d-un-composant.md) — _explanation · Accepté_ — Contre quel rendu un snapshot est-il comparé pour la conformité, quand une variante a des propositions en attente ou n'a encore aucune version validée ?
 - [0015 — L'historique garde les actions d'un compte supprimé sous un membre supprimé pseudonyme](adr/0015-l-historique-garde-les-actions-d-un-compte-supprime-sous-un-membre-supprime.md) — _explanation · Accepté_ — Que deviennent les entrées d'historique d'un membre qui quitte un espace ou qui supprime son compte ?
+- [0016 — La purge d'un espace commence par le projet qui consomme le plus](adr/0016-la-purge-d-un-espace-commence-par-le-projet-qui-consomme-le-plus.md) — _explanation · Accepté_ — À la limite de stockage d'un espace, dans quel projet la purge commence-t-elle ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée
