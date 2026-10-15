@@ -1,6 +1,6 @@
 # 0009 — Drizzle ORM pour PostgreSQL, migrations appliquées par `migrator` hors du démarrage de l'app
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

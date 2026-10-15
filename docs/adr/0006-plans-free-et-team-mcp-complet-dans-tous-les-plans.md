@@ -1,6 +1,6 @@
 # 0006 — Plan Free à 3 projets et 500 Mo, plan Team à 34,99 €/mois et 20 Go, MCP complet dans tous les plans
 
-- Statut : Accepté
+- Statut : Accepté — portée des limites et de la purge (par espace, pas par utilisateur) et §2 (le nombre de membres distingue aussi les plans) remplacés par [0011](0011-l-espace-possede-les-projets-et-porte-le-plan.md) ; §4 (projet purgé en premier) remplacé par [0016](0016-la-purge-d-un-espace-commence-par-le-projet-qui-consomme-le-plus.md)
 - Date : 2026-10-14
 - Décideurs : Muhammed
 

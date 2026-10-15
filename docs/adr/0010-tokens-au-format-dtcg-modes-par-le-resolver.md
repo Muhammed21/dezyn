@@ -1,6 +1,6 @@
 # 0010 — Tokens de design au format DTCG, modes décrits par le module Resolver
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

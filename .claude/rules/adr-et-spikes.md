@@ -37,7 +37,7 @@ Le titre est la décision elle-même, pas le sujet : « Monolithe modulaire hexa
 
 1. `## Contexte et problématique` — le problème, les contraintes, et pour finir une ligne `Problématique : <la question à trancher> ?`. Le catalogue (`docs/CATALOG.md`) résume l'ADR par cette ligne.
 2. `## Facteurs de décision` — les critères, en liste, qui départagent les options.
-3. `## Options envisagées` — une `### Option X — nom` par option, avec ses avantages, ses inconvénients et son verdict (**Écartée** et pourquoi, ou **retenue**).
+3. `## Options envisagées` — une `### Option X — nom` par option, avec ses avantages, ses inconvénients et son verdict (**Écartée** et pourquoi, ou **retenue**). Un ADR qui tranche plusieurs questions regroupe ses options sous un `### <question>` par question, chaque option devenant `#### Option X — nom`.
 4. `## Décision` — ce qui est décidé, découpé en `### 1. …`, `### 2. …` quand la décision a plusieurs volets. Le texte est prescriptif.
 5. `## Conséquences` — `### Positives`, `### Négatives`, `### Risques et mitigations`. Les trois sont obligatoires : un ADR sans conséquence négative n'a pas été pesé.
 6. `## Notes d'implémentation` — l'ordre de mise en place, les extraits de code ou de configuration.
