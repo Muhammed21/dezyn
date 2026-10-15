@@ -9,7 +9,7 @@ Comment les skills d'ingénierie lisent la documentation du domaine de ce dépô
 - **`CONTEXT.md`** à la racine du dépôt.
 - **`docs/adr/`** : les ADR qui touchent la zone sur laquelle on s'apprête à travailler. L'index et les statuts sont dans `docs/adr/README.md`.
 
-Si l'un de ces fichiers n'existe pas, **continuer sans rien dire**. Ne pas signaler son absence, ne pas proposer de le créer d'avance. Le skill `/domain-modeling` (atteint via `/grill-with-docs` et `/improve-codebase-architecture`) les crée au fil de l'eau, quand un terme ou une décision est réellement tranché.
+Le skill `/mattpocock-skills:domain-modeling` (atteint via `/mattpocock-skills:grill-with-docs` et `/mattpocock-skills:improve-codebase-architecture`) les met à jour quand un terme ou une décision est réellement tranché.
 
 ## Structure des fichiers
 

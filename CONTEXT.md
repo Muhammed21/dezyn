@@ -65,7 +65,7 @@ Une création ou une modification de donnée de design écrite par l'IA, en atte
 _À éviter_ : suggestion, brouillon, changement
 
 **Lot de propositions** :
-Les propositions qu'écrit l'IA dans un projet sous une même intention, relues ensemble ; un éditeur peut valider le lot en rejetant certaines propositions. Un lot appartient à un seul projet.
+Les propositions qu'écrit l'IA dans un projet, sous l'intention qu'elle déclare ou dans un lot ouvert automatiquement, relues ensemble ; un éditeur peut valider le lot en rejetant certaines propositions. Un lot appartient à un seul projet.
 _À éviter_ : import, batch, paquet
 
 **Intention** :
@@ -74,7 +74,7 @@ _À éviter_ : description, message, titre
 
 **Proposée** :
 Statut d'une proposition qu'aucun éditeur n'a encore relue ; elle ne fait pas foi.
-_À éviter_ : brouillon, en attente
+_À éviter_ : brouillon
 
 **Validée** :
 Statut d'une donnée acceptée par un éditeur, ou écrite directement par un membre ; seules les données validées font foi pour le projet.

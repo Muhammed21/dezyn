@@ -16,4 +16,4 @@ Quand un skill nomme un rôle (par exemple « appliquer le label de triage prêt
 
 Le préfixe `triage:` suit la convention des labels `review:*`.
 
-Modifier la colonne de droite pour suivre le vocabulaire réellement utilisé.
+Les labels `triage:*` se créent sur GitHub (`gh label create`) avant leur première utilisation.

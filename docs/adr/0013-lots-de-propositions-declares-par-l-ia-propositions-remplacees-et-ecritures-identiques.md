@@ -177,7 +177,7 @@ Un éditeur ne peut valider ou rejeter qu'une proposition au statut Proposée ; 
 
 ## Notes d'implémentation
 
-Un lot de propositions porte son projet, son intention (vide pour un lot automatique), son état ouvert ou fermé, et la date de la dernière écriture de l'IA, qui sert au délai de fermeture du lot automatique. La comparaison à la valeur validée (§5, §8) et le remplacement d'une proposition en attente (§6) vivent dans le use-case d'écriture, partagé par le MCP et l'API (ADR 0007 §3).
+Un lot de propositions porte son projet, son intention (vide pour un lot automatique), son état ouvert ou fermé, et la date de la dernière écriture de l'IA, qui sert au délai de fermeture de tout lot (§7). La comparaison à la valeur validée (§5, §8) et le remplacement d'une proposition en attente (§6) vivent dans le use-case d'écriture, partagé par le MCP et l'API (ADR 0007 §3).
 
 ## Liens
 

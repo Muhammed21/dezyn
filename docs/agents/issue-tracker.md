@@ -17,7 +17,7 @@ Le dépôt se déduit de `git remote -v` ; `gh` le fait seul quand il tourne dan
 
 ## Pull requests comme surface de triage
 
-**PR comme surface de demande : non.** _(Passer à `oui` si ce dépôt traite les PR externes comme des demandes de fonctionnalité ; `/triage` lit ce drapeau.)_
+**PR comme surface de demande : non.** `/triage` lit ce drapeau ; à `oui`, les PR externes sont traitées comme des demandes de fonctionnalité.
 
 À `oui`, les PR passent par les mêmes labels et états que les tickets, avec les équivalents `gh pr` :
 

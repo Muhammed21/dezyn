@@ -3,7 +3,7 @@
 - Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
-- Amende : ADR 0004 (§5 : l'auteur d'une entrée d'un compte supprimé est un membre supprimé pseudonyme, et non plus un humain identifié)
+- Amende : ADR 0004 (§5 : l'auteur d'une entrée d'un compte supprimé est un membre supprimé pseudonyme, et non plus un humain identifié), ADR 0011 (l'auteur d'une entrée d'historique d'un compte supprimé est un membre supprimé, et non plus un membre identifié)
 
 ## Contexte et problématique
 
@@ -59,13 +59,13 @@ Problématique : que deviennent les entrées d'historique d'un membre qui quitte
 
 À la suppression d'un compte, ses entrées d'historique et celles de l'IA qu'il avait autorisée sont conservées. Leur auteur est remplacé par un membre supprimé, pseudonyme et stable, par exemple « Membre supprimé n°3 » : on voit que ces actions viennent de la même personne, sans donnée personnelle.
 
-### 3. Le numéro d'un membre supprimé est propre à chaque espace
-
-Le numéro d'un membre supprimé est attribué dans chaque espace où il a agi, et ne dérive d'aucune donnée du compte supprimé. La même personne porte des numéros indépendants d'un espace à l'autre.
-
 ### 2. Un membre qui quitte un espace reste nommé
 
 Un membre qui quitte un espace sans supprimer son compte reste nommé dans l'historique de l'espace, avec la mention « a quitté l'espace ». La pseudonymisation n'a lieu qu'à la suppression du compte.
+
+### 3. Le numéro d'un membre supprimé est propre à chaque espace
+
+Le numéro d'un membre supprimé est attribué dans chaque espace où il a agi, et ne dérive d'aucune donnée du compte supprimé. La même personne porte des numéros indépendants d'un espace à l'autre.
 
 ## Conséquences
 

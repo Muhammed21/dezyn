@@ -17,7 +17,7 @@ Les tickets vivent dans les GitHub Issues de `Muhammed21/dezyn` (via `gh`). Voir
 
 ### Triage labels
 
-Les rôles de triage correspondent aux labels `triage:*`, plus `question` et `wontfix` déjà présents. Voir `docs/agents/triage-labels.md`.
+Les rôles de triage correspondent aux labels `triage:*`, `question` et `wontfix`. Voir `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
