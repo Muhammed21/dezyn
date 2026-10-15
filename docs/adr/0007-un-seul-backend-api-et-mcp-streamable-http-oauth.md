@@ -1,6 +1,6 @@
 # 0007 — Un seul backend qui expose l'API HTTP et le MCP en Streamable HTTP, authentifié par OAuth 2.1
 
-- Statut : Accepté
+- Statut : Accepté — limites des plans par utilisateur remplacées par des limites par espace dans [0011](0011-l-espace-possede-les-projets-et-porte-le-plan.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

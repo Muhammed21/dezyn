@@ -23,6 +23,8 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0008 — Hono pour le backend, better-auth pour l'authentification et le serveur OAuth du MCP](adr/0008-hono-pour-le-backend-better-auth-pour-l-authentification.md) — _explanation · Accepté_ — Quel framework porte le backend, et quelle brique fournit l'authentification et le serveur OAuth du MCP ?
 - [0009 — Drizzle ORM pour PostgreSQL, migrations appliquées par `migrator` hors du démarrage de l'app](adr/0009-drizzle-pour-postgresql-migrations-hors-demarrage.md) — _explanation · Accepté_ — Comment le backend décrit-il son schéma, fait-il ses requêtes, et qui applique les migrations, quand ?
 - [0010 — Tokens de design au format DTCG, modes décrits par le module Resolver](adr/0010-tokens-au-format-dtcg-modes-par-le-resolver.md) — _explanation · Accepté_ — Sur quel modèle reposent les tokens de design, et comment représenter leurs modes ?
+- [0011 — L'espace possède les projets et porte le plan, ses membres sont propriétaires ou éditeurs](adr/0011-l-espace-possede-les-projets-et-porte-le-plan.md) — _explanation · Accepté_ — À qui appartiennent les projets et le plan, et quels droits ont les personnes qui travaillent ensemble sur un même projet ?
+- [0012 — Les écritures de l'IA sont des propositions, relues par lot et validées ou rejetées par un éditeur](adr/0012-les-ecritures-de-l-ia-sont-des-propositions-relues-par-un-editeur.md) — _explanation · Accepté_ — Quand une écriture de l'IA fait-elle foi pour le projet, et comment un éditeur la relit-il ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée
