@@ -1,6 +1,6 @@
 # 0020 — Modules et couches de l'API imposés par des règles oxlint
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

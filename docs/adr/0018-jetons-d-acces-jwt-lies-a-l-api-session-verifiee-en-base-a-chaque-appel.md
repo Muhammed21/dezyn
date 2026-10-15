@@ -1,6 +1,6 @@
 # 0018 — Jetons d'accès JWT liés à l'API, session vérifiée en base à chaque appel
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

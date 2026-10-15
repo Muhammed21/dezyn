@@ -1,6 +1,6 @@
 # 0017 — Les rôles des membres vivent dans une table de l'espace et sont évalués par une fonction pure
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
 
@@ -50,11 +50,11 @@ Une table des membres de l'espace, avec le rôle et les dates d'arrivée et de d
 
 ### 1. Les membres vivent dans une table de l'espace
 
-Une ligne par membre et par espace : l'espace, l'utilisateur, le rôle (`owner` ou `editor`), la date d'arrivée et la date de départ. Un départ remplit la date de départ ; la ligne n'est jamais supprimée.
+Une ligne par membre et par espace : l'espace, l'utilisateur, le rôle (`owner` ou `editor`), la date d'arrivée, la date de fermeture (`closed_at`) et la raison de fermeture (`closed_reason`). La ligne n'est jamais supprimée.
 
 ### 2. Un seul membre actif par utilisateur et par espace
 
-Un utilisateur a au plus une ligne sans date de départ dans un espace. Un changement de rôle ferme la ligne et en ouvre une nouvelle.
+Un utilisateur a au plus une ligne ouverte dans un espace. Un départ ferme la ligne avec la raison `left`. Un changement de rôle ferme la ligne avec la raison `role_changed` et en ouvre une nouvelle.
 
 ### 3. Une fonction pure dit ce que peut faire un membre
 
@@ -84,13 +84,14 @@ Chaque requête lit le membre actif de l'utilisateur dans l'espace concerné. Au
 ### Risques et mitigations
 
 - **Deux requêtes simultanées retirent les deux derniers propriétaires** : le use-case verrouille les membres de l'espace (`SELECT … FOR UPDATE`) avant de vérifier l'invariant.
+- **Un changement de rôle s'affiche comme un départ** (ADR 0015 §2) : seule une ligne fermée avec la raison `left` est un départ, y compris pour un membre parti puis réinvité.
 - **Une route oublie de vérifier l'autorisation** : chaque use-case reçoit le membre et appelle `can` ; un test d'intégration par route vérifie le refus d'un non-membre.
 
 ## Notes d'implémentation
 
-- Index unique partiel sur `(space_id, user_id) WHERE left_at IS NULL`, index sur `(user_id) WHERE left_at IS NULL`.
+- Index unique partiel sur `(space_id, user_id) WHERE closed_at IS NULL`, index sur `(user_id) WHERE closed_at IS NULL`.
 - `can` vit dans le domaine du module espace ; les autres modules l'atteignent par son `contracts/` (ADR 0020).
-- Repris de `twitch` : la forme de `defineAbilityFor({ assignments, now })` et l'interface `AuthzContext` avec une version en mémoire pour les tests, sans CASL ni Redis.
+- Repris de `twitch` : la règle d'autorisation séparée de la lecture des rôles, et un port de lecture avec une version en mémoire pour les tests (`AuthzContext`, `inMemoryAuthzContext`). Ni CASL, ni Redis, ni horloge dans la règle.
 
 ## Liens
 

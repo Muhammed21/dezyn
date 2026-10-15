@@ -1,6 +1,6 @@
 # 0004 — Historique unique des actions de l'IA et des humains pour le suivi, l'auto-correction et l'audit
 
-- Statut : Accepté — §5 (auteur d'une entrée d'un compte supprimé) remplacé par [0015](0015-l-historique-garde-les-actions-d-un-compte-supprime-sous-un-membre-supprime.md)
+- Statut : Accepté — §5 (auteur d'une entrée d'un compte supprimé) remplacé par [0015](0015-l-historique-garde-les-actions-d-un-compte-supprime-sous-un-membre-supprime.md) ; §1 (appels journalisés) remplacé par [0021](0021-seuls-les-appels-mcp-qui-visent-un-espace-ou-un-projet-entrent-dans-l-historique.md)
 - Date : 2026-10-14
 - Décideurs : Muhammed
 
