@@ -1,6 +1,6 @@
 # 0012 — Les écritures de l'IA sont des propositions, relues par lot et validées ou rejetées par un éditeur
 
-- Statut : Accepté
+- Statut : Accepté — §4 remplacé et §1 complété par [0013](0013-lots-de-propositions-declares-par-l-ia-propositions-remplacees-et-ecritures-identiques.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

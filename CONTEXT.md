@@ -65,8 +65,12 @@ Une création ou une modification de donnée de design écrite par l'IA, en atte
 _À éviter_ : suggestion, brouillon, changement
 
 **Lot de propositions** :
-Les propositions écrites par l'IA au cours d'une même session, relues ensemble ; un éditeur peut valider le lot en rejetant certaines propositions.
+Les propositions qu'écrit l'IA dans un projet sous une même intention, relues ensemble ; un éditeur peut valider le lot en rejetant certaines propositions. Un lot appartient à un seul projet.
 _À éviter_ : import, batch, paquet
+
+**Intention** :
+Le but que l'IA déclare en ouvrant un lot de propositions, par exemple « Import du Figma Healthcare » ; il dit à l'éditeur pourquoi le lot existe.
+_À éviter_ : description, message, titre
 
 **Proposée** :
 Statut d'une proposition qu'aucun éditeur n'a encore relue ; elle ne fait pas foi.
@@ -80,9 +84,17 @@ _À éviter_ : approuvée, publiée
 Statut d'une proposition qu'un éditeur a refusée.
 _À éviter_ : supprimée, annulée
 
+**Remplacée** :
+Statut d'une proposition encore en attente que l'IA a remplacée, par une proposition plus récente sur la même donnée ou en revenant à la valeur validée ; elle n'est plus à relire.
+_À éviter_ : obsolète, annulée
+
 **Historique** :
 La chronologie unique de ce que l'IA et les membres ont fait dans un projet, avec l'auteur et la date de chaque action.
 _À éviter_ : journal, logs, audit
+
+**Membre supprimé** :
+L'auteur pseudonyme et numéroté par espace qui remplace, dans l'historique, un utilisateur ayant supprimé son compte, ainsi que l'IA qu'il avait autorisée.
+_À éviter_ : utilisateur anonyme, inconnu, ancien membre
 
 ### Régression visuelle
 
@@ -95,7 +107,7 @@ L'image d'une variante de composant codée dans le repo du client, envoyée par 
 _À éviter_ : capture, screenshot
 
 **Référence de conformité** :
-Le rendu auquel on compare un snapshot pour savoir si le code correspond au design.
+Le rendu de la version validée d'une variante, auquel on compare un snapshot pour savoir si le code correspond au design.
 _À éviter_ : référence (seul), maquette
 
 **Référence de régression** :
@@ -103,9 +115,9 @@ Le dernier snapshot validé d'une variante, auquel on compare le suivant pour d�
 _À éviter_ : référence (seul), baseline
 
 **Écart** :
-La différence entre un snapshot et l'une de ses deux références ; un éditeur l'accepte ou le refuse.
+La différence entre un snapshot et l'une de ses deux références. Un écart de régression s'accepte ; un écart de conformité se résout en corrigeant le code ou en modifiant le design.
 _À éviter_ : diff, régression (pour un écart de conformité)
 
 **Verdict** :
-Le résultat renvoyé à la CI du client pour un snapshot : conforme, ou écart à trancher.
+Le résultat renvoyé à la CI du client pour un snapshot, en conformité comme en régression : conforme, écart, ou sans référence quand la référence n'existe pas encore.
 _À éviter_ : statut, résultat de test

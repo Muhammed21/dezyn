@@ -1,6 +1,6 @@
 # 0005 — Régression visuelle des composants à partir des snapshots envoyés par la CI, comparés au design et au dernier snapshot validé
 
-- Statut : Accepté
+- Statut : Accepté — §2 (référence de conformité) et §4 (valeurs du verdict) remplacés par [0014](0014-la-conformite-se-mesure-contre-la-version-validee-d-un-composant.md)
 - Date : 2026-10-14
 - Décideurs : Muhammed
 
