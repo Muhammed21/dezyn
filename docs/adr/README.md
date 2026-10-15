@@ -22,6 +22,10 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0014](0014-la-conformite-se-mesure-contre-la-version-validee-d-un-composant.md)                       | La conformité se mesure contre la version validée d'un composant                                                              | Accepté                                                                                                                                                                                                           |
 | [0015](0015-l-historique-garde-les-actions-d-un-compte-supprime-sous-un-membre-supprime.md)            | L'historique garde les actions d'un compte supprimé sous un membre supprimé pseudonyme                                        | Accepté                                                                                                                                                                                                           |
 | [0016](0016-la-purge-d-un-espace-commence-par-le-projet-qui-consomme-le-plus.md)                       | La purge d'un espace commence par le projet qui consomme le plus                                                              | Accepté                                                                                                                                                                                                           |
+| [0017](0017-les-roles-des-membres-vivent-dans-une-table-de-l-espace-evalues-par-une-fonction-pure.md)  | Les rôles des membres vivent dans une table de l'espace et sont évalués par une fonction pure                                 | Proposé                                                                                                                                                                                                           |
+| [0018](0018-jetons-d-acces-jwt-a-audience-session-verifiee-en-base-a-chaque-appel.md)                  | Jetons d'accès JWT liés à l'API, session vérifiée en base à chaque appel                                                      | Proposé                                                                                                                                                                                                           |
+| [0019](0019-l-historique-est-en-ajout-seul-pour-l-app-purge-et-pseudonymisation-par-un-role-dedie.md)  | L'historique est en ajout seul pour l'app ; purge et pseudonymisation passent par un rôle dédié                               | Proposé                                                                                                                                                                                                           |
+| [0020](0020-modules-et-couches-de-l-api-imposes-par-des-regles-oxlint.md)                              | Modules et couches de l'API imposés par des règles oxlint                                                                     | Proposé                                                                                                                                                                                                           |
 
 ## Dépendances principales
 
@@ -63,6 +67,19 @@ graph TD
   0011 --> 0015
   0006 --> 0016[0016 Purge par projet]
   0011 --> 0016
+  0008 --> 0017[0017 Rôles des membres]
+  0011 --> 0017
+  0015 --> 0017
+  0007 --> 0018[0018 Jetons d'accès]
+  0008 --> 0018
+  0009 --> 0018
+  0004 --> 0019[0019 Historique en ajout seul]
+  0009 --> 0019
+  0015 --> 0019
+  0016 --> 0019
+  0018 --> 0019
+  0007 --> 0020[0020 Modules et couches]
+  0008 --> 0020
 ```
 
 ## Points ouverts
