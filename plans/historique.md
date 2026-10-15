@@ -2,7 +2,7 @@
 
 **Branche** : feat/historique
 **Statut** : Actif
-**ADR** : 0004, 0015, 0016, 0019, 0020, 0021
+**ADR** : 0004, 0015, 0016, 0019, 0020, 0021, 0023
 
 ## Objectif
 
@@ -86,7 +86,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 - `read_history` renvoie les mêmes pages que la route d'API.
 - Chaque appel, réussi ou en échec, laisse une entrée qui référence l'auteur, le client OAuth, l'espace, le projet, le résultat et le `requestId`.
 - Un outil dont le schéma d'entrée contient un identifiant d'espace ou de projet et qui n'est pas enveloppé fait échouer un test qui parcourt les outils enregistrés (ADR 0021, risques).
-- Le champ `action` de la sortie est une énumération ouverte : le schéma de sortie accepte une action inconnue (`openEnum`, repris de `twitch/packages/contracts/src/conventions`).
+- Le champ `action` de la sortie est une énumération ouverte : le schéma de sortie accepte une action inconnue (`openEnum`, ADR 0023).
 
 **RED** : test d'intégration de `read_history` et de l'entrée écrite ; test de l'enveloppe sur un outil qui échoue ; test de garde des outils ; test du schéma avec une action inconnue. Mutants attendus : `onBehalfOf` nul contre présent, le prédicat « vise un espace ou un projet ».
 **GREEN** : enveloppe des outils MCP dans `modules/history/presentation`, outil `read_history`, schéma de sortie dans `modules/history/contracts` avec `openEnum` et `extensibleUnion`.
