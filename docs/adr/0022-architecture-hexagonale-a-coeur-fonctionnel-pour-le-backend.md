@@ -1,6 +1,6 @@
 # 0022 — Architecture hexagonale à cœur fonctionnel pour le backend
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

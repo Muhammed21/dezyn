@@ -21,7 +21,7 @@ Un utilisateur qui appartient à un espace et travaille sur ses projets, avec le
 _À éviter_ : collaborateur, utilisateur (quand on parle de son rôle dans un espace)
 
 **Propriétaire** :
-Un membre qui gère le plan et les membres d'un espace ; il peut aussi tout ce que peut un éditeur. Un espace a toujours au moins un propriétaire.
+Un membre qui gère le plan et les membres d'un espace, et crée ses projets ; il peut aussi tout ce que peut un éditeur. Un espace a toujours au moins un propriétaire.
 _À éviter_ : admin, owner
 
 **Éditeur** :

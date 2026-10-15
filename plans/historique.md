@@ -10,7 +10,7 @@ Les actions des membres et les appels MCP qui visent un espace ou un projet entr
 
 ## Critères d'acceptation
 
-- [ ] Créer un projet laisse une entrée d'historique qui référence le membre auteur, sans client OAuth.
+- [ ] Un propriétaire crée un projet, et cette création laisse une entrée d'historique qui le référence, sans client OAuth.
 - [ ] Dès sa création, le rôle `app` ne peut ni modifier ni supprimer une entrée ; `history_maintainer` peut en supprimer.
 - [ ] L'historique d'un projet se lit par pages, par l'API et par le MCP, avec un curseur stable.
 - [ ] Chaque appel d'outil MCP qui vise un espace ou un projet laisse une entrée qui référence l'auteur et le client OAuth (ADR 0021 §1).
@@ -19,7 +19,7 @@ Les actions des membres et les appels MCP qui visent un espace ou un projet entr
 
 Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 
-### Tranche 1 : un membre crée un projet, et l'historique du projet le montre
+### Tranche 1 : un propriétaire crée un projet, et l'historique du projet le montre
 
 **Valeur** : une action humaine entre dans l'historique du projet (ADR 0004 §4).
 **Chemin** : `POST /v1/spaces/:id/projects` → `can("project.create")` → use-case `createProject` → projet et entrée `project.created` dans la même transaction → `GET /v1/projects/:id/history`. La migration qui crée `history_entry` retire au rôle `app` `UPDATE` et `DELETE` (ADR 0019 §1). Hors tranche : limites de projets du plan (ADR 0006), données de design, pagination.
@@ -27,6 +27,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 **Critères d'acceptation** :
 
 - Le projet créé appartient à l'espace (ADR 0011 §2).
+- Un éditeur reçoit 403 problem+json : seul un propriétaire crée un projet.
 - L'historique renvoie une entrée : action `project.created`, espace, projet, auteur référencé, date, `requestId`, sans client OAuth.
 - Si l'écriture de l'entrée échoue, le projet n'est pas créé.
 - Connecté en `app`, un `UPDATE` et un `DELETE` sur `history_entry` échouent avec « permission denied ».

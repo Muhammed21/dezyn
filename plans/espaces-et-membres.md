@@ -48,7 +48,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 **Critères d'acceptation** :
 
 - Un membre lit l'espace ; un non-membre et un membre parti reçoivent 404.
-- `can` est testée en unitaire avec une table action × rôle sur les actions `space.read`, `project.create`, `member.invite` et `member.leave` : `owner` peut toutes ; `editor` peut `space.read`, `project.create` et `member.leave` ; l'absence de membre ne peut rien.
+- `can` est testée en unitaire avec une table action × rôle sur les actions `space.read`, `project.create`, `member.invite` et `member.leave` : `owner` peut toutes ; `editor` peut `space.read` et `member.leave` ; seul `owner` crée un projet ; l'absence de membre ne peut rien.
 
 **RED** : tests unitaires de `can` (pure, sans base) ; test d'intégration du 404. Mutants attendus : une ligne de la table des permissions.
 **GREEN** : `can` dans `modules/space/domain`, exposée par `modules/space/contracts`, avec un `MembershipReader` et sa version en mémoire.

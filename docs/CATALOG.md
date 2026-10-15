@@ -34,7 +34,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0019 — L'historique est en ajout seul pour l'app ; la purge passe par un rôle dédié](adr/0019-l-historique-est-en-ajout-seul-pour-l-app-la-purge-passe-par-un-role-dedie.md) — _explanation · Accepté_ — Comment empêche-t-on l'app de modifier ou d'effacer l'historique, tout en permettant la purge ?
 - [0020 — Modules et couches de l'API imposés par des règles oxlint](adr/0020-modules-et-couches-de-l-api-imposes-par-des-regles-oxlint.md) — _explanation · Accepté_ — Comment l'API est-elle découpée, et comment ce découpage est-il tenu dans le temps ?
 - [0021 — Seuls les appels MCP qui visent un espace ou un projet entrent dans l'historique](adr/0021-seuls-les-appels-mcp-qui-visent-un-espace-ou-un-projet-entrent-dans-l-historique.md) — _explanation · Accepté_ — Un appel d'outil MCP qui ne vise ni un espace ni un projet entre-t-il dans l'historique ?
-- [0022 — Architecture hexagonale à cœur fonctionnel pour le backend](adr/0022-architecture-hexagonale-a-coeur-fonctionnel-pour-le-backend.md) — _explanation · Proposé_ — Quelle architecture le backend suit-il à l'intérieur des modules et des couches de l'ADR 0020 ?
+- [0022 — Architecture hexagonale à cœur fonctionnel pour le backend](adr/0022-architecture-hexagonale-a-coeur-fonctionnel-pour-le-backend.md) — _explanation · Accepté_ — Quelle architecture le backend suit-il à l'intérieur des modules et des couches de l'ADR 0020 ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée
