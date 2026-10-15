@@ -1,6 +1,6 @@
 # 0008 — Hono pour le backend, better-auth pour l'authentification et le serveur OAuth du MCP
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

@@ -12,10 +12,10 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0004](0004-historique-unique-des-actions-de-l-ia-et-des-humains.md)     | Historique unique des actions de l'IA et des humains pour le suivi, l'auto-correction et l'audit                              | Accepté |
 | [0005](0005-regression-visuelle-des-snapshots-envoyes-par-la-ci.md)      | Régression visuelle des composants à partir des snapshots envoyés par la CI, comparés au design et au dernier snapshot validé | Accepté |
 | [0006](0006-plans-free-et-team-mcp-complet-dans-tous-les-plans.md)       | Plan Free à 3 projets et 500 Mo, plan Team à 34,99 €/mois et 20 Go, MCP complet dans tous les plans                           | Accepté |
-| [0007](0007-un-seul-backend-api-et-mcp-streamable-http-oauth.md)         | Un seul backend qui expose l'API HTTP et le MCP en Streamable HTTP, authentifié par OAuth 2.1                                 | Proposé |
-| [0008](0008-hono-pour-le-backend-better-auth-pour-l-authentification.md) | Hono pour le backend, better-auth pour l'authentification et le serveur OAuth du MCP                                          | Proposé |
-| [0009](0009-drizzle-pour-postgresql-migrations-hors-demarrage.md)        | Drizzle ORM pour PostgreSQL, migrations appliquées par `migrator` hors du démarrage de l'app                                  | Proposé |
-| [0010](0010-tokens-au-format-dtcg-modes-par-le-resolver.md)              | Tokens de design au format DTCG, modes décrits par le module Resolver                                                         | Proposé |
+| [0007](0007-un-seul-backend-api-et-mcp-streamable-http-oauth.md)         | Un seul backend qui expose l'API HTTP et le MCP en Streamable HTTP, authentifié par OAuth 2.1                                 | Accepté |
+| [0008](0008-hono-pour-le-backend-better-auth-pour-l-authentification.md) | Hono pour le backend, better-auth pour l'authentification et le serveur OAuth du MCP                                          | Accepté |
+| [0009](0009-drizzle-pour-postgresql-migrations-hors-demarrage.md)        | Drizzle ORM pour PostgreSQL, migrations appliquées par `migrator` hors du démarrage de l'app                                  | Accepté |
+| [0010](0010-tokens-au-format-dtcg-modes-par-le-resolver.md)              | Tokens de design au format DTCG, modes décrits par le module Resolver                                                         | Accepté |
 
 ## Dépendances principales
 
