@@ -28,6 +28,7 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0020](0020-modules-et-couches-de-l-api-imposes-par-des-regles-oxlint.md)                              | Modules et couches de l'API imposés par des règles oxlint                                                                     | Accepté                                                                                                                                                                                                                                  |
 | [0021](0021-seuls-les-appels-mcp-qui-visent-un-espace-ou-un-projet-entrent-dans-l-historique.md)       | Seuls les appels MCP qui visent un espace ou un projet entrent dans l'historique                                              | Accepté                                                                                                                                                                                                                                  |
 | [0022](0022-architecture-hexagonale-a-coeur-fonctionnel-pour-le-backend.md)                            | Architecture hexagonale à cœur fonctionnel pour le backend                                                                    | Accepté                                                                                                                                                                                                                                  |
+| [0023](0023-reponses-ouvertes-enums-ouverts-et-unions-extensibles-dans-les-contrats.md)                | Réponses ouvertes, enums ouverts et unions extensibles dans les contrats                                                      | Accepté                                                                                                                                                                                                                                  |
 
 ## Dépendances principales
 
@@ -90,6 +91,10 @@ graph TD
   0007 --> 0022
   0017 --> 0022
   0019 --> 0022
+  0008 --> 0023[0023 Conventions de contrat]
+  0005 --> 0023
+  0020 --> 0023
+  0022 --> 0023
 ```
 
 ## Points ouverts
