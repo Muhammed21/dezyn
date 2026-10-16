@@ -58,6 +58,32 @@ _À éviter_ : état (seul), déclinaison
 Un choix de design accompagné de sa justification, rattaché aux tokens qu'il fixe ; elle et ses tokens sont validés ou rejetés ensemble. Exemple : « le corps de texte est en Manrope, pas en Poppins ».
 _À éviter_ : changement, entrée d'historique
 
+**Doublon** :
+Un token dont la valeur est identique, dans chaque mode, à celle d'un autre token du même projet. Un token qui référence un autre token n'est pas un doublon.
+_À éviter_ : copie, duplicata
+
+### Figma
+
+**État Figma** :
+Ce que l'IA du client a constaté, à une date donnée, en comparant un token avec Figma. Un token qu'aucune IA n'a comparé n'a pas d'état Figma.
+_À éviter_ : statut (seul), synchro
+
+**Synchronisé** :
+État Figma d'un token qui existe dans Figma avec la même valeur dans chaque mode.
+_À éviter_ : à jour
+
+**Divergent** :
+État Figma d'un token qui existe dans Figma avec une valeur différente dans au moins un mode.
+_À éviter_ : désynchronisé, en conflit
+
+**Absent de Figma** :
+État Figma d'un token qui n'existe pas dans Figma.
+_À éviter_ : manquant, supprimé
+
+**Doublon dans Figma** :
+État Figma d'un token auquel correspondent plusieurs variables Figma.
+_À éviter_ : doublon (seul), qui désigne un doublon dans dezyn
+
 ### Relecture
 
 **Proposition** :
