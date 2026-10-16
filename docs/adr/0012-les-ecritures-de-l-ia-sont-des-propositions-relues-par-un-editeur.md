@@ -1,6 +1,6 @@
 # 0012 — Les écritures de l'IA sont des propositions, relues par lot et validées ou rejetées par un éditeur
 
-- Statut : Accepté — §4 remplacé et §1 complété par [0013](0013-lots-de-propositions-declares-par-l-ia-propositions-remplacees-et-ecritures-identiques.md)
+- Statut : Accepté — §4 remplacé et §1 complété par [0013](0013-lots-de-propositions-declares-par-l-ia-propositions-remplacees-et-ecritures-identiques.md) ; §1 (suppressions, donnée relue d'un composant), §2 (token fixé par une décision) et §5 (une décision et ses tokens) remplacés par [0026](0026-suppressions-ecritures-des-membres-variantes-et-decisions-dans-la-relecture-des-propositions.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

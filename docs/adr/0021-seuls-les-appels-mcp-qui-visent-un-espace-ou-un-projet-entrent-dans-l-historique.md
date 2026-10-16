@@ -1,6 +1,6 @@
 # 0021 — Seuls les appels MCP qui visent un espace ou un projet entrent dans l'historique
 
-- Statut : Accepté
+- Statut : Accepté — §1 (appel qui ne vise que l'espace) remplacé par [0025](0025-l-historique-appartient-au-projet-un-espace-n-en-a-pas.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 - Amende : ADR 0004 (§1 : seuls les appels d'outil MCP qui visent un espace ou un projet sont journalisés)
