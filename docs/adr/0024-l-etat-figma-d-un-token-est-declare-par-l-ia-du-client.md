@@ -80,7 +80,11 @@ Une déclaration d'état Figma n'est pas une proposition : elle remplace l'état
 
 ### 4. La valeur d'un token divergent devient une proposition
 
-Quand l'IA déclare un token divergent, elle écrit aussi la valeur trouvée dans Figma, qui devient une proposition (ADR 0003 §4, ADR 0012 §1). Un éditeur la valide, et dezyn adopte la valeur de Figma, ou la rejette, et c'est Figma qui est à corriger. L'état reste divergent jusqu'à la comparaison suivante.
+Quand l'IA déclare un token divergent, elle écrit aussi la valeur trouvée dans Figma, qui devient une proposition (ADR 0003 §4, ADR 0012 §1). Un éditeur la valide, et dezyn adopte la valeur de Figma, ou la rejette, et c'est Figma qui est à corriger.
+
+Quand l'éditeur valide la proposition, l'état Figma du token passe à synchronisé, à la date de la comparaison qui a lu cette valeur. Quand il la rejette, l'état reste divergent.
+
+Une valeur de Figma identique à la dernière valeur rejetée pour ce token ne crée aucune proposition, comme une écriture identique à la valeur validée (ADR 0013 §5). Une valeur de Figma différente crée une nouvelle proposition.
 
 ### 5. Le doublon dans dezyn n'est pas un état Figma
 
@@ -98,6 +102,8 @@ Un doublon (`CONTEXT.md`) se détecte dans dezyn, à partir des valeurs validée
 
 - L'état Figma peut être périmé : un token modifié dans dezyn ou dans Figma garde l'état de la dernière comparaison.
 - Un projet dont l'IA ne compare jamais n'a aucun état Figma.
+- dezyn garde, pour chaque token, la dernière valeur de Figma rejetée.
+- La validation d'une proposition change l'état Figma sans nouvelle déclaration de l'IA, seule exception au §3.
 
 ### Risques et mitigations
 
@@ -110,4 +116,5 @@ Un doublon (`CONTEXT.md`) se détecte dans dezyn, à partir des valeurs validée
 - [ADR 0003](0003-import-export-orchestres-par-les-mcp-du-client.md) — l'IA lit Figma, la plateforme ne l'appelle pas.
 - [ADR 0010](0010-tokens-au-format-dtcg-modes-par-le-resolver.md) — un token a une valeur par mode.
 - [ADR 0012](0012-les-ecritures-de-l-ia-sont-des-propositions-relues-par-un-editeur.md) — les écritures de l'IA sont des propositions.
+- [ADR 0013](0013-lots-de-propositions-declares-par-l-ia-propositions-remplacees-et-ecritures-identiques.md) — une écriture identique ne crée aucune proposition.
 - [ADR 0021](0021-seuls-les-appels-mcp-qui-visent-un-espace-ou-un-projet-entrent-dans-l-historique.md) — la déclaration entre dans l'historique.
