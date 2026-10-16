@@ -95,6 +95,8 @@ graph TD
   0005 --> 0023
   0020 --> 0023
   0022 --> 0023
+  0021 --> 0022
+  0012 --> 0023
 ```
 
 ## Points ouverts
@@ -103,3 +105,5 @@ graph TD
 - Les chantiers et les sélections, issus de l'outil de sélections d'Axel, ne sont pas tranchés (synthèse §6). Le partage d'une direction artistique entre projets est écarté pour l'instant (ADR 0011 §2).
 - Le rappel à l'éditeur quand une variante reste sans version validée (ADR 0014, risques).
 - Le contenu d'une entrée d'historique qui contient une donnée personnelle d'un compte supprimé (ADR 0015, risques).
+- La valeur du champ `version` acceptée à l'import d'un fichier Resolver, que le module contredit (ADR 0010, risques).
+- L'export vers les outils qui ne lisent pas encore le module Resolver (ADR 0010, risques).
