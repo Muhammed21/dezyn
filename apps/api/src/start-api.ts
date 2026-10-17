@@ -3,6 +3,7 @@ import { serve, type ServerType } from "@hono/node-server";
 import { assertSchemaVersion, type Migration } from "@repo/db";
 
 import { createApp } from "./create-app.ts";
+import type { LogSink } from "./platform/logging.ts";
 import { createPostgresDatabase } from "./platform/postgres-database.ts";
 
 export type RunningApi = {
@@ -19,14 +20,16 @@ export const startApi = async ({
   databaseUrl,
   migration,
   port,
+  log,
 }: {
   readonly databaseUrl: string;
   readonly migration: Migration;
   readonly port: number;
+  readonly log: LogSink;
 }): Promise<RunningApi> => {
   await assertSchemaVersion({ connectionString: databaseUrl, migration });
   const db = createPostgresDatabase({ url: databaseUrl });
-  const app = createApp({ db });
+  const app = createApp({ db, log });
 
   return new Promise((resolve) => {
     const server = serve({ fetch: app.fetch, port }, (info) => {

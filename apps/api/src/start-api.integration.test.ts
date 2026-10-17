@@ -9,7 +9,12 @@ describe("startApi", () => {
   it("refuse de démarrer sur un schéma en retard, en nommant la migration manquante", () =>
     withThrowawayDatabase(async ({ appUrl }) => {
       await expect(
-        startApi({ databaseUrl: appUrl, migration: LATEST_MIGRATION, port: 0 }),
+        startApi({
+          databaseUrl: appUrl,
+          migration: LATEST_MIGRATION,
+          port: 0,
+          log: () => undefined,
+        }),
       ).rejects.toThrow(
         `Schéma en retard : la migration ${LATEST_MIGRATION.tag} n'est pas appliquée`,
       );
@@ -19,7 +24,12 @@ describe("startApi", () => {
     withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
       await migrate({ connectionString: migratorUrl });
 
-      const api = await startApi({ databaseUrl: appUrl, migration: LATEST_MIGRATION, port: 0 });
+      const api = await startApi({
+        databaseUrl: appUrl,
+        migration: LATEST_MIGRATION,
+        port: 0,
+        log: () => undefined,
+      });
       try {
         const response = await fetch(new URL("/health", api.url));
 
@@ -32,7 +42,12 @@ describe("startApi", () => {
   it("n'écoute plus une fois arrêtée", () =>
     withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
       await migrate({ connectionString: migratorUrl });
-      const api = await startApi({ databaseUrl: appUrl, migration: LATEST_MIGRATION, port: 0 });
+      const api = await startApi({
+        databaseUrl: appUrl,
+        migration: LATEST_MIGRATION,
+        port: 0,
+        log: () => undefined,
+      });
 
       await api.close();
 

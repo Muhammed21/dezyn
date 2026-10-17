@@ -1,0 +1,47 @@
+import { STATUS_CODES } from "node:http";
+
+import type { Context } from "hono";
+import { HTTPException } from "hono/http-exception";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
+import type { AppEnv } from "./http.ts";
+import { InvalidRequest } from "./validate.ts";
+
+export type Problem = {
+  readonly type: string;
+  readonly title: string;
+  readonly status: ContentfulStatusCode;
+  readonly errors?: readonly { readonly path: string; readonly message: string }[];
+};
+
+export const INTERNAL_ERROR: Problem = {
+  type: "about:blank",
+  title: "Erreur interne",
+  status: 500,
+};
+
+export const clientProblem = (error: Error): Problem | undefined => {
+  if (error instanceof InvalidRequest) {
+    return {
+      type: "about:blank",
+      title: "Requête invalide",
+      status: 400,
+      errors: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+    };
+  }
+  if (error instanceof HTTPException && error.status < 500) {
+    return {
+      type: "about:blank",
+      title: STATUS_CODES[error.status] ?? "Erreur",
+      status: error.status,
+    };
+  }
+  return undefined;
+};
+
+export const problemResponse = (c: Context<AppEnv>, problem: Problem): Response =>
+  c.body(
+    JSON.stringify({ ...problem, instance: c.req.path, correlationId: c.get("correlationId") }),
+    problem.status,
+    { "content-type": "application/problem+json" },
+  );
