@@ -1,6 +1,6 @@
 # 0026 — Suppressions, écritures des membres, variantes et décisions dans la relecture des propositions
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-17
 - Décideurs : Muhammed
 - Amende : ADR 0012 (§1 : une proposition peut aussi être une suppression, et la donnée relue d'un composant est chacune de ses variantes et le composant lui-même ; §2 : un membre ne modifie un token fixé par une décision validée que par une nouvelle décision ; §5 : une décision et ses tokens forment une seule proposition, et un token fixé par une décision validée ne change que par une nouvelle décision), ADR 0013 (§6 et §8 : l'écriture directe d'un membre remplace aussi la proposition en attente)

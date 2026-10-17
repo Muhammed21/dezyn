@@ -1,6 +1,6 @@
 # 0025 — L'historique appartient au projet ; un espace n'en a pas
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-17
 - Décideurs : Muhammed
 - Amende : ADR 0021 (§1 : seuls les appels d'outil MCP qui visent un projet laissent une entrée ; un appel qui ne vise que l'espace n'en laisse pas), ADR 0019 (§2 : le rôle `history_maintainer` efface aussi l'historique des projets supprimés)
