@@ -50,6 +50,16 @@ tester.run("pure-domain", pureDomain, {
       code: 'import { Pool } from "pg";',
     },
     {
+      name: "un test du domaine importe vitest",
+      filename: inModule("space", "domain/space.test.ts"),
+      code: 'import { describe, expect, it } from "vitest";',
+    },
+    {
+      name: "un test du contrat importe vitest",
+      filename: inModule("space", "contracts/schemas.test.ts"),
+      code: 'import { describe } from "vitest";',
+    },
+    {
       name: "export sans source",
       filename: inModule("space", "domain/space.ts"),
       code: "export const space = 1;",
@@ -70,6 +80,18 @@ tester.run("pure-domain", pureDomain, {
       code: `import { x } from "${source}";`,
       errors: [{ messageId: "package", data: { layer: "domain", source } }],
     })),
+    {
+      name: "le domaine hors test importe vitest",
+      filename: inModule("space", "domain/space.ts"),
+      code: 'import { describe } from "vitest";',
+      errors: [{ messageId: "package", data: { layer: "domain", source: "vitest" } }],
+    },
+    {
+      name: "un test du domaine importe un autre paquet que vitest",
+      filename: inModule("space", "domain/space.test.ts"),
+      code: 'import { Pool } from "pg";',
+      errors: [{ messageId: "package", data: { layer: "domain", source: "pg" } }],
+    },
     {
       name: "le contrat importe Hono",
       filename: inModule("space", "contracts/schemas.ts"),

@@ -10,6 +10,8 @@ export const makeDatabase = (overrides: Partial<Database> = {}): Database => ({
 
 export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
   handle: () => Promise.resolve(new Response(null, { status: 404 })),
+  authorizationServerMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
+  protectedResourceMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
   ...overrides,
 });
 

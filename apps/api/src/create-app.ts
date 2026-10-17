@@ -21,6 +21,15 @@ export const createApp = ({
   app.use(requestContext(log));
 
   app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
+  app.get("/.well-known/oauth-authorization-server", (c) =>
+    auth.authorizationServerMetadata(c.req.raw),
+  );
+  app.get("/.well-known/oauth-protected-resource", (c) =>
+    auth.protectedResourceMetadata(c.req.raw),
+  );
+  app.get("/.well-known/oauth-protected-resource/v1", (c) =>
+    auth.protectedResourceMetadata(c.req.raw),
+  );
 
   app.get("/health", async (c) => {
     try {

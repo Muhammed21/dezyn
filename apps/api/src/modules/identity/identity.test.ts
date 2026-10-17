@@ -45,4 +45,18 @@ describe("montage de l'authentification", () => {
 
     expect(received).toEqual([]);
   });
+
+  it.each([
+    ["/.well-known/oauth-authorization-server", "authorizationServerMetadata"],
+    ["/.well-known/oauth-protected-resource", "protectedResourceMetadata"],
+    ["/.well-known/oauth-protected-resource/v1", "protectedResourceMetadata"],
+  ] as const)("sert %s par les métadonnées %s", async (path, port) => {
+    const { app } = makeApp({
+      auth: makeAuth({ [port]: () => Promise.resolve(Response.json({ servedBy: port })) }),
+    });
+
+    const response = await app.request(path);
+
+    expect(await response.json()).toEqual({ servedBy: port });
+  });
 });

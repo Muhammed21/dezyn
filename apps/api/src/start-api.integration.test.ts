@@ -8,6 +8,7 @@ import { startApi } from "./start-api.ts";
 const AUTH = {
   authSecret: "secret-de-test-de-32-caracteres-au-moins",
   baseURL: "http://127.0.0.1:3000",
+  trustedIpHeader: "x-forwarded-for",
 };
 
 describe("startApi", () => {

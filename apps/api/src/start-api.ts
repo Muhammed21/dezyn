@@ -24,6 +24,7 @@ export const startApi = async ({
   log,
   authSecret,
   baseURL,
+  trustedIpHeader,
 }: {
   readonly databaseUrl: string;
   readonly migration: Migration;
@@ -31,10 +32,11 @@ export const startApi = async ({
   readonly log: LogSink;
   readonly authSecret: string;
   readonly baseURL: string;
+  readonly trustedIpHeader: string;
 }): Promise<RunningApi> => {
   await assertSchemaVersion({ connectionString: databaseUrl, migration });
   const db = createPostgresDatabase({ url: databaseUrl });
-  const auth = createIdentityAuth({ db, secret: authSecret, baseURL, log });
+  const auth = await createIdentityAuth({ db, secret: authSecret, baseURL, trustedIpHeader, log });
   const app = createApp({ db, auth, log });
 
   return new Promise((resolve) => {

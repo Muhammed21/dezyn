@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { migrate } from "@repo/db";
@@ -12,9 +14,25 @@ const BASE_URL = "http://127.0.0.1:3000";
 const SECRET = "secret-de-test-de-32-caracteres-au-moins";
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-const withIdentityApp = (
-  run: (app: ReturnType<typeof createApp>, records: readonly LogRecord[]) => Promise<void>,
-) =>
+type IdentityApp = {
+  readonly app: ReturnType<typeof createApp>;
+  readonly records: readonly LogRecord[];
+  readonly postJson: (path: string, body: unknown) => Promise<Response>;
+};
+
+const postJsonFrom =
+  (app: ReturnType<typeof createApp>, clientIp: string) => async (path: string, body: unknown) =>
+    app.request(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: BASE_URL,
+        "x-forwarded-for": clientIp,
+      },
+      body: JSON.stringify(body),
+    });
+
+const withIdentityApp = (run: (identityApp: IdentityApp) => Promise<void>) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
     await migrate({ connectionString: migratorUrl });
     const db = createPostgresDatabase({ url: appUrl });
@@ -23,26 +41,26 @@ const withIdentityApp = (
       records.push(record);
     };
     try {
-      const auth = createIdentityAuth({ db, secret: SECRET, baseURL: BASE_URL, log });
-      await run(createApp({ db, auth, log }), records);
+      const auth = await createIdentityAuth({
+        db,
+        secret: SECRET,
+        baseURL: BASE_URL,
+        trustedIpHeader: "x-forwarded-for",
+        log,
+      });
+      const app = createApp({ db, auth, log });
+      await run({ app, records, postJson: postJsonFrom(app, `198.51.100.${randomInt(1, 255)}`) });
     } finally {
       await db.close();
     }
-  });
-
-const postJson = (app: ReturnType<typeof createApp>, path: string, body: unknown) =>
-  app.request(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: BASE_URL },
-    body: JSON.stringify(body),
   });
 
 const ADA = { name: "Ada Lovelace", email: "ada@dezyn.test", password: "un-mot-de-passe-solide" };
 
 describe("identité : inscription et connexion", () => {
   it("une inscription crée un utilisateur avec un identifiant UUID", () =>
-    withIdentityApp(async (app) => {
-      const response = await postJson(app, "/auth/sign-up/email", ADA);
+    withIdentityApp(async ({ postJson }) => {
+      const response = await postJson("/auth/sign-up/email", ADA);
 
       expect(response.status).toBe(200);
       const { user } = await response.json();
@@ -51,10 +69,10 @@ describe("identité : inscription et connexion", () => {
     }));
 
   it("une connexion avec le bon mot de passe ouvre une session", () =>
-    withIdentityApp(async (app) => {
-      await postJson(app, "/auth/sign-up/email", ADA);
+    withIdentityApp(async ({ app, postJson }) => {
+      await postJson("/auth/sign-up/email", ADA);
 
-      const signIn = await postJson(app, "/auth/sign-in/email", {
+      const signIn = await postJson("/auth/sign-in/email", {
         email: ADA.email,
         password: ADA.password,
       });
@@ -67,14 +85,14 @@ describe("identité : inscription et connexion", () => {
     }));
 
   it("un mauvais mot de passe répond 401, sans dire si l'email existe", () =>
-    withIdentityApp(async (app) => {
-      await postJson(app, "/auth/sign-up/email", ADA);
+    withIdentityApp(async ({ postJson }) => {
+      await postJson("/auth/sign-up/email", ADA);
 
-      const wrongPassword = await postJson(app, "/auth/sign-in/email", {
+      const wrongPassword = await postJson("/auth/sign-in/email", {
         email: ADA.email,
         password: "pas-le-bon-mot",
       });
-      const unknownEmail = await postJson(app, "/auth/sign-in/email", {
+      const unknownEmail = await postJson("/auth/sign-in/email", {
         email: "inconnu@dezyn.test",
         password: "pas-le-bon-mot",
       });
@@ -86,10 +104,10 @@ describe("identité : inscription et connexion", () => {
     }));
 
   it("les logs de better-auth passent par le log de l'API", () =>
-    withIdentityApp(async (app, records) => {
-      await postJson(app, "/auth/sign-up/email", ADA);
+    withIdentityApp(async ({ records, postJson }) => {
+      await postJson("/auth/sign-up/email", ADA);
 
-      await postJson(app, "/auth/sign-in/email", { email: ADA.email, password: "pas-le-bon-mot" });
+      await postJson("/auth/sign-in/email", { email: ADA.email, password: "pas-le-bon-mot" });
 
       expect(records).toContainEqual({
         level: "warn",

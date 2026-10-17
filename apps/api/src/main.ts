@@ -19,6 +19,7 @@ const api = await startApi({
   databaseUrl: required("DATABASE_URL"),
   authSecret: required("BETTER_AUTH_SECRET"),
   baseURL: required("BETTER_AUTH_URL"),
+  trustedIpHeader: process.env.TRUSTED_IP_HEADER ?? "x-forwarded-for",
   migration: LATEST_MIGRATION,
   port: Number(process.env.PORT ?? 3000),
   log,
