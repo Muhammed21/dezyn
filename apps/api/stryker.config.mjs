@@ -1,0 +1,14 @@
+/** @type {import("@stryker-mutator/api/core").PartialStrykerOptions} */
+export default {
+  testRunner: "vitest",
+  plugins: ["@stryker-mutator/vitest-runner"],
+  vitest: { configFile: "vitest.mutation.config.ts" },
+  coverageAnalysis: "off",
+  concurrency: 1,
+  inPlace: true,
+  reporters: ["clear-text", "progress", "html"],
+  htmlReporter: { fileName: "reports/mutation/index.html" },
+  mutate: ["src/**/*.ts", "!src/**/*.test.ts", "!src/main.ts", "!src/testing/**"],
+  tsconfigFile: "stryker-skips-tsconfig-rewrite.json",
+  thresholds: { high: 100, low: 90, break: null },
+};

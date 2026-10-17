@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test:integration": {
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL", "DATABASE_URL_MIGRATOR"]
+    }
+  }
+}
