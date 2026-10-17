@@ -1,0 +1,26 @@
+{
+  "name": "@repo/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "check-types": "tsc --noEmit",
+    "mutation": "stryker run"
+  },
+  "dependencies": {
+    "hono": "4.13.13",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
+    "@types/node": "^26.6.2",
+    "@types/pg": "8.23.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

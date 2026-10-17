@@ -10,6 +10,7 @@
     "fmt:check": "oxfmt --check .",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
     "bench": "turbo run bench",
     "secrets": "secretlint \"**/*\"",
     "infra:up": "./docker/up.sh",
