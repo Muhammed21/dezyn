@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "import", "promise", "unicorn", "vitest", "react"],
+  "jsPlugins": ["./packages/lint/src/index.ts"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -38,7 +39,10 @@
       }
     ],
     "typescript/no-extraneous-class": "error",
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "dezyn/module-boundaries": "error",
+    "dezyn/layer-dependencies": "error",
+    "dezyn/no-disable-architecture": "error"
   },
   "ignorePatterns": [
     "node_modules",
@@ -51,7 +55,7 @@
   ],
   "overrides": [
     {
-      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "files": ["**/*.test.ts"],
       "rules": {
         "typescript/no-non-null-assertion": "off",
         "typescript/no-unsafe-type-assertion": "off",

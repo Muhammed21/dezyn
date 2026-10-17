@@ -11,6 +11,7 @@ review:critical:
           - "**/migrations/**"
           - docker/postgres/**
           - .oxlintrc.json
+          - packages/lint/**
           - .github/workflows/**
           - .github/scripts/**
           - .github/actions/**

@@ -21,7 +21,7 @@ Le résumé compte les findings et ne répète jamais leur texte.
 
 Le palier plancher vient des chemins touchés (`.github/labeler.yml`). La revue peut le monter, jamais le descendre.
 
-- `critical` : authentification, plans et facturation (ADR 0006), purge du stockage, migrations, rôles PostgreSQL, configuration du lint (`.oxlintrc.json`), CI. Une erreur ici fuit des données, perd de l'argent ou désarme un garde-fou.
+- `critical` : authentification, plans et facturation (ADR 0006), purge du stockage, migrations, rôles PostgreSQL, configuration et règles du lint (`.oxlintrc.json`, `packages/lint`), CI. Une erreur ici fuit des données, perd de l'argent ou désarme un garde-fou.
 - `standard` : tout autre code applicatif, infrastructure locale, ADR.
 - `low` : documentation hors ADR, outillage sans effet sur le code livré. Les findings ne bloquent pas.
 
