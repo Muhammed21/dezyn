@@ -1,6 +1,6 @@
 # 0027 — Un membre parti reste nommé dans l'historique de chaque projet de l'espace
 
-- Statut : Accepté
+- Statut : Proposé
 - Date : 2026-10-17
 - Décideurs : Muhammed
 - Amende : ADR 0015 (§2 : le membre parti reste nommé dans l'historique de chaque projet de l'espace, et non plus dans l'historique de l'espace ; la mention vient de la table des membres)
@@ -72,6 +72,8 @@ Quitter un espace ne pseudonymise rien. Seule la suppression du compte remplace 
 
 - **Un changement de rôle s'affiche comme un départ** : seule une ligne fermée avec la raison `left` est un départ (ADR 0017, risques).
 - **Un membre parti puis réinvité** : il a une ligne fermée avec la raison `left` et une ligne ouverte (ADR 0017 §2). Le choix d'afficher ou non la mention dans ce cas reste un point ouvert.
+- **Un membre retiré par un propriétaire** : l'ADR 0017 §2 ne connaît que les raisons `left` et `role_changed`. Une raison propre au retrait, ou `left` pour les deux cas, reste un point ouvert ; d'ici là, seul un départ porte la mention.
+- **Les entrées de l'IA autorisée par un membre parti** : l'ADR 0015 §1 fait suivre à l'IA le sort de son utilisateur à la suppression du compte, pas à son départ. L'affichage de la mention sur ces entrées reste un point ouvert.
 
 ## Notes d'implémentation
 
