@@ -5,6 +5,7 @@ import plugin from "../index.ts";
 import { layerDependencies } from "./layer-dependencies.ts";
 import { moduleBoundaries } from "./module-boundaries.ts";
 import { noDisableArchitecture } from "./no-disable-architecture.ts";
+import { pureDomain } from "./pure-domain.ts";
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -19,6 +20,7 @@ describe("plugin dezyn", () => {
       "layer-dependencies",
       "module-boundaries",
       "no-disable-architecture",
+      "pure-domain",
     ]);
   });
 
@@ -26,6 +28,7 @@ describe("plugin dezyn", () => {
     ["module-boundaries", moduleBoundaries, "ADR 0020"],
     ["layer-dependencies", layerDependencies, "ADR 0020"],
     ["no-disable-architecture", noDisableArchitecture, "ADR 0020"],
+    ["pure-domain", pureDomain, "ADR 0022"],
   ])("%s est un problème documenté qui cite son ADR", (_name, rule, adr) => {
     expect(rule.meta?.type).toBe("problem");
     expect(rule.meta?.docs?.description).toContain(adr);

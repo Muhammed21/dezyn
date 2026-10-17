@@ -35,7 +35,7 @@ describe("le linter est linté (ADR 0020)", () => {
     expect(matches(plugin)).toHaveLength(1);
   });
 
-  it.each(["module-boundaries", "layer-dependencies", "no-disable-architecture"])(
+  it.each(["module-boundaries", "layer-dependencies", "no-disable-architecture", "pure-domain"])(
     "la règle dezyn/%s est active en erreur",
     (rule) => {
       expect(readConfig().rules[`dezyn/${rule}`]).toBe("error");
@@ -86,6 +86,18 @@ describe("règles d'architecture, avec la vraie configuration", () => {
       "dezyn(layer-dependencies)",
     ],
     [
+      "un domaine qui importe Hono",
+      `${SPACE}/domain/bad.ts`,
+      'import { Hono } from "hono";\nexport const a = Hono;\n',
+      "dezyn(pure-domain)",
+    ],
+    [
+      "un domaine qui sort des modules",
+      `${SPACE}/domain/bad.ts`,
+      'import { a } from "../../../platform/problem.ts";\nexport const b = a;\n',
+      "dezyn(pure-domain)",
+    ],
+    [
       "un commentaire de désactivation",
       `${SPACE}/domain/bad.ts`,
       "// oxlint-disable-next-line dezyn/layer-dependencies\nexport const a = 1;\n",
@@ -102,7 +114,7 @@ describe("règles d'architecture, avec la vraie configuration", () => {
     const { code, output } = await lintTree({
       [`${SPACE}/domain/space-id.ts`]: "export const a = 1;\n",
       [`${SPACE}/contracts/events.ts`]:
-        'import { a } from "../domain/space-id.ts";\nexport const b = a;\n',
+        'import { z } from "zod";\nimport { a } from "../domain/space-id.ts";\nexport const b = [z, a];\n',
       [`${SPACE}/application/create-space.ts`]:
         'import { a } from "../domain/space-id.ts";\nexport const b = a;\n',
       [`${SPACE}/presentation/routes.ts`]:

@@ -42,7 +42,8 @@
     "react/react-in-jsx-scope": "off",
     "dezyn/module-boundaries": "error",
     "dezyn/layer-dependencies": "error",
-    "dezyn/no-disable-architecture": "error"
+    "dezyn/no-disable-architecture": "error",
+    "dezyn/pure-domain": "error"
   },
   "ignorePatterns": [
     "node_modules",
