@@ -29,6 +29,7 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0021](0021-seuls-les-appels-mcp-qui-visent-un-espace-ou-un-projet-entrent-dans-l-historique.md)             | Seuls les appels MCP qui visent un espace ou un projet entrent dans l'historique                                              | Accepté — §1 remplacé par [0025](0025-l-historique-appartient-au-projet-un-espace-n-en-a-pas.md)                                                                                                                                                                                          |
 | [0022](0022-architecture-hexagonale-a-coeur-fonctionnel-pour-le-backend.md)                                  | Architecture hexagonale à cœur fonctionnel pour le backend                                                                    | Accepté                                                                                                                                                                                                                                                                                   |
 | [0023](0023-reponses-ouvertes-enums-ouverts-et-unions-extensibles-dans-les-contrats.md)                      | Réponses ouvertes, enums ouverts et unions extensibles dans les contrats                                                      | Accepté                                                                                                                                                                                                                                                                                   |
+| [0024](0024-l-etat-figma-d-un-token-est-declare-par-l-ia-du-client.md)                                       | L'état Figma d'un token est déclaré par l'IA du client                                                                        | Accepté                                                                                                                                                                                                                                                                                   |
 | [0025](0025-l-historique-appartient-au-projet-un-espace-n-en-a-pas.md)                                       | L'historique appartient au projet ; un espace n'en a pas                                                                      | Accepté                                                                                                                                                                                                                                                                                   |
 | [0026](0026-suppressions-ecritures-des-membres-variantes-et-decisions-dans-la-relecture-des-propositions.md) | Suppressions, écritures des membres, variantes et décisions dans la relecture des propositions                                | Accepté                                                                                                                                                                                                                                                                                   |
 
@@ -99,6 +100,10 @@ graph TD
   0022 --> 0023
   0021 --> 0022
   0012 --> 0023
+  0003 --> 0024[0024 État Figma]
+  0001 --> 0024
+  0012 --> 0024
+  0021 --> 0024
   0021 --> 0025[0025 Historique par projet]
   0004 --> 0025
   0015 --> 0025
