@@ -63,6 +63,15 @@ check_not "app refusé par le réseau Docker avec un mauvais mot de passe" psql_
 check_not "app ne crée pas de table dans le schéma public" psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "CREATE TABLE infra_test_app (id int)"
 check "migrator crée une table dans le schéma public" psql_as migrator "$PG_PASSWORD_MIGRATOR" "$PG_DATABASE" "CREATE TABLE infra_test_migrator (id int); DROP TABLE infra_test_migrator"
 
+echo "Migrations (ADR 0009)"
+migrate_as() { (cd "$ROOT/packages/db" && DATABASE_URL_MIGRATOR="$1" node scripts/migrate.ts); }
+APP_URL="postgresql://app:${PG_PASSWORD_APP}@127.0.0.1:${POSTGRES_PORT}/${PG_DATABASE}"
+check "migrator applique les migrations" migrate_as "$DATABASE_URL_MIGRATOR"
+check "migrator relance les migrations sans erreur" migrate_as "$DATABASE_URL_MIGRATOR"
+check "app lit la version du schéma" test "$(psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations")" = "t"
+check_not "app n'applique pas les migrations" migrate_as "$APP_URL"
+check_not "app n'écrit pas dans la table des migrations" psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "DELETE FROM drizzle.__drizzle_migrations"
+
 echo "Idempotence de db-init"
 check "db-init relancé une première fois réussit" compose run --rm db-init
 check "db-init relancé une seconde fois réussit" compose run --rm db-init
