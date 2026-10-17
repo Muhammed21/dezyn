@@ -31,6 +31,42 @@ Quand une production nomme un concept du domaine (titre de ticket, proposition d
 
 Si le concept voulu n'est pas encore dans le glossaire, c'est un signal : soit on invente un langage que le projet n'emploie pas (à reconsidérer), soit il y a un vrai manque (à noter pour `/domain-modeling`).
 
+### Dans le code
+
+Le code est en anglais. Chaque terme du glossaire y a une seule traduction, celle de la table ci-dessous. Les listes _À éviter_ de `CONTEXT.md` valent pour la prose ; dans le code, tout synonyme de la traduction retenue est une faute, par exemple `admin`, `workspace`, `collaborator`, `baseline` ou `draft`.
+
+| Terme du glossaire      | Code                   | À éviter dans le code                 |
+| ----------------------- | ---------------------- | ------------------------------------- |
+| Espace                  | `space`                | `workspace`, `organization`, `team`   |
+| Membre                  | `member`               | `collaborator`, `user` (pour le rôle) |
+| Propriétaire            | `owner`                | `admin`                               |
+| Éditeur                 | `editor`               | `contributor`, `designer`             |
+| Projet                  | `project`              | `designSystem`                        |
+| Token                   | `token`                | `variable`, `style`                   |
+| Mode                    | `mode`                 | `theme`, `context`                    |
+| Modificateur            | `modifier`             | `theme`, `dimension`                  |
+| Thème                   | `theme`                | `palette`                             |
+| Composant               | `component`            | `widget`, `block`                     |
+| Variante                | `variant`              | `state`                               |
+| Décision                | `decision`             | `change`                              |
+| Proposition             | `proposal`             | `suggestion`, `draft`                 |
+| Lot de propositions     | `proposalBatch`        | `batch` (seul), `import`              |
+| Intention               | `intent`               | `description`, `message`, `title`     |
+| Proposée                | `proposed`             | `draft`, `pending`                    |
+| Validée                 | `validated`            | `approved`, `published`               |
+| Rejetée                 | `rejected`             | `deleted`, `cancelled`                |
+| Remplacée               | `superseded`           | `obsolete`, `replaced`                |
+| Historique              | `history`              | `log`, `audit`, `journal`             |
+| Membre supprimé         | `deletedMember`        | `anonymous`, `unknown`                |
+| Rendu                   | `render`               | `preview`, `screenshot`               |
+| Snapshot                | `snapshot`             | `screenshot`, `capture`               |
+| Référence de conformité | `conformanceReference` | `reference` (seul)                    |
+| Référence de régression | `regressionReference`  | `baseline`, `reference` (seul)        |
+| Écart                   | `deviation`            | `diff`                                |
+| Verdict                 | `verdict`              | `status`, `result`                    |
+
+Les valeurs du verdict sont `conforming`, `deviation` et `no_reference`. Un snapshot devenu référence de régression est `accepted`, jamais `validated`. Une ligne de la table des membres (ADR 0017) est un `membership` : le membre à une période donnée, avec son rôle.
+
 ## Format des ADR
 
 Les ADR suivent le format et le circuit de `.claude/rules/adr-et-spikes.md` (en-tête en liste, numérotation, statut), et non le format par défaut des skills. Pour en rédiger un nouveau ou vérifier qu'un changement respecte les ADR acceptés, passer par l'agent `adr-architecte`. Un ADR accepté ne se réécrit pas : un nouvel ADR le remplace.

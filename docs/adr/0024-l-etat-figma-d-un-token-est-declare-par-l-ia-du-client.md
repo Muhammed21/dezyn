@@ -1,6 +1,6 @@
 # 0024 — L'état Figma d'un token est déclaré par l'IA du client
 
-- Statut : Accepté
+- Statut : Accepté — §4 (token fixé par une décision validée) complété par [0026](0026-suppressions-ecritures-des-membres-variantes-et-decisions-dans-la-relecture-des-propositions.md)
 - Date : 2026-10-16
 - Décideurs : Muhammed
 

@@ -1,6 +1,6 @@
 # 0013 — Lots de propositions déclarés par l'IA, propositions remplacées et écritures identiques
 
-- Statut : Accepté
+- Statut : Accepté — §6 et §8 (écriture directe d'un membre) complétés par [0026](0026-suppressions-ecritures-des-membres-variantes-et-decisions-dans-la-relecture-des-propositions.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 - Amende : ADR 0012 (§4 : un lot de propositions est déclaré par l'IA avec une intention, et non délimité par une session ; §1 : une écriture identique à la valeur validée ne crée pas de proposition, et une proposition en attente peut passer au statut Remplacée)

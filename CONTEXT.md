@@ -44,18 +44,22 @@ _À éviter_ : thème, contexte
 
 **Modificateur** :
 Un axe qui regroupe des modes, par exemple « apparence » (clair, sombre) ou « marque ».
-_À éviter_ : thème, dimension
+_À éviter_ : thème, dimension, mode
+
+**Thème** :
+La combinaison d'un mode par modificateur, par exemple sombre + Healthcare ; c'est elle que lit l'IA ou que sert un export.
+_À éviter_ : mode, palette
 
 **Composant** :
 Un élément d'interface d'un projet, stocké en web interactif.
 _À éviter_ : widget, bloc, maquette
 
 **Variante** :
-Une combinaison nommée de propriétés d'un composant, par exemple un bouton primaire désactivé.
+Une combinaison nommée de propriétés d'un composant, par exemple un bouton primaire désactivé ; chaque variante a sa propre version validée.
 _À éviter_ : état (seul), déclinaison
 
 **Décision** :
-Un choix de design accompagné de sa justification, rattaché aux tokens qu'il fixe ; elle et ses tokens sont validés ou rejetés ensemble. Exemple : « le corps de texte est en Manrope, pas en Poppins ».
+Un choix de design accompagné de sa justification, rattaché aux tokens qu'il fixe ; elle et ses tokens sont proposés, validés ou rejetés ensemble, et un token qu'elle fixe ne change que par une nouvelle décision. Exemple : « le corps de texte est en Manrope, pas en Poppins ».
 _À éviter_ : changement, entrée d'historique
 
 **Doublon** :
@@ -87,7 +91,7 @@ _À éviter_ : doublon (seul), qui désigne un doublon dans dezyn
 ### Relecture
 
 **Proposition** :
-Une création ou une modification de donnée de design écrite par l'IA, en attente de relecture ; tant qu'elle attend, la valeur validée qu'elle modifie continue de faire foi.
+Une création, une modification ou une suppression de donnée de design (token, composant, décision) écrite par l'IA, en attente de relecture ; tant qu'elle attend, la valeur validée qu'elle modifie continue de faire foi.
 _À éviter_ : suggestion, brouillon, changement
 
 **Lot de propositions** :
@@ -103,7 +107,7 @@ Statut d'une proposition qu'aucun éditeur n'a encore relue ; elle ne fait pas f
 _À éviter_ : brouillon
 
 **Validée** :
-Statut d'une donnée acceptée par un éditeur, ou écrite directement par un membre ; seules les données validées font foi pour le projet.
+Statut d'une proposition acceptée par un éditeur, et de la donnée qu'elle devient ; une donnée écrite directement par un membre est validée d'emblée. Seules les données validées font foi pour le projet. Un snapshot ne se valide pas, il s'accepte.
 _À éviter_ : approuvée, publiée
 
 **Rejetée** :
@@ -111,11 +115,11 @@ Statut d'une proposition qu'un éditeur a refusée.
 _À éviter_ : supprimée, annulée
 
 **Remplacée** :
-Statut d'une proposition encore en attente que l'IA a remplacée, par une proposition plus récente sur la même donnée ou en revenant à la valeur validée ; elle n'est plus à relire.
+Statut d'une proposition encore en attente qui a été remplacée par une proposition plus récente de l'IA sur la même donnée, par le retour de l'IA à la valeur validée, ou par l'écriture directe d'un membre ; elle n'est plus à relire.
 _À éviter_ : obsolète, annulée
 
 **Historique** :
-La chronologie unique de ce que l'IA et les membres ont fait dans un projet, avec l'auteur et la date de chaque action.
+La chronologie unique de ce que l'IA et les membres ont fait dans un projet, avec l'auteur et la date de chaque action. Chaque projet a son propre historique, supprimé avec lui ; un espace n'en a pas.
 _À éviter_ : journal, logs, audit
 
 **Membre supprimé** :
@@ -137,7 +141,7 @@ Le rendu de la version validée d'une variante, auquel on compare un snapshot po
 _À éviter_ : référence (seul), maquette
 
 **Référence de régression** :
-Le dernier snapshot validé d'une variante, auquel on compare le suivant pour détecter une dérive du code.
+Le dernier snapshot accepté d'une variante, auquel on compare le suivant pour détecter une dérive du code.
 _À éviter_ : référence (seul), baseline
 
 **Écart** :

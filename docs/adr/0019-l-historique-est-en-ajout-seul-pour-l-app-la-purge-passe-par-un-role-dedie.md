@@ -1,6 +1,6 @@
 # 0019 — L'historique est en ajout seul pour l'app ; la purge passe par un rôle dédié
 
-- Statut : Accepté
+- Statut : Accepté — §2 (usage du rôle `history_maintainer`) complété par [0025](0025-l-historique-appartient-au-projet-un-espace-n-en-a-pas.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 
