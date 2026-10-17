@@ -77,6 +77,7 @@ jobs:
           --health-retries 30
     env:
       # secretlint-disable -- identifiants factices, propres au service de la CI
+      DATABASE_URL_MIGRATOR: postgresql://migrator:ci_migrator@127.0.0.1:5432/dezyn
       DATABASE_URL: postgresql://app:ci_app@127.0.0.1:5432/dezyn
       # secretlint-enable
     steps:
