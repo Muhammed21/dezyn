@@ -2,7 +2,7 @@
 
 **Branche** : feat/espaces-et-membres
 **Statut** : Actif
-**ADR** : 0011, 0015, 0017, 0020, 0021
+**ADR** : 0011, 0015, 0017, 0020, 0021, 0023, 0027
 
 ## Objectif
 
@@ -96,7 +96,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 
 ### Tranche 5 : le dernier propriétaire ne quitte pas l'espace, un autre membre le peut
 
-**Valeur** : un espace n'est jamais orphelin (ADR 0011 §5), et un départ reste visible dans l'historique (ADR 0015 §2).
+**Valeur** : un espace n'est jamais orphelin (ADR 0011 §5), et un membre parti reste nommé dans l'historique des projets, avec la mention « a quitté l'espace » tirée de sa ligne fermée avec la raison `left` ; le départ lui-même n'est pas une entrée d'historique (ADR 0025 §3, ADR 0027).
 **Chemin** : `DELETE /v1/spaces/:id/members/me` → `can("member.leave")` → transaction, `SELECT … FOR UPDATE` des membres → invariant → ligne fermée avec la raison `left`.
 **Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`.
 **Critères d'acceptation** :

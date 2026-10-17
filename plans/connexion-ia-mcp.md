@@ -2,7 +2,7 @@
 
 **Branche** : feat/connexion-ia-mcp
 **Statut** : Actif
-**ADR** : 0007, 0008, 0018, 0020, 0021
+**ADR** : 0007, 0008, 0018, 0020, 0021, 0023
 
 ## Objectif
 
@@ -15,6 +15,7 @@ Un utilisateur connecte son app d'IA (Claude Code, claude.ai, ChatGPT) au MCP de
 - [ ] Après le consentement de l'utilisateur, l'app d'IA obtient un jeton d'accès lié à l'API.
 - [ ] Un appel MCP sans jeton reçoit 401 et un `WWW-Authenticate` qui pointe vers les métadonnées de ressource protégée.
 - [ ] Avec un jeton valide, l'outil `whoami` renvoie l'utilisateur et le client OAuth.
+- [ ] Un schéma de sortie exporté par un `contracts/` qui ne suit pas les conventions de l'ADR 0023 fait échouer les tests.
 - [ ] Un jeton dont la session est révoquée est refusé à l'appel suivant.
 - [ ] Le rejeu d'un refresh token déjà utilisé révoque toutes les sessions de l'utilisateur.
 
@@ -81,17 +82,19 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR. Chemins d'authentifi
 ### Tranche 4 : l'IA autorisée appelle l'outil MCP `whoami`
 
 **Valeur** : bout en bout, l'IA du client parle au MCP au nom de l'utilisateur.
-**Chemin** : `POST /mcp` (Streamable HTTP) → middleware de vérification (`jose`, `at+jwt`, audience, émetteur) → outil `whoami` dans `modules/identity/presentation`. Introduit `@repo/result`, repris tel quel de `twitch`.
+**Chemin** : `POST /mcp` (Streamable HTTP) → middleware de vérification (`jose`, `at+jwt`, audience, émetteur) → outil `whoami` dans `modules/identity/presentation`. Introduit `@repo/result`, repris tel quel de `twitch`, et les conventions de contrat de l'ADR 0023.
 **Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`, `typescript-strict`.
 **Critères d'acceptation** :
 
 - Sans jeton : 401, `WWW-Authenticate: Bearer resource_metadata="…"`.
 - Jeton expiré, mal signé, d'une autre audience ou d'un autre `typ` : 401 `invalid_token`.
 - Jeton valide : `whoami` renvoie l'identifiant de l'utilisateur et le `client_id`.
+- Le schéma de sortie de `whoami` est un objet ouvert : une clé inconnue ne le fait pas échouer (ADR 0023 §1).
+- Le garde des schémas de sortie échoue sur un objet fermé, un enum nu, une union sans repli et un type de schéma qu'il ne sait pas vérifier ; une union marquée `.meta({ closed: true })` passe (ADR 0023 §3-4).
 - Vérifié à la main avec Claude Code (`claude mcp add --transport http`).
 
-**RED** : tests unitaires du vérificateur avec des clés générées par `jose` (un cas par refus) ; test d'intégration avec un jeton obtenu par la tranche 3. Mutants attendus : chaque option de `jwtVerify`, le découpage du `scope`.
-**GREEN** : `packages/auth-verifier` repris de `twitch` (sans les claims `twitch_*`), middleware Hono, SDK MCP en Streamable HTTP, schéma de sortie de `whoami` dans `modules/identity/contracts`.
+**RED** : tests unitaires du vérificateur avec des clés générées par `jose` (un cas par refus) ; test d'intégration avec un jeton obtenu par la tranche 3. Tests unitaires de `openEnum`, `extensibleUnion` et du garde sur des schémas fabriqués. Mutants attendus : chaque option de `jwtVerify`, le découpage du `scope`, chaque branche du garde.
+**GREEN** : `packages/auth-verifier` repris de `twitch` (sans les claims `twitch_*`), middleware Hono, SDK MCP en Streamable HTTP, schéma de sortie de `whoami` dans `modules/identity/contracts`, `openEnum`, `extensibleUnion` et `Uuid` repris de `twitch` (`packages/contracts/src/conventions`), garde `check-response` adapté aux `contracts/` des modules.
 **MUTATE** : skill `mutation-testing`, rapport.
 **KILL MUTANTS** : renforcer les tests sur les survivants, demander en cas de doute.
 **REFACTOR** : si utile.
