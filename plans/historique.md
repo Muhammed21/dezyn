@@ -2,18 +2,18 @@
 
 **Branche** : feat/historique
 **Statut** : Actif
-**ADR** : 0004, 0015, 0016, 0019, 0020, 0021, 0023
+**ADR** : 0004, 0015, 0016, 0019, 0020, 0021, 0023, 0025
 
 ## Objectif
 
-Les actions des membres et les appels MCP qui visent un espace ou un projet entrent dans un historique que l'humain et l'IA relisent page par page, et que l'app ne peut ni modifier ni effacer.
+Les actions des membres et les appels MCP qui visent un projet entrent dans l'historique de ce projet, que l'humain et l'IA relisent page par page, et que l'app ne peut ni modifier ni effacer. Un espace n'a pas d'historique (ADR 0025).
 
 ## Critères d'acceptation
 
 - [ ] Un propriétaire crée un projet, et cette création laisse une entrée d'historique qui le référence, sans client OAuth.
 - [ ] Dès sa création, le rôle `app` ne peut ni modifier ni supprimer une entrée ; `history_maintainer` peut en supprimer.
 - [ ] L'historique d'un projet se lit par pages, par l'API et par le MCP, avec un curseur stable.
-- [ ] Chaque appel d'outil MCP qui vise un espace ou un projet laisse une entrée qui référence l'auteur et le client OAuth (ADR 0021 §1).
+- [ ] Chaque appel d'outil MCP qui vise un projet laisse une entrée qui référence l'auteur et le client OAuth ; un appel qui ne vise que l'espace n'en laisse pas (ADR 0021 §1, ADR 0025 §1-2).
 
 ## Tranches
 
@@ -28,7 +28,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 
 - Le projet créé appartient à l'espace (ADR 0011 §2).
 - Un éditeur reçoit 403 problem+json : seul un propriétaire crée un projet.
-- L'historique renvoie une entrée : action `project.created`, espace, projet, auteur référencé, date, `requestId`, sans client OAuth.
+- L'historique renvoie une entrée : action `project.created`, espace, projet, auteur référencé, date, `correlationId`, sans client OAuth.
 - Si l'écriture de l'entrée échoue, le projet n'est pas créé.
 - Connecté en `app`, un `UPDATE` et un `DELETE` sur `history_entry` échouent avec « permission denied ».
 
@@ -78,18 +78,18 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 
 ### Tranche 4 : l'IA lit l'historique d'un projet par le MCP, et cet appel entre dans l'historique
 
-**Valeur** : l'IA relit ce qu'elle a fait pour se corriger, et l'humain voit qu'elle l'a relu (ADR 0004 §3, ADR 0021 §1).
-**Chemin** : outil MCP `read_history` → enveloppe des outils qui visent un espace ou un projet → même use-case `readHistory` → entrée `mcp.read_history` avec l'auteur et le client OAuth (`onBehalfOf`).
+**Valeur** : l'IA relit ce qu'elle a fait pour se corriger, et l'humain voit qu'elle l'a relu (ADR 0004 §3, ADR 0021 §1, ADR 0025 §1).
+**Chemin** : outil MCP `read_history` → enveloppe des outils qui visent un projet → même use-case `readHistory` → entrée `mcp.read_history` avec l'auteur et le client OAuth (`onBehalfOf`).
 **Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`, `api-design`.
 **Critères d'acceptation** :
 
 - `read_history` renvoie les mêmes pages que la route d'API.
-- Chaque appel, réussi ou en échec, laisse une entrée qui référence l'auteur, le client OAuth, l'espace, le projet, le résultat et le `requestId`.
-- Un outil dont le schéma d'entrée contient un identifiant d'espace ou de projet et qui n'est pas enveloppé fait échouer un test qui parcourt les outils enregistrés (ADR 0021, risques).
-- Le champ `action` de la sortie est une énumération ouverte : le schéma de sortie accepte une action inconnue (`openEnum`, ADR 0023).
+- Chaque appel, réussi ou en échec, laisse une entrée qui référence l'auteur, le client OAuth, l'espace, le projet, le résultat et le `correlationId`.
+- Un outil dont le schéma d'entrée contient un identifiant de projet et qui n'est pas enveloppé fait échouer un test qui parcourt les outils enregistrés (ADR 0021, risques ; ADR 0025). `whoami`, `list_spaces` et l'outil qui liste les projets d'un espace ne sont pas enveloppés.
+- Le champ `action` de la sortie est une énumération ouverte : le schéma de sortie accepte une action inconnue (`openEnum`, ADR 0023), et le garde des schémas de sortie le vérifie.
 
-**RED** : test d'intégration de `read_history` et de l'entrée écrite ; test de l'enveloppe sur un outil qui échoue ; test de garde des outils ; test du schéma avec une action inconnue. Mutants attendus : `onBehalfOf` nul contre présent, le prédicat « vise un espace ou un projet ».
-**GREEN** : enveloppe des outils MCP dans `modules/history/presentation`, outil `read_history`, schéma de sortie dans `modules/history/contracts` avec `openEnum` et `extensibleUnion`.
+**RED** : test d'intégration de `read_history` et de l'entrée écrite ; test de l'enveloppe sur un outil qui échoue ; test de garde des outils ; test du schéma avec une action inconnue. Mutants attendus : `onBehalfOf` nul contre présent, le prédicat « vise un projet ».
+**GREEN** : enveloppe des outils MCP dans `modules/history/presentation`, outil `read_history`, schéma de sortie dans `modules/history/contracts` avec les conventions de l'ADR 0023 posées par la tranche 4 de `plans/connexion-ia-mcp.md`.
 **MUTATE** : skill `mutation-testing`, rapport.
 **KILL MUTANTS** : renforcer les tests sur les survivants, demander en cas de doute.
 **REFACTOR** : si utile.

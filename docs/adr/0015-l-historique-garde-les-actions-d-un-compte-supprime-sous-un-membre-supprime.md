@@ -1,6 +1,6 @@
 # 0015 — L'historique garde les actions d'un compte supprimé sous un membre supprimé pseudonyme
 
-- Statut : Accepté
+- Statut : Accepté — §2 (membre qui quitte un espace) remplacé par [0027](0027-un-membre-parti-reste-nomme-dans-l-historique-de-chaque-projet-de-l-espace.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 - Amende : ADR 0004 (§5 : l'auteur d'une entrée d'un compte supprimé est un membre supprimé pseudonyme, et non plus un humain identifié), ADR 0011 (l'auteur d'une entrée d'historique d'un compte supprimé est un membre supprimé, et non plus un membre identifié)
