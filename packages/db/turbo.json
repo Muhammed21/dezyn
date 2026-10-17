@@ -11,7 +11,8 @@
       "outputs": ["src/generated/**"]
     },
     "test:integration": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL", "DATABASE_URL_MIGRATOR"]
     }
   }
 }
