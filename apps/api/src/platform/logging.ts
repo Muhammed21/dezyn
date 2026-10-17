@@ -1,6 +1,7 @@
-export type LogRecord = { readonly level: "info" | "error"; readonly msg: string } & Readonly<
-  Record<string, unknown>
->;
+export type LogRecord = {
+  readonly level: "debug" | "info" | "warn" | "error";
+  readonly msg: string;
+} & Readonly<Record<string, unknown>>;
 
 export type LogSink = (record: LogRecord) => void;
 

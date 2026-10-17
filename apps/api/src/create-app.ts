@@ -1,15 +1,26 @@
 import { Hono } from "hono";
 
+import type { Auth } from "./modules/identity/application/auth.ts";
 import type { Database } from "./platform/database.ts";
 import type { AppEnv } from "./platform/http.ts";
 import { errorDetails, type LogSink } from "./platform/logging.ts";
 import { clientProblem, INTERNAL_ERROR, problemResponse } from "./platform/problem.ts";
 import { requestContext } from "./platform/request-context.ts";
 
-export const createApp = ({ db, log }: { readonly db: Database; readonly log: LogSink }) => {
+export const createApp = ({
+  db,
+  auth,
+  log,
+}: {
+  readonly db: Database;
+  readonly auth: Auth;
+  readonly log: LogSink;
+}) => {
   const app = new Hono<AppEnv>();
 
   app.use(requestContext(log));
+
+  app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
 
   app.get("/health", async (c) => {
     try {
