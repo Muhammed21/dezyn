@@ -1,6 +1,6 @@
 # 0027 — Un membre parti reste nommé dans l'historique de chaque projet de l'espace
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-17
 - Décideurs : Muhammed
 - Amende : ADR 0015 (§2 : le membre parti reste nommé dans l'historique de chaque projet de l'espace, et non plus dans l'historique de l'espace ; la mention vient de la table des membres)
