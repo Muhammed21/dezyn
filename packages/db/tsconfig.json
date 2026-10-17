@@ -1,0 +1,16 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "drizzle.config.ts",
+    "vitest.config.ts",
+    "vitest.integration.config.ts",
+    "vitest.mutation.config.ts"
+  ]
+}

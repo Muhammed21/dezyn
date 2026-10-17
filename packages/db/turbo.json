@@ -1,0 +1,17 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "generate": {
+      "inputs": [
+        "migrations/meta/_journal.json",
+        "scripts/latest-migration.ts",
+        "src/schema-version/**"
+      ],
+      "outputs": ["src/generated/**"]
+    },
+    "test:integration": {
+      "cache": false
+    }
+  }
+}
