@@ -68,7 +68,7 @@ Chaque entrée appartient à un espace et, éventuellement, à un projet.
 #### Option F — Suppression en deux temps : l'app marque le projet, le job `history_maintainer` l'efface
 
 - Avantage : l'app ne détruit toujours aucune entrée ; la garantie de l'ADR 0019 tient.
-- Inconvénient : un projet supprimé occupe le stockage jusqu'au passage du job.
+- Inconvénient : un projet supprimé occupe le disque de la plateforme jusqu'au passage du job.
 - **Retenue.**
 
 ## Décision
@@ -91,7 +91,7 @@ L'historique d'un projet est supprimé avec lui. La suppression du projet passe 
 
 ### 5. Un projet se supprime en deux temps
 
-L'app marque le projet comme supprimé : il disparaît aussitôt pour les membres et pour l'IA, et ne compte plus dans les limites du plan. Le job de maintenance, avec le rôle `history_maintainer`, efface ensuite l'historique et les données des projets marqués. Le rôle `history_maintainer` sert ainsi à la purge à la limite de stockage (ADR 0016) et à l'effacement des projets supprimés, jamais à l'app qui sert les requêtes.
+L'app marque le projet comme supprimé : il disparaît aussitôt pour les membres et pour l'IA, et ne compte plus dans les limites du plan, stockage compris, dès qu'il est marqué. Le job de maintenance, avec le rôle `history_maintainer`, efface ensuite l'historique et les données des projets marqués. Le rôle `history_maintainer` sert ainsi à la purge à la limite de stockage (ADR 0016) et à l'effacement des projets supprimés, jamais à l'app qui sert les requêtes.
 
 ## Conséquences
 
@@ -107,7 +107,7 @@ L'app marque le projet comme supprimé : il disparaît aussitôt pour les membre
 - La suppression d'un projet n'est tracée que dans les logs de requête, dont la durée de conservation n'est pas celle de l'historique.
 - Un projet supprimé emporte son audit.
 - L'humain ne voit pas dans l'historique les appels de l'IA qui ne visent que l'espace.
-- Un projet supprimé occupe le stockage jusqu'au passage du job de maintenance, et le job a besoin des droits d'effacement sur les données de projet en plus de l'historique.
+- Un projet supprimé occupe le disque de la plateforme, sans compter dans la limite de l'espace, jusqu'au passage du job de maintenance, et le job a besoin des droits d'effacement sur les données de projet en plus de l'historique.
 
 ### Risques et mitigations
 
