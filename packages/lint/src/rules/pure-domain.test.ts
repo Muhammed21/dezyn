@@ -30,6 +30,11 @@ tester.run("pure-domain", pureDomain, {
       code: 'import { z } from "zod/v4";',
     },
     {
+      name: "le contrat importe les conventions partagées",
+      filename: inModule("space", "contracts/schemas.ts"),
+      code: 'import { openEnum } from "@repo/contracts";',
+    },
+    {
       name: "le contrat importe le domaine de son module",
       filename: inModule("space", "contracts/events.ts"),
       code: 'import type { SpaceId } from "../domain/space-id.ts";',
@@ -50,6 +55,16 @@ tester.run("pure-domain", pureDomain, {
       code: 'import { Pool } from "pg";',
     },
     {
+      name: "un test du domaine importe vitest",
+      filename: inModule("space", "domain/space.test.ts"),
+      code: 'import { describe, expect, it } from "vitest";',
+    },
+    {
+      name: "un test du contrat importe vitest",
+      filename: inModule("space", "contracts/schemas.test.ts"),
+      code: 'import { describe } from "vitest";',
+    },
+    {
       name: "export sans source",
       filename: inModule("space", "domain/space.ts"),
       code: "export const space = 1;",
@@ -63,6 +78,7 @@ tester.run("pure-domain", pureDomain, {
       "@repo/db",
       "@hono/node-server",
       "zod",
+      "@repo/contracts",
       "node:crypto",
     ].map((source) => ({
       name: `le domaine importe ${source}`,
@@ -71,10 +87,30 @@ tester.run("pure-domain", pureDomain, {
       errors: [{ messageId: "package", data: { layer: "domain", source } }],
     })),
     {
+      name: "le domaine hors test importe vitest",
+      filename: inModule("space", "domain/space.ts"),
+      code: 'import { describe } from "vitest";',
+      errors: [{ messageId: "package", data: { layer: "domain", source: "vitest" } }],
+    },
+    {
+      name: "un test du domaine importe un autre paquet que vitest",
+      filename: inModule("space", "domain/space.test.ts"),
+      code: 'import { Pool } from "pg";',
+      errors: [{ messageId: "package", data: { layer: "domain", source: "pg" } }],
+    },
+    {
       name: "le contrat importe Hono",
       filename: inModule("space", "contracts/schemas.ts"),
       code: 'import { Hono } from "hono";',
       errors: [{ messageId: "package", data: { layer: "contracts", source: "hono" } }],
+    },
+    {
+      name: "le contrat importe un paquet au nom proche des conventions",
+      filename: inModule("space", "contracts/schemas.ts"),
+      code: 'import { x } from "@repo/contracts-extra";',
+      errors: [
+        { messageId: "package", data: { layer: "contracts", source: "@repo/contracts-extra" } },
+      ],
     },
     {
       name: "le contrat importe un paquet au nom proche de zod",
@@ -124,7 +160,7 @@ tester.run("pure-domain (messages)", pureDomain, {
       errors: [
         {
           message:
-            "La couche domain n'importe pas le paquet hono : le domaine est pur, et contracts/ n'importe que zod (ADR 0020, ADR 0022).",
+            "La couche domain n'importe pas le paquet hono : le domaine est pur, et contracts/ n'importe que zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023).",
         },
       ],
     },
@@ -134,7 +170,7 @@ tester.run("pure-domain (messages)", pureDomain, {
       errors: [
         {
           message:
-            "La couche domain n'importe pas ../../../platform/problem.ts, hors des modules : le domaine est pur, et contracts/ n'importe que zod (ADR 0020, ADR 0022).",
+            "La couche domain n'importe pas ../../../platform/problem.ts, hors des modules : le domaine est pur, et contracts/ n'importe que zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023).",
         },
       ],
     },

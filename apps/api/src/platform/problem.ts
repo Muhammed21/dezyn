@@ -39,7 +39,7 @@ export const clientProblem = (error: Error): Problem | undefined => {
   return undefined;
 };
 
-export const problemResponse = (c: Context<AppEnv>, problem: Problem): Response =>
+export const problemResponse = <E extends AppEnv>(c: Context<E>, problem: Problem): Response =>
   c.body(
     JSON.stringify({ ...problem, instance: c.req.path, correlationId: c.get("correlationId") }),
     problem.status,

@@ -5,8 +5,12 @@ import { locate, locateImport } from "./paths.ts";
 
 const ALLOWED_PACKAGES: Readonly<Record<string, readonly string[]>> = {
   domain: [],
-  contracts: ["zod"],
+  contracts: ["zod", "@repo/contracts"],
 };
+
+const TEST_PACKAGES: readonly string[] = ["vitest"];
+
+const isTest = (filename: string): boolean => filename.endsWith(".test.ts");
 
 const isRelative = (source: string): boolean => source.startsWith("./") || source.startsWith("../");
 
@@ -18,21 +22,22 @@ export const pureDomain = defineRule({
     type: "problem",
     docs: {
       description:
-        "domain/ n'importe aucun paquet ni rien hors des modules, contracts/ seulement zod (ADR 0020, ADR 0022)",
+        "domain/ n'importe aucun paquet ni rien hors des modules, contracts/ seulement zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023)",
     },
     messages: {
       package:
-        "La couche {{layer}} n'importe pas le paquet {{source}} : le domaine est pur, et contracts/ n'importe que zod (ADR 0020, ADR 0022).",
+        "La couche {{layer}} n'importe pas le paquet {{source}} : le domaine est pur, et contracts/ n'importe que zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023).",
       outsideModules:
-        "La couche {{layer}} n'importe pas {{source}}, hors des modules : le domaine est pur, et contracts/ n'importe que zod (ADR 0020, ADR 0022).",
+        "La couche {{layer}} n'importe pas {{source}}, hors des modules : le domaine est pur, et contracts/ n'importe que zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023).",
     },
   },
   create(context) {
     const layer = locate(context.filename)?.layer ?? "";
-    const allowed = ALLOWED_PACKAGES[layer];
-    if (allowed === undefined) {
+    const layerPackages = ALLOWED_PACKAGES[layer];
+    if (layerPackages === undefined) {
       return {};
     }
+    const allowed = isTest(context.filename) ? [...layerPackages, ...TEST_PACKAGES] : layerPackages;
     return onImport((source, node) => {
       if (!isRelative(source)) {
         if (!isAllowed(source, allowed)) {

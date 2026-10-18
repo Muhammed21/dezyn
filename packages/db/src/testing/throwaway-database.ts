@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { Client } from "pg";
 
@@ -26,6 +27,29 @@ const asMigrator = async (run: (client: Client) => Promise<void>) => {
   }
 };
 
+const DROP_TIMEOUT_MS = 5_000;
+const DROP_RETRY_MS = 20;
+const INSUFFICIENT_PRIVILEGE = "42501";
+
+const isInsufficientPrivilege = (error: unknown): boolean =>
+  error instanceof Error && "code" in error && error.code === INSUFFICIENT_PRIVILEGE;
+
+const dropOnceAppBackendsLeave = async (
+  client: Client,
+  database: string,
+  deadline: number,
+): Promise<void> => {
+  try {
+    await client.query(`DROP DATABASE ${database} WITH (FORCE)`);
+  } catch (error) {
+    if (!isInsufficientPrivilege(error) || Date.now() >= deadline) {
+      throw error;
+    }
+    await sleep(DROP_RETRY_MS);
+    await dropOnceAppBackendsLeave(client, database, deadline);
+  }
+};
+
 export type ThrowawayDatabase = {
   readonly migratorUrl: string;
   readonly appUrl: string;
@@ -45,7 +69,7 @@ export const createThrowawayDatabase = async (): Promise<ThrowawayDatabase> => {
     appUrl: onDatabase(urlOf("DATABASE_URL"), database),
     drop: () =>
       asMigrator(async (client) => {
-        await client.query(`DROP DATABASE ${database} WITH (FORCE)`);
+        await dropOnceAppBackendsLeave(client, database, Date.now() + DROP_TIMEOUT_MS);
       }),
   };
 };

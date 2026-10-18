@@ -3,6 +3,7 @@ import { serve, type ServerType } from "@hono/node-server";
 import { assertSchemaVersion, type Migration } from "@repo/db";
 
 import { createApp } from "./create-app.ts";
+import { createIdentityAuth } from "./modules/identity/infrastructure/better-auth.ts";
 import type { LogSink } from "./platform/logging.ts";
 import { createPostgresDatabase } from "./platform/postgres-database.ts";
 
@@ -21,15 +22,22 @@ export const startApi = async ({
   migration,
   port,
   log,
+  authSecret,
+  baseURL,
+  trustedIpHeader,
 }: {
   readonly databaseUrl: string;
   readonly migration: Migration;
   readonly port: number;
   readonly log: LogSink;
+  readonly authSecret: string;
+  readonly baseURL: string;
+  readonly trustedIpHeader: string;
 }): Promise<RunningApi> => {
   await assertSchemaVersion({ connectionString: databaseUrl, migration });
   const db = createPostgresDatabase({ url: databaseUrl });
-  const app = createApp({ db, log });
+  const auth = await createIdentityAuth({ db, secret: authSecret, baseURL, trustedIpHeader, log });
+  const app = createApp({ db, auth, log });
 
   return new Promise((resolve) => {
     const server = serve({ fetch: app.fetch, port }, (info) => {

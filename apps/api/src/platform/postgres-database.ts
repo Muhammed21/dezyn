@@ -1,3 +1,4 @@
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import type { Database } from "./database.ts";
@@ -5,6 +6,7 @@ import type { Database } from "./database.ts";
 const CONNECTION_TIMEOUT_MS = 2_000;
 
 export type PostgresDatabase = Database & {
+  readonly orm: NodePgDatabase;
   readonly close: () => Promise<void>;
 };
 
@@ -15,6 +17,7 @@ export const createPostgresDatabase = ({ url }: { readonly url: string }): Postg
   });
 
   return {
+    orm: drizzle(pool),
     ping: async () => {
       await pool.query("SELECT 1");
     },

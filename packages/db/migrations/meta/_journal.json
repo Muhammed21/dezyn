@@ -8,6 +8,20 @@
       "when": 1792275091327,
       "tag": "0000_socle",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792279013145,
+      "tag": "0001_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792279782300,
+      "tag": "0002_oauth",
+      "breakpoints": true
     }
   ]
 }
