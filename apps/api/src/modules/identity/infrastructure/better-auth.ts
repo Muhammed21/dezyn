@@ -1,10 +1,11 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { oauthProvider, oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
-import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { betterAuth, type BetterAuthOptions, type GenericEndpointContext } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { jwt } from "better-auth/plugins/jwt";
+import { z } from "zod";
 
 import { createAccessTokenVerifier } from "@repo/auth-verifier";
 import { schema } from "@repo/db";
@@ -13,6 +14,7 @@ import type { LogSink } from "../../../platform/logging.ts";
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { Auth } from "../application/auth.ts";
 import { defaultToNativeForLoopback } from "../domain/client-registration.ts";
+import { refreshGrantVerdict } from "../domain/refresh-grant.ts";
 import { postgresActiveSessions } from "./postgres-active-sessions.ts";
 
 const DAY_SECONDS = 86_400;
@@ -44,6 +46,43 @@ export const generateRefreshToken = (): string => randomBytes(32).toString("base
 
 export const apiResourceOf = (baseURL: string): string => new URL("/v1", baseURL).href;
 
+const RefreshGrant = z.object({
+  grant_type: z.literal("refresh_token"),
+  refresh_token: z.string(),
+});
+
+const StoredRefreshToken = z.object({
+  userId: z.string(),
+  sessionId: z.string().nullable(),
+  revoked: z.date().nullable(),
+  rotationReplayExpiresAt: z.date().nullable(),
+  authTime: z.date().nullable(),
+});
+
+const guardRefreshGrant = async (ctx: GenericEndpointContext): Promise<void> => {
+  const grant = RefreshGrant.safeParse(ctx.body);
+  if (!grant.success) {
+    return;
+  }
+  const stored = StoredRefreshToken.safeParse(
+    await ctx.context.adapter.findOne({
+      model: "oauthRefreshToken",
+      where: [{ field: "token", value: hashToken(grant.data.refresh_token) }],
+    }),
+  );
+  if (!stored.success) {
+    return;
+  }
+  const verdict = refreshGrantVerdict({ token: stored.data, now: new Date() });
+  if (verdict === "reuse") {
+    await ctx.context.internalAdapter.deleteUserSessions(stored.data.userId);
+    return;
+  }
+  if (verdict !== "allowed") {
+    throw new APIError("BAD_REQUEST", { error: "invalid_grant" });
+  }
+};
+
 export const identityAuthOptions = ({
   baseURL,
   trustedIpHeader,
@@ -64,11 +103,15 @@ export const identityAuthOptions = ({
     },
     emailAndPassword: { enabled: true },
     hooks: {
-      before: createAuthMiddleware(async (ctx) =>
-        ctx.path === "/oauth2/register"
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/oauth2/token") {
+          await guardRefreshGrant(ctx);
+          return undefined;
+        }
+        return ctx.path === "/oauth2/register"
           ? { context: { body: defaultToNativeForLoopback(ctx.body) } }
-          : undefined,
-      ),
+          : undefined;
+      }),
     },
     plugins: [
       jwt({ jwks: { rotationInterval: 90 * DAY_SECONDS, gracePeriod: DAY_SECONDS } }),
@@ -78,6 +121,9 @@ export const identityAuthOptions = ({
         resources: [apiResourceOf(baseURL)],
         enforcePerClientResources: false,
         scopes: ["offline_access"],
+        accessTokenExpiresIn: 15 * 60,
+        refreshTokenExpiresIn: 60 * DAY_SECONDS,
+        refreshTokenReuseInterval: 30,
         generateRefreshToken,
         storeTokens: { hash: hashToken },
         allowDynamicClientRegistration: true,

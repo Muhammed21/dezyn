@@ -219,6 +219,27 @@ export const obtainAccessToken = async (app: App) => {
     code: callback.searchParams.get("code") ?? "",
     verifier: pkce.verifier,
   });
-  const { access_token: accessToken } = await token.json();
-  return { clientId, userId, browser, accessToken: String(accessToken) };
+  const { access_token: accessToken, refresh_token: refreshToken } = await token.json();
+  return {
+    clientId,
+    userId,
+    browser,
+    accessToken: String(accessToken),
+    refreshToken: String(refreshToken),
+  };
 };
+
+export const refreshTokens = (
+  app: App,
+  { clientId, refreshToken }: { clientId: string; refreshToken: string },
+) =>
+  app.request(`${BASE_URL}/auth/oauth2/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: clientId,
+      resource: RESOURCE,
+    }).toString(),
+  });
