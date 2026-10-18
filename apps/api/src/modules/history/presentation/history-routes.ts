@@ -7,8 +7,7 @@ import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
 import { validate } from "../../../platform/validate.ts";
 import { decodeCursor } from "../application/history-cursor.ts";
 import type { HistoryUseCases } from "../application/history-use-cases.ts";
-
-const DEFAULT_PAGE_SIZE = 50;
+import { DEFAULT_PAGE_SIZE } from "../application/read-history.ts";
 
 const HistoryQuery = z.object({
   cursor: z

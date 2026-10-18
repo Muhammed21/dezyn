@@ -23,6 +23,8 @@ export type HistoryEntry = {
   readonly correlationId: string;
 };
 
+export const DEFAULT_PAGE_SIZE = 50;
+
 export type HistoryPage = {
   readonly entries: readonly HistoryEntry[];
   readonly nextCursor: string | null;

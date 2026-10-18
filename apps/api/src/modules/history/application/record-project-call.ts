@@ -4,9 +4,9 @@ import type { ProjectFinder, ProjectRef } from "../../project/contracts/project.
 import { can, type MembershipReader } from "../../space/contracts/membership.ts";
 import type { HistoryWriter } from "../domain/history-writer.ts";
 
-export type AuditFailure = "not_found" | "history_unavailable";
+export type RecordFailure = "not_found" | "history_unavailable";
 
-export const auditProjectCall =
+export const recordProjectCall =
   ({
     projects,
     memberships,
@@ -34,7 +34,7 @@ export const auditProjectCall =
     readonly correlationId: string;
     readonly input: Readonly<Record<string, unknown>>;
     readonly run: (project: ProjectRef) => Promise<Result<T, E>>;
-  }): Promise<Result<T, E | AuditFailure>> => {
+  }): Promise<Result<T, E | RecordFailure>> => {
     const project = await projects.find(projectId);
     if (project === undefined) {
       return err("not_found");

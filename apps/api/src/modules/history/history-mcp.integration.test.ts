@@ -13,21 +13,9 @@ import {
   obtainAccessToken,
   withIdentityApp,
 } from "../../testing/authorization-flow.ts";
-import { personalSpaceOf } from "../../testing/space-fixtures.ts";
+import { seedProject } from "../../testing/project-fixtures.ts";
 
 const CORRELATION_ID = "lecture-par-l-ia-1";
-
-const seedProject = async (app: App, db: PostgresDatabase) => {
-  const ada = await obtainAccessToken(app);
-  const spaceId = await personalSpaceOf(db, ada.userId);
-  const created = await app.request(`${BASE_URL}/v1/spaces/${spaceId}/projects`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${ada.accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ name: "Site vitrine" }),
-  });
-  const { id } = await created.json();
-  return { ...ada, spaceId, projectId: String(id) };
-};
 
 const readHistoryByApi = async (
   app: App,

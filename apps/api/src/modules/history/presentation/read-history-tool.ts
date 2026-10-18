@@ -7,7 +7,7 @@ import { err, type Result } from "@repo/result";
 import type { McpCall } from "../../../platform/mcp.ts";
 import { decodeCursor } from "../application/history-cursor.ts";
 import type { HistoryUseCases } from "../application/history-use-cases.ts";
-import type { HistoryPage } from "../application/read-history.ts";
+import { DEFAULT_PAGE_SIZE, type HistoryPage } from "../application/read-history.ts";
 import { HistoryOutput } from "../contracts/history.ts";
 
 const ERROR_TEXT: Readonly<Record<"not_found" | "invalid_cursor" | "history_unavailable", string>> =
@@ -29,7 +29,7 @@ const ReadHistoryInput = {
 };
 
 export const registerReadHistory =
-  ({ readHistory, auditProjectCall }: HistoryUseCases) =>
+  ({ readHistory, recordProjectCall }: HistoryUseCases) =>
   (server: McpServer, { identity, correlationId }: McpCall) => {
     server.registerTool(
       "read_history",
@@ -40,7 +40,7 @@ export const registerReadHistory =
         outputSchema: HistoryOutput,
       },
       async ({ projectId, ...input }) => {
-        const page = await auditProjectCall({
+        const page = await recordProjectCall({
           tool: "read_history",
           projectId,
           userId: identity.userId,
@@ -56,7 +56,7 @@ export const registerReadHistory =
               projectId,
               userId: identity.userId,
               after,
-              limit: input.limit ?? 50,
+              limit: input.limit ?? DEFAULT_PAGE_SIZE,
             });
           },
         });

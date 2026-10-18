@@ -3,13 +3,8 @@ import { describe, expect, it } from "vitest";
 import { schema } from "@repo/db";
 
 import type { PostgresDatabase } from "../../platform/postgres-database.ts";
-import {
-  type App,
-  BASE_URL,
-  obtainAccessToken,
-  withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { personalSpaceOf } from "../../testing/space-fixtures.ts";
+import { type App, BASE_URL, withIdentityApp } from "../../testing/authorization-flow.ts";
+import { seedProject } from "../../testing/project-fixtures.ts";
 
 const SAME_INSTANT = new Date("2026-10-01T09:00:00.000Z");
 
@@ -17,34 +12,25 @@ const idOf = (index: number) => `00000000-0000-4000-8000-${String(index).padStar
 
 const minutesBefore = (index: number) => new Date(SAME_INSTANT.getTime() - index * 60_000);
 
-const seedProject = async (app: App, db: PostgresDatabase) => {
-  const { accessToken, userId } = await obtainAccessToken(app);
-  const spaceId = await personalSpaceOf(db, userId);
-  const created = await app.request(`${BASE_URL}/v1/spaces/${spaceId}/projects`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ name: "Site vitrine" }),
-  });
-  const { id: projectId } = await created.json();
+const authorIdOf = async (db: PostgresDatabase) => {
   const [author] = await db.orm.select({ id: schema.historyAuthor.id }).from(schema.historyAuthor);
-  return { accessToken, spaceId, projectId: String(projectId), authorId: author?.id ?? "" };
+  return author?.id ?? "";
 };
 
-const seedEntries = (
+const seedEntries = async (
   db: PostgresDatabase,
   {
     spaceId,
     projectId,
-    authorId,
     entries,
   }: {
     spaceId: string;
     projectId: string;
-    authorId: string;
     entries: readonly { id: string; occurredAt: Date }[];
   },
-) =>
-  db.orm.insert(schema.historyEntry).values(
+) => {
+  const authorId = await authorIdOf(db);
+  await db.orm.insert(schema.historyEntry).values(
     entries.map(({ id, occurredAt }) => ({
       id,
       spaceId,
@@ -58,6 +44,7 @@ const seedEntries = (
       occurredAt,
     })),
   );
+};
 
 const readPage = async (
   app: App,
@@ -88,9 +75,9 @@ const readAllPages = async (
 describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", () => {
   it("des plus récentes aux plus anciennes, sans perdre ni répéter deux entrées à la même date", () =>
     withIdentityApp(async (app, db) => {
-      const { accessToken, projectId, ...seed } = await seedProject(app, db);
+      const { accessToken, projectId, spaceId } = await seedProject(app, db);
       await seedEntries(db, {
-        ...seed,
+        spaceId,
         projectId,
         entries: [
           { id: idOf(1), occurredAt: minutesBefore(1) },
@@ -111,9 +98,9 @@ describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", 
 
   it("une page pleine qui est la dernière ne rend pas de curseur", () =>
     withIdentityApp(async (app, db) => {
-      const { accessToken, projectId, ...seed } = await seedProject(app, db);
+      const { accessToken, projectId, spaceId } = await seedProject(app, db);
       await seedEntries(db, {
-        ...seed,
+        spaceId,
         projectId,
         entries: [{ id: idOf(1), occurredAt: SAME_INSTANT }],
       });
@@ -126,9 +113,9 @@ describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", 
 
   it("sans limit, une page rend 50 entrées", () =>
     withIdentityApp(async (app, db) => {
-      const { accessToken, projectId, ...seed } = await seedProject(app, db);
+      const { accessToken, projectId, spaceId } = await seedProject(app, db);
       await seedEntries(db, {
-        ...seed,
+        spaceId,
         projectId,
         entries: Array.from({ length: 50 }, (_, index) => ({
           id: idOf(index + 1),
