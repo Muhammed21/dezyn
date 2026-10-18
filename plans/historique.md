@@ -89,7 +89,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR.
 - Le champ `action` de la sortie est une énumération ouverte : le schéma de sortie accepte une action inconnue (`openEnum`, ADR 0023), et le garde des schémas de sortie le vérifie.
 
 **RED** : test d'intégration de `read_history` et de l'entrée écrite ; test de l'enveloppe sur un outil qui échoue ; test de garde des outils ; test du schéma avec une action inconnue. Mutants attendus : `onBehalfOf` nul contre présent, le prédicat « vise un projet ».
-**GREEN** : enveloppe des outils MCP dans `modules/history/presentation`, outil `read_history`, schéma de sortie dans `modules/history/contracts` avec les conventions de l'ADR 0023 posées par la tranche 4 de `plans/connexion-ia-mcp.md`.
+**GREEN** : enveloppe des outils MCP dans `modules/history/presentation`, outil `read_history`, schéma de sortie dans `modules/history/contracts` avec les conventions de l'ADR 0023 (`@repo/contracts`).
 **MUTATE** : skill `mutation-testing`, rapport.
 **KILL MUTANTS** : renforcer les tests sur les survivants, demander en cas de doute.
 **REFACTOR** : si utile.
