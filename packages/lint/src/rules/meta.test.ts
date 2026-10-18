@@ -60,7 +60,7 @@ tester.run("layer-dependencies (message)", layerDependencies, {
       errors: [
         {
           message:
-            "La couche domain n'importe pas application : presentation et infrastructure → application → domain, contracts → domain (ADR 0020).",
+            "La couche domain n'importe pas application : presentation et infrastructure → application → domain, presentation → contracts → domain (ADR 0020, ADR 0022).",
         },
       ],
     },

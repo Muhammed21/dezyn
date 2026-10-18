@@ -6,6 +6,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 import { jwt } from "better-auth/plugins/jwt";
 
+import { createAccessTokenVerifier } from "@repo/auth-verifier";
 import { schema } from "@repo/db";
 
 import type { LogSink } from "../../../platform/logging.ts";
@@ -108,16 +109,24 @@ export const createIdentityAuth = async ({
     },
   });
   await auth.$context;
+  const issuer = (await auth.api.getOAuthServerConfig()).issuer;
+  const verifier = createAccessTokenVerifier({
+    jwksUrl: new URL("/auth/jwks", baseURL).href,
+    issuer,
+    audience: apiResourceOf(baseURL),
+    fetchJwks: (url) => auth.handler(new Request(url)),
+  });
   const authorizationServerMetadata = oauthProviderAuthServerMetadata(auth);
 
   return {
     baseURL,
     handle: (request) => auth.handler(request),
+    verifyAccessToken: verifier.verify,
     authorizationServerMetadata,
     protectedResourceMetadata: async () =>
       Response.json({
         resource: apiResourceOf(baseURL),
-        authorization_servers: [(await auth.api.getOAuthServerConfig()).issuer],
+        authorization_servers: [issuer],
         bearer_methods_supported: ["header"],
       }),
   };

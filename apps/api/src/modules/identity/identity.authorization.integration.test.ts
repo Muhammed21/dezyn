@@ -1,204 +1,24 @@
-import { createHash, randomBytes, randomInt } from "node:crypto";
+import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { migrate, schema } from "@repo/db";
-import { withThrowawayDatabase } from "@repo/db/testing";
+import { schema } from "@repo/db";
 
-import { createApp } from "../../create-app.ts";
-import { createPostgresDatabase, type PostgresDatabase } from "../../platform/postgres-database.ts";
-import { createIdentityAuth } from "./infrastructure/better-auth.ts";
-
-const BASE_URL = "http://127.0.0.1:3000";
-const RESOURCE = `${BASE_URL}/v1`;
-const CLIENT_REDIRECT = "http://localhost:33418/callback";
-const ADA = { name: "Ada Lovelace", email: "ada@dezyn.test", password: "un-mot-de-passe-solide" };
-
-type App = ReturnType<typeof createApp>;
-
-const withIdentityApp = (
-  run: (app: App, db: PostgresDatabase) => Promise<void>,
-  { baseURL = BASE_URL }: { readonly baseURL?: string } = {},
-) =>
-  withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
-    await migrate({ connectionString: migratorUrl });
-    const db = createPostgresDatabase({ url: appUrl });
-    try {
-      const auth = await createIdentityAuth({
-        db,
-        secret: "secret-de-test-de-32-caracteres-au-moins",
-        baseURL,
-        trustedIpHeader: "x-forwarded-for",
-        log: () => undefined,
-      });
-      await run(createApp({ db, auth, log: () => undefined }), db);
-    } finally {
-      await db.close();
-    }
-  });
-
-const makeClientIp = () => `198.51.100.${randomInt(1, 255)}`;
-
-const makeBrowser = (app: App, ip: string) => {
-  const jar = new Map<string, string>();
-  const send = async (path: string, init: RequestInit = {}, origin = BASE_URL) => {
-    const response = await app.request(new URL(path, BASE_URL).href, {
-      ...init,
-      headers: {
-        ...Object.fromEntries(new Headers(init.headers)),
-        origin,
-        "x-forwarded-for": ip,
-        cookie: [...jar].map(([name, value]) => `${name}=${value}`).join("; "),
-      },
-    });
-    response.headers.getSetCookie().forEach((cookie) => {
-      const [pair = ""] = cookie.split(";");
-      const separator = pair.indexOf("=");
-      jar.set(pair.slice(0, separator), pair.slice(separator + 1));
-    });
-    return response;
-  };
-  const follow = async (response: Response): Promise<Response> => {
-    const location = response.headers.get("location");
-    if (location === null || !new URL(location, BASE_URL).href.startsWith(BASE_URL)) {
-      return response;
-    }
-    return follow(await send(location));
-  };
-  return {
-    get: async (path: string) => follow(await send(path)),
-    postForm: async (
-      path: string,
-      fields: Readonly<Record<string, string>>,
-      { origin = BASE_URL }: { readonly origin?: string } = {},
-    ) =>
-      follow(
-        await send(
-          path,
-          {
-            method: "POST",
-            headers: { "content-type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams(fields).toString(),
-          },
-          origin,
-        ),
-      ),
-  };
-};
-
-const hiddenField = (html: string, name: string): string =>
-  new RegExp(`name="${name}" value="([^"]*)"`).exec(html)?.[1] ?? "";
-
-const formFields = (html: string) => ({
-  csrf: hiddenField(html, "csrf"),
-  oauth_query: hiddenField(html, "oauth_query").replaceAll("&amp;", "&"),
-});
-
-const makePkce = () => {
-  const verifier = randomBytes(32).toString("base64url");
-  return { verifier, challenge: createHash("sha256").update(verifier).digest("base64url") };
-};
-
-const registerClient = async (
-  app: App,
-  { ip, clientName }: { ip: string; clientName: string },
-): Promise<string> => {
-  const response = await app.request(`${BASE_URL}/auth/oauth2/register`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": ip },
-    body: JSON.stringify({
-      client_name: clientName,
-      redirect_uris: [CLIENT_REDIRECT],
-      token_endpoint_auth_method: "none",
-    }),
-  });
-  const { client_id: clientId } = await response.json();
-  return clientId;
-};
-
-const signUp = async (app: App, ip: string): Promise<string> => {
-  const response = await app.request(`${BASE_URL}/auth/sign-up/email`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: BASE_URL, "x-forwarded-for": ip },
-    body: JSON.stringify(ADA),
-  });
-  const { user } = await response.json();
-  return user.id;
-};
-
-const authorizePath = ({ clientId, challenge }: { clientId: string; challenge: string }) =>
-  `/auth/oauth2/authorize?${new URLSearchParams({
-    response_type: "code",
-    client_id: clientId,
-    redirect_uri: CLIENT_REDIRECT,
-    code_challenge: challenge,
-    code_challenge_method: "S256",
-    state: "etat-du-client",
-    resource: RESOURCE,
-  })}`;
-
-const decodeJwtPart = (token: string, index: number): unknown =>
-  JSON.parse(Buffer.from(token.split(".")[index] ?? "", "base64url").toString());
-
-const exchangeCode = (
-  app: App,
-  { clientId, code, verifier }: { clientId: string; code: string; verifier: string },
-) =>
-  app.request(`${BASE_URL}/auth/oauth2/token`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: CLIENT_REDIRECT,
-      client_id: clientId,
-      code_verifier: verifier,
-      resource: RESOURCE,
-    }).toString(),
-  });
-
-const reachConsent = async (
-  app: App,
-  {
-    clientName = "Claude Code",
-    password = ADA.password,
-  }: { readonly clientName?: string; readonly password?: string } = {},
-) => {
-  const ip = makeClientIp();
-  const clientId = await registerClient(app, { ip, clientName });
-  const userId = await signUp(app, ip);
-  const pkce = makePkce();
-  const browser = makeBrowser(app, ip);
-
-  const loginPage = await browser.get(authorizePath({ clientId, challenge: pkce.challenge }));
-  const consentPage = await browser.postForm("/login", {
-    ...formFields(await loginPage.text()),
-    email: ADA.email,
-    password,
-  });
-  return {
-    clientId,
-    userId,
-    pkce,
-    browser,
-    status: consentPage.status,
-    consentHtml: await consentPage.text(),
-  };
-};
-
-const signInAndConsent = async (app: App, { accept }: { accept: boolean }) => {
-  const { browser, consentHtml, ...flow } = await reachConsent(app);
-  const backToClient = await browser.postForm("/consent", {
-    ...formFields(consentHtml),
-    accept: String(accept),
-  });
-
-  return {
-    ...flow,
-    consentHtml,
-    callback: new URL(backToClient.headers.get("location") ?? "", BASE_URL),
-  };
-};
+import {
+  ADA,
+  BASE_URL,
+  CLIENT_REDIRECT,
+  decodeJwtPart,
+  exchangeCode,
+  formFields,
+  makeBrowser,
+  makeClientIp,
+  makePkce,
+  reachConsent,
+  RESOURCE,
+  signInAndConsent,
+  withIdentityApp,
+} from "../../testing/authorization-flow.ts";
 
 describe("autorisation d'une IA par l'utilisateur", () => {
   it("l'IA autorisée reçoit un jeton at+jwt pour la ressource /v1, au nom de l'utilisateur", () =>

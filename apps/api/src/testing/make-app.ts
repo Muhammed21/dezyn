@@ -1,3 +1,5 @@
+import { err } from "@repo/result";
+
 import { createApp } from "../create-app.ts";
 import type { Auth } from "../modules/identity/application/auth.ts";
 import type { Database } from "../platform/database.ts";
@@ -13,6 +15,7 @@ export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
   handle: () => Promise.resolve(new Response(null, { status: 404 })),
   authorizationServerMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
   protectedResourceMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
+  verifyAccessToken: () => Promise.resolve(err("invalid_token")),
   ...overrides,
 });
 

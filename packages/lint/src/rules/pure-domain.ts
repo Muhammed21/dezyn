@@ -5,7 +5,7 @@ import { locate, locateImport } from "./paths.ts";
 
 const ALLOWED_PACKAGES: Readonly<Record<string, readonly string[]>> = {
   domain: [],
-  contracts: ["zod"],
+  contracts: ["zod", "@repo/contracts"],
 };
 
 const TEST_PACKAGES: readonly string[] = ["vitest"];
@@ -22,13 +22,13 @@ export const pureDomain = defineRule({
     type: "problem",
     docs: {
       description:
-        "domain/ n'importe aucun paquet ni rien hors des modules, contracts/ seulement zod (ADR 0020, ADR 0022)",
+        "domain/ n'importe aucun paquet ni rien hors des modules, contracts/ seulement zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023)",
     },
     messages: {
       package:
-        "La couche {{layer}} n'importe pas le paquet {{source}} : le domaine est pur, et contracts/ n'importe que zod (ADR 0020, ADR 0022).",
+        "La couche {{layer}} n'importe pas le paquet {{source}} : le domaine est pur, et contracts/ n'importe que zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023).",
       outsideModules:
-        "La couche {{layer}} n'importe pas {{source}}, hors des modules : le domaine est pur, et contracts/ n'importe que zod (ADR 0020, ADR 0022).",
+        "La couche {{layer}} n'importe pas {{source}}, hors des modules : le domaine est pur, et contracts/ n'importe que zod et @repo/contracts (ADR 0020, ADR 0022, ADR 0023).",
     },
   },
   create(context) {

@@ -7,7 +7,7 @@ const ALLOWED: Readonly<Record<string, readonly string[]>> = {
   domain: ["domain"],
   application: ["domain", "application"],
   infrastructure: ["domain", "application", "infrastructure"],
-  presentation: ["domain", "application", "presentation"],
+  presentation: ["domain", "application", "presentation", "contracts"],
   contracts: ["domain", "contracts"],
 };
 
@@ -16,11 +16,11 @@ export const layerDependencies = defineRule({
     type: "problem",
     docs: {
       description:
-        "Couches d'un module : presentation et infrastructure → application → domain, contracts → domain (ADR 0020)",
+        "Couches d'un module : presentation et infrastructure → application → domain, presentation → contracts → domain (ADR 0020, ADR 0022)",
     },
     messages: {
       forbiddenLayer:
-        "La couche {{from}} n'importe pas {{to}} : presentation et infrastructure → application → domain, contracts → domain (ADR 0020).",
+        "La couche {{from}} n'importe pas {{to}} : presentation et infrastructure → application → domain, presentation → contracts → domain (ADR 0020, ADR 0022).",
     },
   },
   create(context) {

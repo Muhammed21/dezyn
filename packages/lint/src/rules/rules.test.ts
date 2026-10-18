@@ -94,6 +94,7 @@ tester.run("layer-dependencies", layerDependencies, {
       ["infrastructure", "infrastructure"],
       ["presentation", "presentation"],
       ["contracts", "contracts"],
+      ["presentation", "contracts"],
     ].map(([from, to]) => ({
       name: `${from} importe ${to}`,
       filename: inModule("space", `${from}/file.ts`),
@@ -134,6 +135,8 @@ tester.run("layer-dependencies", layerDependencies, {
       ["infrastructure", "presentation"],
       ["presentation", "infrastructure"],
       ["contracts", "application"],
+      ["domain", "contracts"],
+      ["infrastructure", "contracts"],
     ].map(([from, to]) => ({
       name: `${from} n'importe pas ${to}`,
       filename: inModule("space", `${from}/file.ts`),

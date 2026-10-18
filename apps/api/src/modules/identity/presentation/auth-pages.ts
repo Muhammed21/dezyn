@@ -71,6 +71,7 @@ export const authPages = ({ auth, baseURL }: { readonly auth: Auth; readonly bas
   const callAuth = (c: PageContext, path: string, body?: unknown) => {
     const headers = new Headers(c.req.raw.headers);
     headers.delete("content-length");
+    headers.set("accept", "application/json");
     headers.set("content-type", "application/json");
     return auth.handle(
       new Request(new URL(`/auth${path}`, baseURL), {

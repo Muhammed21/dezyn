@@ -48,6 +48,7 @@ describe("montage de l'authentification", () => {
 
   it.each([
     ["/.well-known/oauth-authorization-server", "authorizationServerMetadata"],
+    ["/.well-known/oauth-authorization-server/auth", "authorizationServerMetadata"],
     ["/.well-known/oauth-protected-resource", "protectedResourceMetadata"],
     ["/.well-known/oauth-protected-resource/v1", "protectedResourceMetadata"],
   ] as const)("sert %s par les métadonnées %s", async (path, port) => {
