@@ -1,10 +1,22 @@
+import { asc, eq } from "drizzle-orm";
+
 import { schema } from "@repo/db";
 
 import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
-import type { TokenUnitOfWork } from "../application/add-token.ts";
+import type { ModeReader, TokenUnitOfWork } from "../application/add-token.ts";
 
-const { token, tokenValue } = schema;
+const { mode, modifier, token, tokenValue } = schema;
+
+export const postgresModeReader = (db: PostgresDatabase): ModeReader => ({
+  modesOf: (projectId) =>
+    db.orm
+      .select({ id: mode.id, name: mode.name })
+      .from(mode)
+      .innerJoin(modifier, eq(modifier.id, mode.modifierId))
+      .where(eq(modifier.projectId, projectId))
+      .orderBy(asc(mode.position)),
+});
 
 export const postgresTokenUnitOfWork = ({
   db,
@@ -19,7 +31,7 @@ export const postgresTokenUnitOfWork = ({
     db.orm.transaction((tx) =>
       work({
         tokens: {
-          create: async (added) => {
+          create: async (added, values) => {
             const inserted = await tx
               .insert(token)
               .values({
@@ -36,9 +48,14 @@ export const postgresTokenUnitOfWork = ({
             if (inserted.length === 0) {
               return "name_taken";
             }
-            await tx
-              .insert(tokenValue)
-              .values({ id: newId(), tokenId: added.id, mode: null, value: added.$value });
+            await tx.insert(tokenValue).values(
+              values.map(({ modeId, value }) => ({
+                id: newId(),
+                tokenId: added.id,
+                modeId,
+                value,
+              })),
+            );
             return "created";
           },
         },

@@ -6,7 +6,8 @@ import type { Typography } from "./typography.ts";
 type Typed<Type extends string, Value> = {
   readonly name: string;
   readonly $type: Type;
-  readonly $value: Value;
+  readonly $value?: Value;
+  readonly modes?: Readonly<Record<string, Value>>;
   readonly $description?: string;
 };
 

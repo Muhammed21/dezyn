@@ -37,6 +37,7 @@ describe("le contrat de sortie d'un token reste ouvert (ADR 0023)", () => {
           anyOf: [{ enum: ["color", "dimension", "typography", "shadow"] }, { type: "string" }],
         },
         status: { anyOf: [{ enum: ["validated"] }, { type: "string" }] },
+        modes: { type: "object", propertyNames: { type: "string" } },
       },
     });
   });

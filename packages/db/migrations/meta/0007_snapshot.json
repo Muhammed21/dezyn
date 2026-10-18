@@ -1,5 +1,5 @@
 {
-  "id": "17561788-ae6d-4599-bd5c-c68ce07c7f13",
+  "id": "eef9ddac-d61a-4d2f-8ad4-6b01bfb340a9",
   "prevId": "90792b70-e318-4e15-8c54-24cee40fc682",
   "version": "7",
   "dialect": "postgresql",
@@ -1644,6 +1644,106 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.mode": {
+      "name": "mode",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "modifier_id": {
+          "name": "modifier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mode_modifier_id_modifier_id_fk": {
+          "name": "mode_modifier_id_modifier_id_fk",
+          "tableFrom": "mode",
+          "tableTo": "modifier",
+          "columnsFrom": ["modifier_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "mode_modifier_id_name_key": {
+          "name": "mode_modifier_id_name_key",
+          "nullsNotDistinct": false,
+          "columns": ["modifier_id", "name"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.modifier": {
+      "name": "modifier",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "modifier_project_id_project_id_fk": {
+          "name": "modifier_project_id_project_id_fk",
+          "tableFrom": "modifier",
+          "tableTo": "project",
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "modifier_project_id_name_key": {
+          "name": "modifier_project_id_name_key",
+          "nullsNotDistinct": false,
+          "columns": ["project_id", "name"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.project": {
       "name": "project",
       "schema": "",
@@ -2046,9 +2146,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "mode": {
-          "name": "mode",
-          "type": "text",
+        "mode_id": {
+          "name": "mode_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -2069,14 +2169,23 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "token_value_mode_id_mode_id_fk": {
+          "name": "token_value_mode_id_mode_id_fk",
+          "tableFrom": "token_value",
+          "tableTo": "mode",
+          "columnsFrom": ["mode_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "token_value_token_id_mode_key": {
-          "name": "token_value_token_id_mode_key",
+        "token_value_token_id_mode_id_key": {
+          "name": "token_value_token_id_mode_id_key",
           "nullsNotDistinct": true,
-          "columns": ["token_id", "mode"]
+          "columns": ["token_id", "mode_id"]
         }
       },
       "policies": {},

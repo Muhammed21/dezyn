@@ -31,3 +31,14 @@ export const seedProjectAsEditor = async (
     .values({ id: projectId, spaceId, name: "Site vitrine", createdAt: new Date() });
   return { ...editor, spaceId, projectId };
 };
+
+export const seedModes = async (
+  db: PostgresDatabase,
+  { projectId, modes }: { readonly projectId: string; readonly modes: readonly string[] },
+) => {
+  const modifierId = randomUUID();
+  await db.orm.insert(schema.modifier).values({ id: modifierId, projectId, name: "apparence" });
+  await db.orm
+    .insert(schema.mode)
+    .values(modes.map((name, position) => ({ id: randomUUID(), modifierId, name, position })));
+};

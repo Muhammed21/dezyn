@@ -4,10 +4,11 @@ import { z } from "zod";
 import { Uuid } from "@repo/contracts";
 
 import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
-import { problemResponse } from "../../../platform/problem.ts";
+import { type Problem, problemResponse } from "../../../platform/problem.ts";
 import { validate } from "../../../platform/validate.ts";
 import type { TokenUseCases } from "../application/add-token.ts";
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
+import type { ModeRefusal } from "../domain/mode-completeness.ts";
 import { type Shadow, type ShadowRefusal, shadowRefusals } from "../domain/shadow.ts";
 import { type TokenNameRefusal, tokenNameRefusal } from "../domain/token-name.ts";
 import type { Token, TokenDefinition } from "../domain/token.ts";
@@ -87,17 +88,54 @@ const shadowIssues = (shadow: Shadow): readonly ValueIssue[] =>
     return { path: layer === undefined ? path : [layer, ...path], message };
   });
 
+const sentValues = <Value>({
+  $value,
+  modes = {},
+}: {
+  readonly $value?: Value;
+  readonly modes?: Readonly<Record<string, Value>>;
+}): readonly { readonly prefix: readonly string[]; readonly value: Value }[] => [
+  ...($value === undefined ? [] : [{ prefix: ["$value"], value: $value }]),
+  ...Object.entries(modes).map(([mode, value]) => ({ prefix: ["modes", mode], value })),
+];
+
+const issuesIn = <Value>(
+  token: { readonly $value?: Value; readonly modes?: Readonly<Record<string, Value>> },
+  issuesOfValue: (value: Value) => readonly ValueIssue[],
+): readonly ValueIssue[] =>
+  sentValues(token).flatMap(({ prefix, value }) =>
+    issuesOfValue(value).map(({ path, message }) => ({ path: [...prefix, ...path], message })),
+  );
+
 const valueIssues = (token: TokenDefinition): readonly ValueIssue[] => {
   switch (token.$type) {
     case "color":
-      return colorIssues(token.$value);
+      return issuesIn(token, colorIssues);
     case "typography":
-      return typographyIssues(token.$value);
+      return issuesIn(token, typographyIssues);
     case "shadow":
-      return shadowIssues(token.$value);
+      return issuesIn(token, shadowIssues);
     default:
       return [];
   }
+};
+
+const MODE_ISSUES: Readonly<Record<ModeRefusal["refusal"], string>> = {
+  missing_mode: "Valeur manquante pour ce mode",
+  unknown_mode: "Mode inconnu du projet",
+  value_without_mode: "Le projet a des modes : donner une valeur par mode dans modes",
+  modes_without_modifier: "Le projet n'a pas de modes : donner $value",
+  missing_value: "Valeur manquante",
+};
+
+const modeIssueOf = (refusal: ModeRefusal) => {
+  if ("mode" in refusal) {
+    return { path: `modes.${refusal.mode}`, message: MODE_ISSUES[refusal.refusal] };
+  }
+  return {
+    path: refusal.refusal === "modes_without_modifier" ? "modes" : "$value",
+    message: MODE_ISSUES[refusal.refusal],
+  };
 };
 
 const DimensionRequest = z.strictObject({
@@ -140,7 +178,8 @@ const typed = <Type extends string, Value extends z.ZodType>(type: Type, value: 
   z.strictObject({
     name: z.string(),
     $type: z.literal(type),
-    $value: value,
+    $value: value.optional(),
+    modes: z.record(z.string(), value).optional(),
     $description: z.string().optional(),
   });
 
@@ -157,17 +196,25 @@ const TokenRequest = z
       context.addIssue({ code: "custom", path: ["name"], message: NAME_MESSAGES[nameRefusal] });
     }
     valueIssues(token).forEach(({ path, message }) => {
-      context.addIssue({ code: "custom", path: ["$value", ...path], message });
+      context.addIssue({ code: "custom", path: [...path], message });
     });
   });
 
-const tokenOutputOf = ({ id, name, $type, $value, $description, status }: Token) => ({
+const tokenOutputOf = ({ id, name, $type, $value, modes, $description, status }: Token) => ({
   id,
   name,
   $type,
   $value,
+  modes,
   $description,
   status,
+});
+
+const invalidRequest = (errors: readonly { path: string; message: string }[]): Problem => ({
+  type: "about:blank",
+  title: "Requête invalide",
+  status: 400,
+  errors,
 });
 
 export const tokensRoutes = ({ addToken }: TokenUseCases) =>
@@ -188,13 +235,15 @@ export const tokensRoutes = ({ addToken }: TokenUseCases) =>
       if (added.ok) {
         return c.json(tokenOutputOf(added.value), 201);
       }
-      return added.error === "not_found"
-        ? c.notFound()
-        : problemResponse(c, {
-            type: "about:blank",
-            title: "Requête invalide",
-            status: 400,
-            errors: [{ path: "name", message: "Nom déjà pris dans le projet" }],
-          });
+      if (added.error === "not_found") {
+        return c.notFound();
+      }
+      if (added.error === "name_taken") {
+        return problemResponse(
+          c,
+          invalidRequest([{ path: "name", message: "Nom déjà pris dans le projet" }]),
+        );
+      }
+      return problemResponse(c, invalidRequest(added.error.refusals.map(modeIssueOf)));
     },
   );
