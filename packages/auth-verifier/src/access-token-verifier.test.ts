@@ -1,4 +1,4 @@
-import { exportJWK, generateKeyPair, type JWK, SignJWT } from "jose";
+import { CompactSign, exportJWK, generateKeyPair, type JWK, SignJWT } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ActiveGrants, createAccessTokenVerifier, type Grant } from "./index.ts";
@@ -182,10 +182,52 @@ describe("vérification d'un jeton d'accès (ADR 0018 §1)", () => {
     });
   });
 
+  it("refuse un jeton dont le kid n'est pas publié, sans le prendre pour une panne", async () => {
+    const verifier = makeVerifier({ server: makeJwksServer([await makeKey("k1")]) });
+
+    expect(await verifier.verify(await signToken({ key: await makeKey("inconnu") }))).toEqual({
+      ok: false,
+      error: "invalid_token",
+    });
+  });
+
+  it("refuse un JWS signé par une clé publiée dont la charge n'est pas un jeu de claims", async () => {
+    const key = await makeKey("k1");
+    const verifier = makeVerifier({ server: makeJwksServer([key]) });
+    const token = await new CompactSign(new TextEncoder().encode("pas des claims"))
+      .setProtectedHeader({ alg: key.alg, kid: key.kid, typ: "at+jwt" })
+      .sign(key.privateKey);
+
+    expect(await verifier.verify(token)).toEqual({ ok: false, error: "invalid_token" });
+  });
+
   it("refuse ce qui n'est pas un JWT", async () => {
     const verifier = makeVerifier({ server: makeJwksServer([await makeKey("k1")]) });
 
     expect(await verifier.verify("pas-un-jwt")).toEqual({ ok: false, error: "invalid_token" });
+  });
+});
+
+const withJwksResponse = (fetchJwks: () => Promise<Response>) => ({
+  ...makeJwksServer([]),
+  fetchJwks,
+});
+
+describe("JWKS injoignable (ADR 0018 §2)", () => {
+  it.each([
+    [
+      "le chargement du JWKS lève",
+      () => Promise.reject(new TypeError("fetch failed: PostgreSQL injoignable")),
+    ],
+    ["le JWKS répond 500", () => Promise.resolve(new Response("erreur", { status: 500 }))],
+  ])("quand %s, l'appel échoue sans faire jeter le jeton", async (_case, fetchJwks) => {
+    const key = await makeKey("k1");
+    const verifier = makeVerifier({ server: withJwksResponse(fetchJwks) });
+
+    expect(await verifier.verify(await signToken({ key }))).toEqual({
+      ok: false,
+      error: "unavailable",
+    });
   });
 });
 

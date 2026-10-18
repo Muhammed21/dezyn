@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, customFetch, type FetchImplementation, jwtVerify } from "jose";
+import { createRemoteJWKSet, customFetch, errors, type FetchImplementation, jwtVerify } from "jose";
 import { z } from "zod";
 
 import { err, ok, type Result } from "@repo/result";
@@ -32,6 +32,18 @@ const AccessTokenClaims = z.object({
   scope: z.string().optional(),
 });
 
+const TOKEN_REFUSALS = [
+  errors.JWSInvalid,
+  errors.JWTInvalid,
+  errors.JWSSignatureVerificationFailed,
+  errors.JWTClaimValidationFailed,
+  errors.JWTExpired,
+  errors.JWKSNoMatchingKey,
+  errors.JOSEAlgNotAllowed,
+];
+
+const refusesToken = (error: unknown) => TOKEN_REFUSALS.some((refusal) => error instanceof refusal);
+
 const identityOf = ({ sub, sid, azp, scope }: z.infer<typeof AccessTokenClaims>) => ({
   userId: sub,
   sid,
@@ -58,7 +70,9 @@ export const createAccessTokenVerifier = ({
     [customFetch]: fetchJwks,
   });
 
-  const signedIdentity = async (token: string): Promise<AccessTokenIdentity | undefined> => {
+  const signedIdentity = async (
+    token: string,
+  ): Promise<Result<AccessTokenIdentity, "invalid_token" | "unavailable">> => {
     try {
       const { payload } = await jwtVerify(token, keySet, {
         issuer,
@@ -66,9 +80,10 @@ export const createAccessTokenVerifier = ({
         typ: "at+jwt",
         algorithms: ["EdDSA"],
       });
-      return identityOf(AccessTokenClaims.parse(payload));
-    } catch {
-      return undefined;
+      const claims = AccessTokenClaims.safeParse(payload);
+      return claims.success ? ok(identityOf(claims.data)) : err("invalid_token");
+    } catch (error) {
+      return err(refusesToken(error) ? "invalid_token" : "unavailable");
     }
   };
 
@@ -86,12 +101,12 @@ export const createAccessTokenVerifier = ({
 
   return {
     verify: async (token: string): Promise<Result<AccessTokenIdentity, VerificationFailure>> => {
-      const identity = await signedIdentity(token);
-      if (identity === undefined) {
-        return err("invalid_token");
+      const signed = await signedIdentity(token);
+      if (!signed.ok) {
+        return signed;
       }
-      const grant = await grantOf(identity);
-      return grant === "active" ? ok(identity) : err(grant);
+      const grant = await grantOf(signed.value);
+      return grant === "active" ? signed : err(grant);
     },
   };
 };
