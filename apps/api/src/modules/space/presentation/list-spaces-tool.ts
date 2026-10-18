@@ -1,13 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import type { AccessTokenIdentity } from "@repo/auth-verifier";
-
+import type { McpCall } from "../../../platform/mcp.ts";
 import { MySpacesOutput } from "../contracts/my-spaces.ts";
 import type { MySpace } from "../domain/space.ts";
 
 export const registerListSpaces =
   ({ listMySpaces }: { readonly listMySpaces: (userId: string) => Promise<readonly MySpace[]> }) =>
-  (server: McpServer, identity: AccessTokenIdentity) => {
+  (server: McpServer, { identity }: McpCall) => {
     server.registerTool(
       "list_spaces",
       {

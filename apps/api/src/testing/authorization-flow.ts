@@ -312,7 +312,14 @@ export const callMcp = (
     authorization = token === undefined ? undefined : `Bearer ${token}`,
     method,
     params = {},
-  }: { token?: string; authorization?: string; method: string; params?: object },
+    correlationId,
+  }: {
+    token?: string;
+    authorization?: string;
+    method: string;
+    params?: object;
+    correlationId?: string;
+  },
 ) =>
   app.request(`${BASE_URL}/v1/mcp`, {
     method: "POST",
@@ -320,6 +327,7 @@ export const callMcp = (
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       ...(authorization === undefined ? {} : { authorization }),
+      ...(correlationId === undefined ? {} : { "x-correlation-id": correlationId }),
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });

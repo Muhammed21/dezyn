@@ -6,13 +6,18 @@ import type { AccessTokenIdentity } from "@repo/auth-verifier";
 
 import type { AuthenticatedEnv } from "./access-token.ts";
 
-export type McpTools = (server: McpServer, identity: AccessTokenIdentity) => void;
+export type McpCall = {
+  readonly identity: AccessTokenIdentity;
+  readonly correlationId: string;
+};
+
+export type McpTools = (server: McpServer, call: McpCall) => void;
 
 export const mcpEndpoint =
   ({ registerTools }: { readonly registerTools: McpTools }) =>
   async (c: Context<AuthenticatedEnv>) => {
     const server = new McpServer({ name: "dezyn", version: "0.0.0" });
-    registerTools(server, c.get("identity"));
+    registerTools(server, { identity: c.get("identity"), correlationId: c.get("correlationId") });
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

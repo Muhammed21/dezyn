@@ -8,7 +8,7 @@ export const HistoryAuthor = extensibleUnion("kind", [
 
 export const HistoryEntryOutput = z.looseObject({
   id: Uuid,
-  action: openEnum(["project.created"]),
+  action: openEnum(["project.created", "mcp.read_history"]),
   spaceId: Uuid,
   projectId: Uuid,
   author: HistoryAuthor,

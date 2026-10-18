@@ -2,6 +2,7 @@ import { Hono } from "hono";
 
 import type { HistoryUseCases } from "./modules/history/application/history-use-cases.ts";
 import { historyRoutes } from "./modules/history/presentation/history-routes.ts";
+import { registerReadHistory } from "./modules/history/presentation/read-history-tool.ts";
 import type { Auth } from "./modules/identity/application/auth.ts";
 import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
@@ -47,12 +48,14 @@ export const createApp = ({
     }),
   );
   const registerSpaceTools = registerListSpaces(spaces);
+  const registerHistoryTools = registerReadHistory(history);
   v1.post(
     "/mcp",
     mcpEndpoint({
-      registerTools: (server, identity) => {
-        registerWhoami(server, identity);
-        registerSpaceTools(server, identity);
+      registerTools: (server, call) => {
+        registerWhoami(server, call);
+        registerSpaceTools(server, call);
+        registerHistoryTools(server, call);
       },
     }),
   );

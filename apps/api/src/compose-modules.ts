@@ -3,7 +3,7 @@ import { historyModule, historyWriterOn } from "./modules/history/history-module
 import { projectModule } from "./modules/project/project-module.ts";
 import { spaceModule } from "./modules/space/space-module.ts";
 import type { Mailer } from "./platform/mailer.ts";
-import type { PostgresDatabase } from "./platform/postgres-database.ts";
+import type { PostgresDatabase, PostgresTransaction } from "./platform/postgres-database.ts";
 
 export const composeModules = ({
   db,
@@ -17,11 +17,17 @@ export const composeModules = ({
   readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
 }) => {
   const spaces = spaceModule({ db, mailer, webUrl });
+  const writerOn = (tx: PostgresTransaction) => wrapHistoryWriter(historyWriterOn(tx));
   const projects = projectModule({
     db,
     memberships: spaces.memberships,
-    historyWriterOn: (tx) => wrapHistoryWriter(historyWriterOn(tx)),
+    historyWriterOn: writerOn,
   });
-  const history = historyModule({ db, memberships: spaces.memberships, projects: projects.finder });
+  const history = historyModule({
+    db,
+    memberships: spaces.memberships,
+    projects: projects.finder,
+    writerOn,
+  });
   return { spaces, projects, history };
 };

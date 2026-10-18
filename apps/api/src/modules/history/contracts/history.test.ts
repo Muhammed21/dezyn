@@ -59,7 +59,9 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
         entries: {
           items: {
             properties: {
-              action: { anyOf: [{ enum: ["project.created"] }, { type: "string" }] },
+              action: {
+                anyOf: [{ enum: ["project.created", "mcp.read_history"] }, { type: "string" }],
+              },
               author: { anyOf: [{ properties: { kind: { const: "member" } } }, {}] },
             },
           },

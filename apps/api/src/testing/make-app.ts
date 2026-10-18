@@ -36,6 +36,7 @@ export const makeProjects = (): ProjectUseCases => ({
 
 export const makeHistory = (): HistoryUseCases => ({
   readHistory: () => Promise.resolve(err("not_found")),
+  auditProjectCall: () => Promise.resolve(err("not_found")),
 });
 
 export const makeApp = ({
