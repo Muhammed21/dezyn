@@ -8,7 +8,7 @@ import { withThrowawayDatabase } from "@repo/db/testing";
 import { createApp } from "../../create-app.ts";
 import type { LogRecord } from "../../platform/logging.ts";
 import { createPostgresDatabase } from "../../platform/postgres-database.ts";
-import { makeHistory, makeProjects, makeSpaces } from "../../testing/make-app.ts";
+import { makeHistory, makeProjects, makeSpaces, makeTokens } from "../../testing/make-app.ts";
 import { createIdentityAuth } from "./infrastructure/better-auth.ts";
 
 const BASE_URL = "http://127.0.0.1:3000";
@@ -57,6 +57,7 @@ const withIdentityApp = (run: (identityApp: IdentityApp) => Promise<void>) =>
         spaces: makeSpaces(),
         projects: makeProjects(),
         history: makeHistory(),
+        tokens: makeTokens(),
       });
       await run({ app, records, postJson: postJsonFrom(app, `198.51.100.${randomInt(1, 255)}`) });
     } finally {

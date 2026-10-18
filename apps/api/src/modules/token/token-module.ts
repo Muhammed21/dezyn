@@ -1,0 +1,30 @@
+import { randomUUID } from "node:crypto";
+
+import type { PostgresDatabase, PostgresTransaction } from "../../platform/postgres-database.ts";
+import type { HistoryWriter } from "../history/contracts/history-writer.ts";
+import type { ProjectFinder } from "../project/contracts/project.ts";
+import type { MembershipReader } from "../space/contracts/membership.ts";
+import { addToken } from "./application/add-token.ts";
+import { postgresTokenUnitOfWork } from "./infrastructure/postgres-tokens.ts";
+
+const now = () => new Date();
+
+export const tokenModule = ({
+  db,
+  memberships,
+  projects,
+  historyWriterOn,
+}: {
+  readonly db: PostgresDatabase;
+  readonly memberships: MembershipReader;
+  readonly projects: ProjectFinder;
+  readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
+}) => ({
+  addToken: addToken({
+    projects,
+    memberships,
+    unitOfWork: postgresTokenUnitOfWork({ db, historyWriterOn, newId: randomUUID }),
+    newId: randomUUID,
+    now,
+  }),
+});

@@ -42,7 +42,7 @@ export const startApi = async ({
 }): Promise<RunningApi> => {
   await assertSchemaVersion({ connectionString: databaseUrl, migration });
   const db = createPostgresDatabase({ url: databaseUrl });
-  const { spaces, projects, history } = composeModules({
+  const { spaces, projects, history, tokens } = composeModules({
     db,
     mailer: createSmtpMailer(smtp),
     webUrl,
@@ -55,7 +55,7 @@ export const startApi = async ({
     log,
     onUserCreated: spaces.createPersonalSpace,
   });
-  const app = createApp({ db, auth, log, spaces, projects, history });
+  const app = createApp({ db, auth, log, spaces, projects, history, tokens });
 
   return new Promise((resolve) => {
     const server = serve({ fetch: app.fetch, port }, (info) => {

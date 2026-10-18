@@ -1,1 +1,1 @@
-export const LATEST_MIGRATION = { tag: "0006_history_maintainer", when: 1792338477759 };
+export const LATEST_MIGRATION = { tag: "0007_token", when: 1792362249415 };
