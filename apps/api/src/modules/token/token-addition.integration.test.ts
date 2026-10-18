@@ -6,58 +6,18 @@ import { schema } from "@repo/db";
 
 import {
   ADA,
-  type App,
-  BASE_URL,
   GRACE,
   obtainAccessToken,
   withIdentityApp,
 } from "../../testing/authorization-flow.ts";
 import { seedProject, seedProjectAsEditor } from "../../testing/project-fixtures.ts";
-
-const CORRELATION_ID = "ajout-du-token-1";
-
-const PRIMARY_BLUE = {
-  colorSpace: "srgb",
-  components: [0.2, 0.4, 0.8],
-  alpha: 1,
-  hex: "#3366cc",
-};
-
-const makeColorToken = (overrides: Record<string, unknown> = {}) => ({
-  name: "couleur.fond.primaire",
-  $type: "color",
-  $value: PRIMARY_BLUE,
-  ...overrides,
-});
-
-const addToken = (
-  app: App,
-  {
-    accessToken,
-    projectId,
-    token = makeColorToken(),
-  }: { accessToken: string; projectId: string; token?: unknown },
-) =>
-  app.request(`${BASE_URL}/v1/projects/${projectId}/tokens`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/json",
-      "x-correlation-id": CORRELATION_ID,
-    },
-    body: JSON.stringify(token),
-  });
-
-const historyOf = async (
-  app: App,
-  { accessToken, projectId }: { accessToken: string; projectId: string },
-) => {
-  const response = await app.request(`${BASE_URL}/v1/projects/${projectId}/history`, {
-    headers: { authorization: `Bearer ${accessToken}` },
-  });
-  const { entries } = await response.json();
-  return entries;
-};
+import {
+  ADDITION_CORRELATION_ID,
+  addToken,
+  historyOf,
+  makeColorToken,
+  PRIMARY_BLUE,
+} from "../../testing/token-fixtures.ts";
 
 describe("un membre ajoute un token couleur, Validé d'emblée (ADR 0012 §2)", () => {
   it("un propriétaire ajoute une couleur décrite, et l'historique montre token.created", () =>
@@ -86,7 +46,7 @@ describe("un membre ajoute un token couleur, Validé d'emblée (ADR 0012 §2)", 
         before: null,
         after: token,
         occurredAt: expect.any(String),
-        correlationId: CORRELATION_ID,
+        correlationId: ADDITION_CORRELATION_ID,
       });
     }));
 
@@ -237,7 +197,7 @@ describe("un token invalide répond 400 problem+json, en nommant le champ", () =
     }));
 
   it.each([
-    ["un autre type", { $type: "dimension" }, "$type"],
+    ["un type non pris en charge", { $type: "duration" }, "$type"],
     [
       "un autre espace colorimétrique",
       { $value: { ...PRIMARY_BLUE, colorSpace: "display-p3" } },

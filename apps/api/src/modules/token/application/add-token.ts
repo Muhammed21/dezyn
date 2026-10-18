@@ -3,7 +3,7 @@ import { err, ok, type Result } from "@repo/result";
 import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
 import type { ProjectFinder } from "../../project/contracts/project.ts";
 import { can, type MembershipReader } from "../../space/contracts/membership.ts";
-import type { ColorToken, Token } from "../domain/token.ts";
+import type { Token, TokenDefinition } from "../domain/token.ts";
 
 export interface TokenWriter {
   create(token: Token): Promise<"created" | "name_taken">;
@@ -39,7 +39,7 @@ export const addToken =
   }: {
     readonly projectId: string;
     readonly userId: string;
-    readonly token: ColorToken;
+    readonly token: TokenDefinition;
     readonly correlationId: string;
   }): Promise<Result<Token, TokenAdditionFailure>> => {
     const project = await projects.find(projectId);

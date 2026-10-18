@@ -26,14 +26,16 @@ describe("le contrat de sortie d'un token reste ouvert (ADR 0023)", () => {
 
   it("accepte un type et un statut ajoutés plus tard par le serveur", () => {
     expect(
-      TokenOutput.safeParse(makeTokenOutput({ $type: "dimension", status: "proposed" })).success,
+      TokenOutput.safeParse(makeTokenOutput({ $type: "duration", status: "proposed" })).success,
     ).toBe(true);
   });
 
   it("annonce à l'IA les types et les statuts connus", () => {
     expect(z.toJSONSchema(TokenOutput)).toMatchObject({
       properties: {
-        $type: { anyOf: [{ enum: ["color"] }, { type: "string" }] },
+        $type: {
+          anyOf: [{ enum: ["color", "dimension", "typography", "shadow"] }, { type: "string" }],
+        },
         status: { anyOf: [{ enum: ["validated"] }, { type: "string" }] },
       },
     });

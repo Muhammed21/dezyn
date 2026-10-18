@@ -7,9 +7,16 @@ import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
 import { problemResponse } from "../../../platform/problem.ts";
 import { validate } from "../../../platform/validate.ts";
 import type { TokenUseCases } from "../application/add-token.ts";
-import { type ColorRefusal, colorRefusal } from "../domain/color.ts";
+import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
+import { type Shadow, type ShadowRefusal, shadowRefusals } from "../domain/shadow.ts";
 import { type TokenNameRefusal, tokenNameRefusal } from "../domain/token-name.ts";
-import type { Token } from "../domain/token.ts";
+import type { Token, TokenDefinition } from "../domain/token.ts";
+import {
+  FONT_WEIGHT_KEYWORDS,
+  type Typography,
+  type TypographyRefusal,
+  typographyRefusal,
+} from "../domain/typography.ts";
 
 const SrgbColorRequest = z.strictObject({
   colorSpace: z.literal("srgb"),
@@ -34,23 +41,124 @@ const COLOR_ISSUES: Readonly<Record<ColorRefusal, { field: string; message: stri
   hex_mismatch: { field: "hex", message: "Hex différent des composantes" },
 };
 
-const TokenRequest = z
-  .strictObject({
+const TYPOGRAPHY_ISSUES: Readonly<Record<TypographyRefusal, { field: string; message: string }>> = {
+  font_weight_out_of_range: {
+    field: "fontWeight",
+    message: "Graisse hors de l'intervalle 1 à 1000",
+  },
+  empty_font_family: { field: "fontFamily", message: "Famille de police vide" },
+};
+
+type ValueIssue = { readonly path: readonly (string | number)[]; readonly message: string };
+
+const issuesOf = <Refusal extends string>(
+  refusal: Refusal | undefined,
+  issues: Readonly<Record<Refusal, { readonly field: string; readonly message: string }>>,
+): readonly ValueIssue[] => {
+  if (refusal === undefined) {
+    return [];
+  }
+  const { field, message } = issues[refusal];
+  return [{ path: [field], message }];
+};
+
+const colorIssues = (color: SrgbColor) => issuesOf(colorRefusal(color), COLOR_ISSUES);
+
+const typographyIssues = (typography: Typography) =>
+  issuesOf(typographyRefusal(typography), TYPOGRAPHY_ISSUES);
+
+const shadowIssueOf = (refusal: ShadowRefusal): ValueIssue => {
+  switch (refusal) {
+    case "no_layer":
+      return { path: [], message: "Ombre sans couche" };
+    case "negative_blur":
+      return { path: ["blur"], message: "Flou négatif" };
+    default:
+      return {
+        path: ["color", COLOR_ISSUES[refusal].field],
+        message: COLOR_ISSUES[refusal].message,
+      };
+  }
+};
+
+const shadowIssues = (shadow: Shadow): readonly ValueIssue[] =>
+  shadowRefusals(shadow).map(({ layer, refusal }) => {
+    const { path, message } = shadowIssueOf(refusal);
+    return { path: layer === undefined ? path : [layer, ...path], message };
+  });
+
+const valueIssues = (token: TokenDefinition): readonly ValueIssue[] => {
+  switch (token.$type) {
+    case "color":
+      return colorIssues(token.$value);
+    case "typography":
+      return typographyIssues(token.$value);
+    case "shadow":
+      return shadowIssues(token.$value);
+    default:
+      return [];
+  }
+};
+
+const DimensionRequest = z.strictObject({
+  value: z.number(),
+  unit: z.enum(["px", "rem"]),
+});
+
+const TypographyRequest = z.strictObject({
+  fontFamily: z.union([z.string(), z.array(z.string())]),
+  fontSize: DimensionRequest,
+  fontWeight: z.union([z.number(), z.enum(FONT_WEIGHT_KEYWORDS)]),
+  lineHeight: z.number(),
+  letterSpacing: DimensionRequest,
+});
+
+const ShadowLayerRequest = z.strictObject({
+  color: SrgbColorRequest,
+  offsetX: DimensionRequest,
+  offsetY: DimensionRequest,
+  blur: DimensionRequest,
+  spread: DimensionRequest,
+  inset: z.boolean().optional(),
+});
+
+const oneOrMany = <Item extends z.ZodType>(item: Item) => {
+  const many = z.array(item);
+  return z.unknown().transform((value, context): z.output<Item> | z.output<typeof many> => {
+    const parsed = (Array.isArray(value) ? many : item).safeParse(value);
+    if (!parsed.success) {
+      parsed.error.issues.forEach((issue) => context.addIssue({ ...issue }));
+      return z.NEVER;
+    }
+    return parsed.data;
+  });
+};
+
+const ShadowRequest = oneOrMany(ShadowLayerRequest);
+
+const typed = <Type extends string, Value extends z.ZodType>(type: Type, value: Value) =>
+  z.strictObject({
     name: z.string(),
-    $type: z.literal("color"),
-    $value: SrgbColorRequest,
+    $type: z.literal(type),
+    $value: value,
     $description: z.string().optional(),
-  })
+  });
+
+const TokenRequest = z
+  .discriminatedUnion("$type", [
+    typed("color", SrgbColorRequest),
+    typed("dimension", DimensionRequest),
+    typed("typography", TypographyRequest),
+    typed("shadow", ShadowRequest),
+  ])
   .superRefine((token, context) => {
     const nameRefusal = tokenNameRefusal(token.name);
     if (nameRefusal !== undefined) {
       context.addIssue({ code: "custom", path: ["name"], message: NAME_MESSAGES[nameRefusal] });
     }
-    const valueRefusal = colorRefusal(token.$value);
-    if (valueRefusal !== undefined) {
-      const { field, message } = COLOR_ISSUES[valueRefusal];
-      context.addIssue({ code: "custom", path: ["$value", field], message });
-    }
+    valueIssues(token).forEach(({ path, message }) => {
+      context.addIssue({ code: "custom", path: ["$value", ...path], message });
+    });
   });
 
 const tokenOutputOf = ({ id, name, $type, $value, $description, status }: Token) => ({
