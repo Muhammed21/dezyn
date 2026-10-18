@@ -35,7 +35,7 @@ ALTER TABLE "project" ADD CONSTRAINT "project_space_id_space_id_fk" FOREIGN KEY 
 CREATE INDEX "history_entry_project_id_occurred_at_id_idx" ON "history_entry" USING btree ("project_id","occurred_at","id");--> statement-breakpoint
 CREATE INDEX "project_space_id_idx" ON "project" USING btree ("space_id");--> statement-breakpoint
 -- L'app crée et lit les projets.
-GRANT SELECT, INSERT, UPDATE ON "project" TO app;--> statement-breakpoint
+GRANT SELECT, INSERT ON "project" TO app;--> statement-breakpoint
 -- L'app ajoute et lit les auteurs et les entrées de l'historique, sans les modifier ni les supprimer (ADR 0019 §1).
 GRANT SELECT, INSERT ON "history_author", "history_entry" TO app;--> statement-breakpoint
 REVOKE UPDATE, DELETE, TRUNCATE ON "history_entry" FROM app;

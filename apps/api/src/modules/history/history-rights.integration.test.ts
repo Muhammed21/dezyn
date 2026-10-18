@@ -96,6 +96,17 @@ describe("l'historique est en ajout seul pour le rôle app (ADR 0019 §1)", () =
     }));
 });
 
+describe("le rôle app crée et lit les projets, sans les modifier", () => {
+  it("app ne modifie pas un projet", () =>
+    withAppDatabase(async (db) => {
+      await seedHistoryEntry(db);
+
+      await expect(db.orm.update(schema.project).set({ name: "Boutique" })).rejects.toThrow(
+        permissionDenied("project"),
+      );
+    }));
+});
+
 describe("le rôle history_maintainer purge l'historique, sans le modifier (ADR 0019 §2)", () => {
   it("history_maintainer supprime une entrée", () =>
     withMaintainerDatabase(async ({ app, maintainer }) => {
