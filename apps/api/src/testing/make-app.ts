@@ -9,6 +9,7 @@ export const makeDatabase = (overrides: Partial<Database> = {}): Database => ({
 });
 
 export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
+  baseURL: "http://127.0.0.1:3000",
   handle: () => Promise.resolve(new Response(null, { status: 404 })),
   authorizationServerMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
   protectedResourceMetadata: () => Promise.resolve(new Response(null, { status: 404 })),

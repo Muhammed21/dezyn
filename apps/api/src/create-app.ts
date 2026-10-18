@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import type { Auth } from "./modules/identity/application/auth.ts";
+import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import type { Database } from "./platform/database.ts";
 import type { AppEnv } from "./platform/http.ts";
 import { errorDetails, type LogSink } from "./platform/logging.ts";
@@ -21,6 +22,7 @@ export const createApp = ({
   app.use(requestContext(log));
 
   app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
+  app.route("/", authPages({ auth, baseURL: auth.baseURL }));
   app.get("/.well-known/oauth-authorization-server", (c) =>
     auth.authorizationServerMetadata(c.req.raw),
   );

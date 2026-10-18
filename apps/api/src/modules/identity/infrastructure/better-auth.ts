@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { oauthProvider, oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
@@ -35,6 +35,11 @@ export const IDENTITY_SCHEMA = {
 
 export const generateIdentityId = (): string => randomUUID();
 
+export const hashToken = (token: string): string =>
+  createHash("sha256").update(token).digest("base64url");
+
+export const generateRefreshToken = (): string => randomBytes(32).toString("base64url");
+
 export const apiResourceOf = (baseURL: string): string => new URL("/v1", baseURL).href;
 
 export const identityAuthOptions = ({
@@ -69,6 +74,10 @@ export const identityAuthOptions = ({
         loginPage: "/login",
         consentPage: "/consent",
         resources: [apiResourceOf(baseURL)],
+        enforcePerClientResources: false,
+        scopes: ["offline_access"],
+        generateRefreshToken,
+        storeTokens: { hash: hashToken },
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
       }),
@@ -102,6 +111,7 @@ export const createIdentityAuth = async ({
   const authorizationServerMetadata = oauthProviderAuthServerMetadata(auth);
 
   return {
+    baseURL,
     handle: (request) => auth.handler(request),
     authorizationServerMetadata,
     protectedResourceMetadata: async () =>
