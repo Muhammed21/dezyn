@@ -5,6 +5,7 @@ import { withThrowawayDatabase } from "@repo/db/testing";
 
 import { createApp } from "../../create-app.ts";
 import { createPostgresDatabase } from "../../platform/postgres-database.ts";
+import { makeSpaces } from "../../testing/make-app.ts";
 import { createIdentityAuth, REGISTRATION_RATE_LIMIT } from "./infrastructure/better-auth.ts";
 
 const BASE_URL = "http://127.0.0.1:3000";
@@ -21,8 +22,9 @@ const withIdentityApp = (run: (app: ReturnType<typeof createApp>) => Promise<voi
         baseURL: BASE_URL,
         trustedIpHeader: CLIENT_IP_HEADER,
         log: () => undefined,
+        onUserCreated: () => Promise.resolve(),
       });
-      await run(createApp({ db, auth, log: () => undefined }));
+      await run(createApp({ db, auth, log: () => undefined, spaces: makeSpaces() }));
     } finally {
       await db.close();
     }
@@ -57,6 +59,7 @@ describe("découverte du serveur d'autorisation et enregistrement d'un client MC
         baseURL: BASE_URL,
         trustedIpHeader: CLIENT_IP_HEADER,
         log: () => undefined,
+        onUserCreated: () => Promise.resolve(),
       });
 
       await expect(db.close()).resolves.toBeUndefined();

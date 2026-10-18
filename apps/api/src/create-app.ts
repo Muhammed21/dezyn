@@ -3,6 +3,9 @@ import { Hono } from "hono";
 import type { Auth } from "./modules/identity/application/auth.ts";
 import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
+import type { MySpace } from "./modules/space/domain/space.ts";
+import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
+import { spacesRoutes } from "./modules/space/presentation/spaces-routes.ts";
 import { type AuthenticatedEnv, requireAccessToken } from "./platform/access-token.ts";
 import type { Database } from "./platform/database.ts";
 import type { AppEnv } from "./platform/http.ts";
@@ -15,10 +18,12 @@ export const createApp = ({
   db,
   auth,
   log,
+  spaces,
 }: {
   readonly db: Database;
   readonly auth: Auth;
   readonly log: LogSink;
+  readonly spaces: { readonly listMySpaces: (userId: string) => Promise<readonly MySpace[]> };
 }) => {
   const app = new Hono<AppEnv>();
 
@@ -32,7 +37,17 @@ export const createApp = ({
       resourceMetadataUrl: new URL("/.well-known/oauth-protected-resource/v1", auth.baseURL).href,
     }),
   );
-  v1.post("/mcp", mcpEndpoint({ registerTools: registerWhoami }));
+  const registerSpaceTools = registerListSpaces(spaces);
+  v1.post(
+    "/mcp",
+    mcpEndpoint({
+      registerTools: (server, identity) => {
+        registerWhoami(server, identity);
+        registerSpaceTools(server, identity);
+      },
+    }),
+  );
+  v1.route("/spaces", spacesRoutes(spaces));
   app.route("/v1", v1);
   app.get("/.well-known/oauth-authorization-server", (c) =>
     auth.authorizationServerMetadata(c.req.raw),

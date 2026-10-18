@@ -5,6 +5,7 @@ import { betterAuth, type BetterAuthOptions, type GenericEndpointContext } from 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { jwt } from "better-auth/plugins/jwt";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { createAccessTokenVerifier } from "@repo/auth-verifier";
@@ -150,15 +151,31 @@ export const createIdentityAuth = async ({
   baseURL,
   trustedIpHeader,
   log,
+  onUserCreated,
 }: {
   readonly db: PostgresDatabase;
   readonly secret: string;
   readonly baseURL: string;
   readonly trustedIpHeader: string;
   readonly log: LogSink;
+  readonly onUserCreated: (user: { readonly id: string; readonly name: string }) => Promise<void>;
 }): Promise<Auth> => {
   const auth = betterAuth({
     ...identityAuthOptions({ baseURL, trustedIpHeader }),
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            try {
+              await onUserCreated(user);
+            } catch (error) {
+              await db.orm.delete(schema.identityUser).where(eq(schema.identityUser.id, user.id));
+              throw error;
+            }
+          },
+        },
+      },
+    },
     secret,
     database: drizzleAdapter(db.orm, { provider: "pg", schema: IDENTITY_SCHEMA }),
     logger: {

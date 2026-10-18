@@ -5,6 +5,7 @@ import { withThrowawayDatabase } from "@repo/db/testing";
 
 import { createApp } from "../create-app.ts";
 import { createIdentityAuth } from "../modules/identity/infrastructure/better-auth.ts";
+import { spaceModule } from "../modules/space/space-module.ts";
 import { createPostgresDatabase, type PostgresDatabase } from "../platform/postgres-database.ts";
 
 export const BASE_URL = "http://127.0.0.1:3000";
@@ -18,22 +19,32 @@ export const ADA = {
 
 export type App = ReturnType<typeof createApp>;
 
+type UserCreated = (user: { readonly id: string; readonly name: string }) => Promise<void>;
+
 export const withIdentityApp = (
   run: (app: App, db: PostgresDatabase) => Promise<void>,
-  { baseURL = BASE_URL }: { readonly baseURL?: string } = {},
+  {
+    baseURL = BASE_URL,
+    wrapUserCreated = (created) => created,
+  }: {
+    readonly baseURL?: string;
+    readonly wrapUserCreated?: (created: UserCreated) => UserCreated;
+  } = {},
 ) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
     await migrate({ connectionString: migratorUrl });
     const db = createPostgresDatabase({ url: appUrl });
     try {
+      const spaces = spaceModule(db);
       const auth = await createIdentityAuth({
         db,
         secret: "secret-de-test-de-32-caracteres-au-moins",
         baseURL,
         trustedIpHeader: "x-forwarded-for",
         log: () => undefined,
+        onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
       });
-      await run(createApp({ db, auth, log: () => undefined }), db);
+      await run(createApp({ db, auth, log: () => undefined, spaces }), db);
     } finally {
       await db.close();
     }

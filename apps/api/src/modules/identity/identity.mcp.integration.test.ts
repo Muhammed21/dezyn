@@ -135,14 +135,17 @@ describe("MCP : l'IA autorisée appelle whoami", () => {
 
       expect(await tools.json()).toMatchObject({
         result: {
-          tools: [
-            {
+          tools: expect.arrayContaining([
+            expect.objectContaining({
               name: "whoami",
               description:
                 "Renvoie l'utilisateur dezyn et le client OAuth au nom desquels l'IA agit.",
-              outputSchema: { type: "object", properties: { userId: {}, clientId: {} } },
-            },
-          ],
+              outputSchema: expect.objectContaining({
+                type: "object",
+                properties: { userId: expect.anything(), clientId: expect.anything() },
+              }),
+            }),
+          ]),
         },
       });
       expect(await initialize.json()).toMatchObject({

@@ -19,11 +19,18 @@ export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
   ...overrides,
 });
 
+export const makeSpaces = () => ({ listMySpaces: () => Promise.resolve([]) });
+
 export const makeApp = ({
   db = makeDatabase(),
   auth = makeAuth(),
 }: { readonly db?: Database; readonly auth?: Auth } = {}) => {
   const records: LogRecord[] = [];
-  const app = createApp({ db, auth, log: (record) => records.push(record) });
+  const app = createApp({
+    db,
+    auth,
+    log: (record) => records.push(record),
+    spaces: makeSpaces(),
+  });
   return { app, records };
 };
