@@ -7,7 +7,7 @@ export type StoredRefreshToken = {
   readonly sessionId: string | null;
 };
 
-export type RefreshGrantVerdict = "allowed" | "reuse" | "orphaned" | "expired";
+export type RefreshGrantOutcome = "allowed" | "reuse" | "orphaned" | "expired";
 
 const withinReplayWindow = ({ rotationReplayExpiresAt }: StoredRefreshToken, now: Date) =>
   rotationReplayExpiresAt !== null && rotationReplayExpiresAt.getTime() >= now.getTime();
@@ -18,13 +18,13 @@ const isReuse = (token: StoredRefreshToken, now: Date) =>
 const exceedsAbsoluteLifetime = ({ authTime }: StoredRefreshToken, now: Date) =>
   authTime === null || now.getTime() - authTime.getTime() > ABSOLUTE_LIFETIME_MS;
 
-export const refreshGrantVerdict = ({
+export const refreshGrantOutcome = ({
   token,
   now,
 }: {
   readonly token: StoredRefreshToken;
   readonly now: Date;
-}): RefreshGrantVerdict => {
+}): RefreshGrantOutcome => {
   if (isReuse(token, now)) {
     return "reuse";
   }

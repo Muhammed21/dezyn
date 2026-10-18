@@ -12,8 +12,8 @@ import { describe, expect, it } from "vitest";
 import { schema } from "@repo/db";
 
 import {
-  type App,
   BASE_URL,
+  callMcp,
   formFields,
   makeBrowser,
   makeClientIp,
@@ -24,25 +24,6 @@ import {
 } from "../../testing/authorization-flow.ts";
 
 const RESOURCE_METADATA = `${BASE_URL}/.well-known/oauth-protected-resource/v1`;
-
-const callMcp = (
-  app: App,
-  {
-    token,
-    authorization = token === undefined ? undefined : `Bearer ${token}`,
-    method,
-    params = {},
-  }: { token?: string; authorization?: string; method: string; params?: object },
-) =>
-  app.request(`${BASE_URL}/v1/mcp`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json, text/event-stream",
-      ...(authorization === undefined ? {} : { authorization }),
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-  });
 
 describe("MCP : l'IA autorisée appelle whoami", () => {
   it("sans jeton, répond 401 et pointe vers les métadonnées de ressource protégée", () =>

@@ -14,7 +14,7 @@ import type { LogSink } from "../../../platform/logging.ts";
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { Auth } from "../application/auth.ts";
 import { defaultToNativeForLoopback } from "../domain/client-registration.ts";
-import { refreshGrantVerdict } from "../domain/refresh-grant.ts";
+import { refreshGrantOutcome } from "../domain/refresh-grant.ts";
 import { postgresActiveSessions } from "./postgres-active-sessions.ts";
 
 const DAY_SECONDS = 86_400;
@@ -73,12 +73,12 @@ const guardRefreshGrant = async (ctx: GenericEndpointContext): Promise<void> => 
   if (!stored.success) {
     return;
   }
-  const verdict = refreshGrantVerdict({ token: stored.data, now: new Date() });
-  if (verdict === "reuse") {
+  const outcome = refreshGrantOutcome({ token: stored.data, now: new Date() });
+  if (outcome === "reuse") {
     await ctx.context.internalAdapter.deleteUserSessions(stored.data.userId);
     return;
   }
-  if (verdict !== "allowed") {
+  if (outcome !== "allowed") {
     throw new APIError("BAD_REQUEST", { error: "invalid_grant" });
   }
 };

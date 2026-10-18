@@ -7,8 +7,7 @@ import { z } from "zod";
 import { schema } from "@repo/db";
 
 import {
-  type App,
-  BASE_URL,
+  callMcp,
   decodeJwtPart,
   obtainAccessToken,
   refreshTokens,
@@ -18,17 +17,6 @@ import {
 const DAY_MS = 86_400_000;
 
 const hashOf = (token: string) => createHash("sha256").update(token).digest("base64url");
-
-const callWhoami = (app: App, accessToken: string) =>
-  app.request(`${BASE_URL}/v1/mcp`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/json",
-      accept: "application/json, text/event-stream",
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-  });
 
 describe("refresh des jetons de l'IA (ADR 0018 §3 et §4)", () => {
   it("un rejeu dans la fenêtre de tolérance est accepté", () =>
@@ -84,10 +72,10 @@ describe("refresh des jetons de l'IA (ADR 0018 §3 et §4)", () => {
         .update(schema.identityOAuthRefreshToken)
         .set({ rotationReplayExpiresAt: new Date(Date.now() - 1000) })
         .where(eq(schema.identityOAuthRefreshToken.token, hashOf(refreshToken)));
-      const before = await callWhoami(app, accessToken);
+      const before = await callMcp(app, { token: accessToken, method: "tools/list" });
 
       const replay = await refreshTokens(app, { clientId, refreshToken });
-      const after = await callWhoami(app, accessToken);
+      const after = await callMcp(app, { token: accessToken, method: "tools/list" });
       const sessions = await db.orm
         .select({ id: schema.identitySession.id })
         .from(schema.identitySession)
