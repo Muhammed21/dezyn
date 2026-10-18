@@ -7,6 +7,7 @@ import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
 import { problemResponse } from "../../../platform/problem.ts";
 import { validate } from "../../../platform/validate.ts";
 import type { InvitationFailure } from "../application/invite-member.ts";
+import type { DepartureFailure } from "../application/leave-space.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";
 import { planRequiredProblem } from "./plan-required-problem.ts";
 
@@ -24,7 +25,21 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
   return planRequiredProblem(c, failure);
 };
 
-export const spacesRoutes = ({ listMySpaces, readSpace, inviteMember }: SpaceUseCases) =>
+const departureProblem = (c: Context<AuthenticatedEnv>, failure: DepartureFailure) =>
+  failure === "not_found"
+    ? c.notFound()
+    : problemResponse(c, {
+        type: "https://dezyn.app/problems/last-owner",
+        title: "Dernier propriétaire de l'espace",
+        status: 409,
+      });
+
+export const spacesRoutes = ({
+  listMySpaces,
+  readSpace,
+  inviteMember,
+  leaveSpace,
+}: SpaceUseCases) =>
   new Hono<AuthenticatedEnv>()
     .get("/", async (c) => c.json({ spaces: await listMySpaces(c.get("identity").userId) }))
     .get("/:spaceId", async (c) => {
@@ -46,4 +61,12 @@ export const spacesRoutes = ({ listMySpaces, readSpace, inviteMember }: SpaceUse
         email: c.req.valid("json").email,
       });
       return invitation.ok ? c.json(invitation.value, 201) : invitationProblem(c, invitation.error);
+    })
+    .delete("/:spaceId/members/me", async (c) => {
+      const spaceId = spaceIdOf(c);
+      if (spaceId === undefined) {
+        return c.notFound();
+      }
+      const left = await leaveSpace({ spaceId, userId: c.get("identity").userId });
+      return left.ok ? c.body(null, 204) : departureProblem(c, left.error);
     });

@@ -4,8 +4,10 @@ import type { Mailer } from "../../platform/mailer.ts";
 import type { PostgresDatabase } from "../../platform/postgres-database.ts";
 import { acceptInvitation } from "./application/accept-invitation.ts";
 import { inviteMember } from "./application/invite-member.ts";
+import { leaveSpace } from "./application/leave-space.ts";
 import { readSpace } from "./application/read-space.ts";
 import { createPersonalSpace, listMySpaces } from "./application/spaces.ts";
+import { postgresDepartures } from "./infrastructure/postgres-departures.ts";
 import { postgresInvitationAcceptance } from "./infrastructure/postgres-invitation-acceptance.ts";
 import { postgresInvitationStore } from "./infrastructure/postgres-invitation-store.ts";
 import { postgresMembershipReader } from "./infrastructure/postgres-membership-reader.ts";
@@ -49,5 +51,6 @@ export const spaceModule = ({
       newId: randomUUID,
       now,
     }),
+    leaveSpace: leaveSpace({ departures: postgresDepartures(db), now }),
   };
 };

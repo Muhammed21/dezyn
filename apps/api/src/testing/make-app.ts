@@ -25,6 +25,7 @@ export const makeSpaces = (): SpaceUseCases => ({
   readSpace: () => Promise.resolve(err("not_found")),
   inviteMember: () => Promise.resolve(err("not_found")),
   acceptInvitation: () => Promise.resolve(err("gone")),
+  leaveSpace: () => Promise.resolve(err("not_found")),
 });
 
 export const makeApp = ({

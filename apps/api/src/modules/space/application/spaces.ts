@@ -3,6 +3,7 @@ import type { Result } from "@repo/result";
 import type { AcceptanceRefusal } from "../domain/acceptance.ts";
 import { type MySpace, type PersonalSpace, personalSpaceOf } from "../domain/space.ts";
 import type { InvitationFailure, SentInvitation } from "./invite-member.ts";
+import type { DepartureFailure } from "./leave-space.ts";
 import type { MembershipKey } from "./membership-reader.ts";
 
 export type SpaceUseCases = {
@@ -17,6 +18,7 @@ export type SpaceUseCases = {
     readonly token: string;
     readonly userId: string;
   }) => Promise<Result<MySpace, AcceptanceRefusal>>;
+  readonly leaveSpace: (key: MembershipKey) => Promise<Result<void, DepartureFailure>>;
 };
 
 export interface SpaceStore {
