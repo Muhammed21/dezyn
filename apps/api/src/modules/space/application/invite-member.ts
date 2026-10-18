@@ -11,11 +11,15 @@ import {
 import type { MembershipReader } from "./membership-reader.ts";
 import type { SpaceFinder } from "./read-space.ts";
 
+export interface MemberDirectory {
+  hasActiveMember(request: { readonly spaceId: string; readonly email: string }): Promise<boolean>;
+}
+
 export interface InvitationStore {
   create(invitation: Invitation): Promise<void>;
 }
 
-export type InvitationFailure = "not_found" | "forbidden" | PlanRequired;
+export type InvitationFailure = "not_found" | "forbidden" | "already_member" | PlanRequired;
 
 export type SentInvitation = {
   readonly id: string;
@@ -47,6 +51,7 @@ export const inviteMember =
   ({
     memberships,
     spaces,
+    members,
     invitations,
     mailer,
     newId,
@@ -57,6 +62,7 @@ export const inviteMember =
   }: {
     readonly memberships: MembershipReader;
     readonly spaces: SpaceFinder;
+    readonly members: MemberDirectory;
     readonly invitations: InvitationStore;
     readonly mailer: Mailer;
     readonly newId: () => string;
@@ -85,6 +91,9 @@ export const inviteMember =
     const refusal = invitationRefusalOn(space.plan);
     if (refusal !== undefined) {
       return err(refusal);
+    }
+    if (await members.hasActiveMember({ spaceId, email })) {
+      return err("already_member");
     }
     const token = newToken();
     const invitation = invitationOf({

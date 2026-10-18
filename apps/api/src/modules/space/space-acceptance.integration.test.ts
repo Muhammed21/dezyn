@@ -206,11 +206,13 @@ describe("l'invité accepte l'invitation et devient éditeur (ADR 0011 §4, ADR 
     const outbox = makeOutbox();
     return withIdentityApp(
       async (app, db) => {
-        const { ada, spaceId, token } = await inviteIntoTeamSpace(app, db, outbox, {
-          email: ADA.email,
-        });
+        const { ada, spaceId, token: first } = await inviteIntoTeamSpace(app, db, outbox);
+        await invite(app, { accessToken: ada.accessToken, spaceId });
+        const token = tokenOf(outbox.sent.at(-1));
+        const grace = await obtainAccessToken(app, { user: GRACE });
+        await accept(app, { accessToken: grace.accessToken, token: first });
 
-        const response = await accept(app, { accessToken: ada.accessToken, token });
+        const response = await accept(app, { accessToken: grace.accessToken, token });
 
         expect(response.status).toBe(409);
         expect(await response.json()).toMatchObject({
@@ -218,8 +220,8 @@ describe("l'invité accepte l'invitation et devient éditeur (ADR 0011 §4, ADR 
           title: "Déjà membre de l'espace",
           status: 409,
         });
-        expect(await membershipsOf(db, { spaceId, userId: ada.userId })).toEqual([
-          { role: "owner", closedReason: null },
+        expect(await membershipsOf(db, { spaceId, userId: grace.userId })).toEqual([
+          { role: "editor", closedReason: null },
         ]);
         expect(await acceptedAtOf(db, token)).toBeNull();
       },

@@ -10,6 +10,7 @@ import { createPersonalSpace, listMySpaces } from "./application/spaces.ts";
 import { postgresDepartures } from "./infrastructure/postgres-departures.ts";
 import { postgresInvitationAcceptance } from "./infrastructure/postgres-invitation-acceptance.ts";
 import { postgresInvitationStore } from "./infrastructure/postgres-invitation-store.ts";
+import { postgresMemberDirectory } from "./infrastructure/postgres-member-directory.ts";
 import { postgresMembershipReader } from "./infrastructure/postgres-membership-reader.ts";
 import { postgresSpaceStore } from "./infrastructure/postgres-space-store.ts";
 
@@ -37,6 +38,7 @@ export const spaceModule = ({
     inviteMember: inviteMember({
       memberships,
       spaces: store,
+      members: postgresMemberDirectory(db),
       invitations: postgresInvitationStore(db),
       mailer,
       newId: randomUUID,

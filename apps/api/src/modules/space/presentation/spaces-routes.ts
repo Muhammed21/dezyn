@@ -9,6 +9,7 @@ import { validate } from "../../../platform/validate.ts";
 import type { InvitationFailure } from "../application/invite-member.ts";
 import type { DepartureFailure } from "../application/leave-space.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";
+import { alreadyMemberProblem } from "./already-member-problem.ts";
 import { planRequiredProblem } from "./plan-required-problem.ts";
 
 const InvitationRequest = z.object({ email: z.email() });
@@ -21,6 +22,9 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
   }
   if (failure === "forbidden") {
     return problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+  }
+  if (failure === "already_member") {
+    return alreadyMemberProblem(c);
   }
   return planRequiredProblem(c, failure);
 };

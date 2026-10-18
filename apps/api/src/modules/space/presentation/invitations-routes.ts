@@ -4,6 +4,7 @@ import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
 import { problemResponse } from "../../../platform/problem.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";
 import type { AcceptanceRefusal } from "../domain/acceptance.ts";
+import { alreadyMemberProblem } from "./already-member-problem.ts";
 import { planRequiredProblem } from "./plan-required-problem.ts";
 
 const acceptanceProblem = (c: Context<AuthenticatedEnv>, refusal: AcceptanceRefusal) => {
@@ -22,11 +23,7 @@ const acceptanceProblem = (c: Context<AuthenticatedEnv>, refusal: AcceptanceRefu
     });
   }
   if (refusal === "already_member") {
-    return problemResponse(c, {
-      type: "about:blank",
-      title: "Déjà membre de l'espace",
-      status: 409,
-    });
+    return alreadyMemberProblem(c);
   }
   return planRequiredProblem(c, refusal);
 };

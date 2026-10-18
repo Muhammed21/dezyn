@@ -1,8 +1,15 @@
+import { randomUUID } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import { schema } from "@repo/db";
 
-import { obtainAccessToken, WEB_URL, withIdentityApp } from "../../testing/authorization-flow.ts";
+import {
+  GRACE,
+  obtainAccessToken,
+  WEB_URL,
+  withIdentityApp,
+} from "../../testing/authorization-flow.ts";
 import {
   hashOf,
   invite,
@@ -15,7 +22,6 @@ import {
 } from "../../testing/space-fixtures.ts";
 
 const DAY_MS = 86_400_000;
-const GRACE = "grace@dezyn.test";
 const PLAN_REQUIRED = "https://dezyn.app/problems/plan-required";
 
 describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 0011 §4)", () => {
@@ -38,14 +44,14 @@ describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 00
         expect(response.status).toBe(201);
         expect(body).toEqual({
           id: expect.any(String),
-          email: GRACE,
+          email: GRACE.email,
           expiresAt: expect.any(String),
         });
         expect(Date.parse(body.expiresAt) - before).toBeGreaterThanOrEqual(7 * DAY_MS);
         expect(Date.parse(body.expiresAt) - Date.now()).toBeLessThanOrEqual(7 * DAY_MS);
         expect(outbox.sent).toEqual([
           {
-            to: GRACE,
+            to: GRACE.email,
             subject: "Invitation à rejoindre « Ada Lovelace » sur dezyn",
             text: [
               "Vous êtes invité à rejoindre l'espace « Ada Lovelace » sur dezyn, en tant qu'éditeur.",
@@ -70,7 +76,7 @@ describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 00
         const spaceId = await personalSpaceOf(db, userId);
         await switchToTeam(db, spaceId);
 
-        await invite(app, { accessToken, spaceId, email: GRACE });
+        await invite(app, { accessToken, spaceId, email: GRACE.email });
         await invite(app, { accessToken, spaceId, email: "alan@dezyn.test" });
         const [first, second] = outbox.sent.map(tokenOf);
 
@@ -120,6 +126,56 @@ describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 00
           requiredPlan: "team",
         });
         expect(outbox.sent).toEqual([]);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("inviter un membre actif répond 409, sans invitation ni email", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { accessToken, userId } = await obtainAccessToken(app);
+        const spaceId = await personalSpaceOf(db, userId);
+        await switchToTeam(db, spaceId);
+
+        const response = await invite(app, { accessToken, spaceId, email: "Ada@Dezyn.TEST" });
+
+        expect(response.status).toBe(409);
+        expect(await response.json()).toMatchObject({
+          type: "about:blank",
+          title: "Déjà membre de l'espace",
+          status: 409,
+        });
+        expect(await db.orm.select().from(schema.spaceInvitation)).toEqual([]);
+        expect(outbox.sent).toEqual([]);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("un membre parti peut être réinvité", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { accessToken, userId } = await obtainAccessToken(app);
+        const spaceId = await personalSpaceOf(db, userId);
+        await switchToTeam(db, spaceId);
+        const grace = await obtainAccessToken(app, { user: GRACE });
+        await db.orm.insert(schema.spaceMember).values({
+          id: randomUUID(),
+          spaceId,
+          userId: grace.userId,
+          role: "editor",
+          joinedAt: new Date(),
+          closedAt: new Date(),
+          closedReason: "left",
+        });
+
+        const response = await invite(app, { accessToken, spaceId, email: GRACE.email });
+
+        expect(response.status).toBe(201);
+        expect(outbox.sent).toHaveLength(1);
       },
       { mailer: outbox.mailer },
     );
