@@ -37,10 +37,12 @@ SQL
 
 ensure_role migrator "$PG_PASSWORD_MIGRATOR" CREATEDB
 ensure_role app "$PG_PASSWORD_APP" NOCREATEDB
+ensure_role history_maintainer "$PG_PASSWORD_HISTORY_MAINTAINER" NOCREATEDB
 
 ensure_database "$PG_DATABASE" migrator
 
 grant_connect "$PG_DATABASE" migrator
 grant_connect "$PG_DATABASE" app
+grant_connect "$PG_DATABASE" history_maintainer
 
 echo "db-init : rôles et base à jour"

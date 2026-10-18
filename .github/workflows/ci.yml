@@ -89,6 +89,7 @@ jobs:
       # secretlint-disable -- identifiants factices, propres au service de la CI
       DATABASE_URL_MIGRATOR: postgresql://migrator:ci_migrator@127.0.0.1:5432/dezyn
       DATABASE_URL: postgresql://app:ci_app@127.0.0.1:5432/dezyn
+      DATABASE_URL_HISTORY_MAINTAINER: postgresql://history_maintainer:ci_history_maintainer@127.0.0.1:5432/dezyn
       # secretlint-enable
     steps:
       - uses: actions/checkout@v5
@@ -101,6 +102,7 @@ jobs:
           PG_DATABASE: dezyn
           PG_PASSWORD_MIGRATOR: ci_migrator
           PG_PASSWORD_APP: ci_app
+          PG_PASSWORD_HISTORY_MAINTAINER: ci_history_maintainer
       - run: pnpm test:integration
 
   generated:

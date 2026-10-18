@@ -32,6 +32,7 @@ export const spaceModule = ({
   const store = postgresSpaceStore(db);
   const memberships = postgresMembershipReader(db);
   return {
+    memberships,
     createPersonalSpace: createPersonalSpace({ store, newId: randomUUID, now }),
     listMySpaces: listMySpaces({ store }),
     readSpace: readSpace({ memberships, spaces: store }),

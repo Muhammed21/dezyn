@@ -1,7 +1,9 @@
 import { err } from "@repo/result";
 
 import { createApp } from "../create-app.ts";
+import type { HistoryUseCases } from "../modules/history/application/history-use-cases.ts";
 import type { Auth } from "../modules/identity/application/auth.ts";
+import type { ProjectUseCases } from "../modules/project/application/create-project.ts";
 import type { SpaceUseCases } from "../modules/space/application/spaces.ts";
 import type { Database } from "../platform/database.ts";
 import type { LogRecord } from "../platform/logging.ts";
@@ -28,6 +30,15 @@ export const makeSpaces = (): SpaceUseCases => ({
   leaveSpace: () => Promise.resolve(err("not_found")),
 });
 
+export const makeProjects = (): ProjectUseCases => ({
+  createProject: () => Promise.resolve(err("not_found")),
+});
+
+export const makeHistory = (): HistoryUseCases => ({
+  readHistory: () => Promise.resolve(err("not_found")),
+  recordProjectCall: () => Promise.resolve(err("not_found")),
+});
+
 export const makeApp = ({
   db = makeDatabase(),
   auth = makeAuth(),
@@ -38,6 +49,8 @@ export const makeApp = ({
     auth,
     log: (record) => records.push(record),
     spaces: makeSpaces(),
+    projects: makeProjects(),
+    history: makeHistory(),
   });
   return { app, records };
 };

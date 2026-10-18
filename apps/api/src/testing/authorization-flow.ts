@@ -3,9 +3,10 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { migrate } from "@repo/db";
 import { withThrowawayDatabase } from "@repo/db/testing";
 
+import { composeModules } from "../compose-modules.ts";
 import { createApp } from "../create-app.ts";
+import type { HistoryWriter } from "../modules/history/contracts/history-writer.ts";
 import { createIdentityAuth } from "../modules/identity/infrastructure/better-auth.ts";
-import { spaceModule } from "../modules/space/space-module.ts";
 import type { Mailer } from "../platform/mailer.ts";
 import { createPostgresDatabase, type PostgresDatabase } from "../platform/postgres-database.ts";
 
@@ -36,17 +37,24 @@ export const withIdentityApp = (
     baseURL = BASE_URL,
     wrapUserCreated = (created) => created,
     mailer = { send: () => Promise.resolve() },
+    wrapHistoryWriter,
   }: {
     readonly baseURL?: string;
     readonly wrapUserCreated?: (created: UserCreated) => UserCreated;
     readonly mailer?: Mailer;
+    readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
   } = {},
 ) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
     await migrate({ connectionString: migratorUrl });
     const db = createPostgresDatabase({ url: appUrl });
     try {
-      const spaces = spaceModule({ db, mailer, webUrl: WEB_URL });
+      const { spaces, projects, history } = composeModules({
+        db,
+        mailer,
+        webUrl: WEB_URL,
+        wrapHistoryWriter,
+      });
       const auth = await createIdentityAuth({
         db,
         secret: "secret-de-test-de-32-caracteres-au-moins",
@@ -55,7 +63,7 @@ export const withIdentityApp = (
         log: () => undefined,
         onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
       });
-      await run(createApp({ db, auth, log: () => undefined, spaces }), db);
+      await run(createApp({ db, auth, log: () => undefined, spaces, projects, history }), db);
     } finally {
       await db.close();
     }
@@ -304,7 +312,14 @@ export const callMcp = (
     authorization = token === undefined ? undefined : `Bearer ${token}`,
     method,
     params = {},
-  }: { token?: string; authorization?: string; method: string; params?: object },
+    correlationId,
+  }: {
+    token?: string;
+    authorization?: string;
+    method: string;
+    params?: object;
+    correlationId?: string;
+  },
 ) =>
   app.request(`${BASE_URL}/v1/mcp`, {
     method: "POST",
@@ -312,6 +327,7 @@ export const callMcp = (
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       ...(authorization === undefined ? {} : { authorization }),
+      ...(correlationId === undefined ? {} : { "x-correlation-id": correlationId }),
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });

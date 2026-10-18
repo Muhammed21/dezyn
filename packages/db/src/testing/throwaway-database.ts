@@ -53,6 +53,7 @@ const dropOnceAppBackendsLeave = async (
 export type ThrowawayDatabase = {
   readonly migratorUrl: string;
   readonly appUrl: string;
+  readonly maintainerUrl: string;
   readonly drop: () => Promise<void>;
 };
 
@@ -62,11 +63,13 @@ export const createThrowawayDatabase = async (): Promise<ThrowawayDatabase> => {
     await client.query(`CREATE DATABASE ${database}`);
     await client.query(`REVOKE ALL ON DATABASE ${database} FROM PUBLIC`);
     await client.query(`GRANT CONNECT ON DATABASE ${database} TO app`);
+    await client.query(`GRANT CONNECT ON DATABASE ${database} TO history_maintainer`);
   });
 
   return {
     migratorUrl: onDatabase(urlOf("DATABASE_URL_MIGRATOR"), database),
     appUrl: onDatabase(urlOf("DATABASE_URL"), database),
+    maintainerUrl: onDatabase(urlOf("DATABASE_URL_HISTORY_MAINTAINER"), database),
     drop: () =>
       asMigrator(async (client) => {
         await dropOnceAppBackendsLeave(client, database, Date.now() + DROP_TIMEOUT_MS);

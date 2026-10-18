@@ -1,8 +1,13 @@
 import { Hono } from "hono";
 
+import type { HistoryUseCases } from "./modules/history/application/history-use-cases.ts";
+import { historyRoutes } from "./modules/history/presentation/history-routes.ts";
+import { registerReadHistory } from "./modules/history/presentation/read-history-tool.ts";
 import type { Auth } from "./modules/identity/application/auth.ts";
 import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
+import type { ProjectUseCases } from "./modules/project/application/create-project.ts";
+import { projectsRoutes } from "./modules/project/presentation/projects-routes.ts";
 import type { SpaceUseCases } from "./modules/space/application/spaces.ts";
 import { invitationsRoutes } from "./modules/space/presentation/invitations-routes.ts";
 import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
@@ -20,11 +25,15 @@ export const createApp = ({
   auth,
   log,
   spaces,
+  projects,
+  history,
 }: {
   readonly db: Database;
   readonly auth: Auth;
   readonly log: LogSink;
   readonly spaces: SpaceUseCases;
+  readonly projects: ProjectUseCases;
+  readonly history: HistoryUseCases;
 }) => {
   const app = new Hono<AppEnv>();
 
@@ -39,16 +48,20 @@ export const createApp = ({
     }),
   );
   const registerSpaceTools = registerListSpaces(spaces);
+  const registerHistoryTools = registerReadHistory(history);
   v1.post(
     "/mcp",
     mcpEndpoint({
-      registerTools: (server, identity) => {
-        registerWhoami(server, identity);
-        registerSpaceTools(server, identity);
+      registerTools: (server, call) => {
+        registerWhoami(server, call);
+        registerSpaceTools(server, call);
+        registerHistoryTools(server, call);
       },
     }),
   );
   v1.route("/spaces", spacesRoutes(spaces));
+  v1.route("/spaces", projectsRoutes(projects));
+  v1.route("/projects", historyRoutes(history));
   v1.route("/invitations", invitationsRoutes(spaces));
   app.route("/v1", v1);
   app.get("/.well-known/oauth-authorization-server", (c) =>
