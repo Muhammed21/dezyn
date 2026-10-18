@@ -12,6 +12,7 @@ export type Problem = {
   readonly title: string;
   readonly status: ContentfulStatusCode;
   readonly errors?: readonly { readonly path: string; readonly message: string }[];
+  readonly extensions?: Readonly<Record<string, string>>;
 };
 
 export const INTERNAL_ERROR: Problem = {
@@ -39,9 +40,16 @@ export const clientProblem = (error: Error): Problem | undefined => {
   return undefined;
 };
 
+const withoutExtensions = ({ extensions: _extensions, ...problem }: Problem) => problem;
+
 export const problemResponse = <E extends AppEnv>(c: Context<E>, problem: Problem): Response =>
   c.body(
-    JSON.stringify({ ...problem, instance: c.req.path, correlationId: c.get("correlationId") }),
+    JSON.stringify({
+      ...withoutExtensions(problem),
+      ...problem.extensions,
+      instance: c.req.path,
+      correlationId: c.get("correlationId"),
+    }),
     problem.status,
     { "content-type": "application/problem+json" },
   );

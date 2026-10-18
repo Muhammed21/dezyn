@@ -14,3 +14,4 @@ export {
   identityOAuthRefreshToken,
   identityOAuthResource,
 } from "./oauth.ts";
+export { space, spaceInvitation, spaceMember } from "./space.ts";

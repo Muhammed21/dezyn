@@ -5,10 +5,12 @@ import { withThrowawayDatabase } from "@repo/db/testing";
 
 import { startApi } from "./start-api.ts";
 
-const AUTH = {
+const CONFIG = {
   authSecret: "secret-de-test-de-32-caracteres-au-moins",
   baseURL: "http://127.0.0.1:3000",
   trustedIpHeader: "x-forwarded-for",
+  smtp: { host: "127.0.0.1", port: 1025, from: "dezyn <no-reply@dezyn.test>" },
+  webUrl: "http://127.0.0.1:5173",
 };
 
 describe("startApi", () => {
@@ -20,7 +22,7 @@ describe("startApi", () => {
           migration: LATEST_MIGRATION,
           port: 0,
           log: () => undefined,
-          ...AUTH,
+          ...CONFIG,
         }),
       ).rejects.toThrow(
         `Schéma en retard : la migration ${LATEST_MIGRATION.tag} n'est pas appliquée`,
@@ -36,7 +38,7 @@ describe("startApi", () => {
         migration: LATEST_MIGRATION,
         port: 0,
         log: () => undefined,
-        ...AUTH,
+        ...CONFIG,
       });
       try {
         const response = await fetch(new URL("/health", api.url));
@@ -55,7 +57,7 @@ describe("startApi", () => {
         migration: LATEST_MIGRATION,
         port: 0,
         log: () => undefined,
-        ...AUTH,
+        ...CONFIG,
       });
 
       await api.close();

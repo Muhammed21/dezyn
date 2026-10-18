@@ -5,35 +5,57 @@ import { withThrowawayDatabase } from "@repo/db/testing";
 
 import { createApp } from "../create-app.ts";
 import { createIdentityAuth } from "../modules/identity/infrastructure/better-auth.ts";
+import { spaceModule } from "../modules/space/space-module.ts";
+import type { Mailer } from "../platform/mailer.ts";
 import { createPostgresDatabase, type PostgresDatabase } from "../platform/postgres-database.ts";
 
 export const BASE_URL = "http://127.0.0.1:3000";
 export const RESOURCE = `${BASE_URL}/v1`;
+export const WEB_URL = "http://127.0.0.1:5173";
 export const CLIENT_REDIRECT = "http://localhost:33418/callback";
 export const ADA = {
   name: "Ada Lovelace",
   email: "ada@dezyn.test",
   password: "un-mot-de-passe-solide",
 };
+export const GRACE = {
+  name: "Grace Hopper",
+  email: "grace@dezyn.test",
+  password: "un-autre-mot-de-passe-solide",
+};
+
+type User = typeof ADA;
 
 export type App = ReturnType<typeof createApp>;
 
+type UserCreated = (user: { readonly id: string; readonly name: string }) => Promise<void>;
+
 export const withIdentityApp = (
   run: (app: App, db: PostgresDatabase) => Promise<void>,
-  { baseURL = BASE_URL }: { readonly baseURL?: string } = {},
+  {
+    baseURL = BASE_URL,
+    wrapUserCreated = (created) => created,
+    mailer = { send: () => Promise.resolve() },
+  }: {
+    readonly baseURL?: string;
+    readonly wrapUserCreated?: (created: UserCreated) => UserCreated;
+    readonly mailer?: Mailer;
+  } = {},
 ) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
     await migrate({ connectionString: migratorUrl });
     const db = createPostgresDatabase({ url: appUrl });
     try {
+      const spaces = spaceModule({ db, mailer, webUrl: WEB_URL });
       const auth = await createIdentityAuth({
         db,
         secret: "secret-de-test-de-32-caracteres-au-moins",
         baseURL,
         trustedIpHeader: "x-forwarded-for",
         log: () => undefined,
+        onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
       });
-      await run(createApp({ db, auth, log: () => undefined }), db);
+      await run(createApp({ db, auth, log: () => undefined, spaces }), db);
     } finally {
       await db.close();
     }
@@ -125,14 +147,14 @@ const registerClient = async (
   return clientId;
 };
 
-export const signUp = async (app: App, ip: string): Promise<string> => {
+export const signUp = async (app: App, ip: string, user: User = ADA): Promise<string> => {
   const response = await app.request(`${BASE_URL}/auth/sign-up/email`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: BASE_URL, "x-forwarded-for": ip },
-    body: JSON.stringify(ADA),
+    body: JSON.stringify(user),
   });
-  const { user } = await response.json();
-  return user.id;
+  const { user: created } = await response.json();
+  return created.id;
 };
 
 const authorizePath = ({ clientId, challenge }: { clientId: string; challenge: string }) =>
@@ -170,19 +192,20 @@ export const reachConsent = async (
   app: App,
   {
     clientName = "Claude Code",
-    password = ADA.password,
-  }: { readonly clientName?: string; readonly password?: string } = {},
+    user = ADA,
+    password = user.password,
+  }: { readonly clientName?: string; readonly user?: User; readonly password?: string } = {},
 ) => {
   const ip = makeClientIp();
   const clientId = await registerClient(app, { ip, clientName });
-  const userId = await signUp(app, ip);
+  const userId = await signUp(app, ip, user);
   const pkce = makePkce();
   const browser = makeBrowser(app, ip);
 
   const loginPage = await browser.get(authorizePath({ clientId, challenge: pkce.challenge }));
   const consentPage = await browser.postForm("/login", {
     ...formFields(await loginPage.text()),
-    email: ADA.email,
+    email: user.email,
     password,
   });
   return {
@@ -195,8 +218,11 @@ export const reachConsent = async (
   };
 };
 
-export const signInAndConsent = async (app: App, { accept }: { accept: boolean }) => {
-  const { browser, consentHtml, ...flow } = await reachConsent(app);
+export const signInAndConsent = async (
+  app: App,
+  { accept, user = ADA }: { readonly accept: boolean; readonly user?: User },
+) => {
+  const { browser, consentHtml, ...flow } = await reachConsent(app, { user });
   const backToClient = await browser.postForm("/consent", {
     ...formFields(consentHtml),
     accept: String(accept),
@@ -210,9 +236,13 @@ export const signInAndConsent = async (app: App, { accept }: { accept: boolean }
   };
 };
 
-export const obtainAccessToken = async (app: App) => {
+export const obtainAccessToken = async (
+  app: App,
+  { user = ADA }: { readonly user?: User } = {},
+) => {
   const { clientId, userId, pkce, browser, callback } = await signInAndConsent(app, {
     accept: true,
+    user,
   });
   const token = await exchangeCode(app, {
     clientId,

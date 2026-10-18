@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { createApp } from "./create-app.ts";
 import { createPostgresDatabase } from "./platform/postgres-database.ts";
-import { makeAuth } from "./testing/make-app.ts";
+import { makeAuth, makeSpaces } from "./testing/make-app.ts";
 
 const reachableDatabase = createPostgresDatabase({ url: process.env.DATABASE_URL ?? "" });
 const unroutableDatabase = createPostgresDatabase({
@@ -14,7 +14,12 @@ afterAll(() => Promise.all([reachableDatabase.close(), unroutableDatabase.close(
 
 describe("GET /health", () => {
   it("répond 200 quand PostgreSQL répond", async () => {
-    const app = createApp({ db: reachableDatabase, auth: makeAuth(), log: () => undefined });
+    const app = createApp({
+      db: reachableDatabase,
+      auth: makeAuth(),
+      log: () => undefined,
+      spaces: makeSpaces(),
+    });
 
     const response = await app.request("/health");
 
@@ -23,7 +28,12 @@ describe("GET /health", () => {
   });
 
   it("répond 503 en moins de 3 s quand PostgreSQL est injoignable", async () => {
-    const app = createApp({ db: unroutableDatabase, auth: makeAuth(), log: () => undefined });
+    const app = createApp({
+      db: unroutableDatabase,
+      auth: makeAuth(),
+      log: () => undefined,
+      spaces: makeSpaces(),
+    });
     const startedAt = performance.now();
 
     const response = await app.request("/health");
@@ -35,7 +45,12 @@ describe("GET /health", () => {
   it("répond 503 une fois la connexion à PostgreSQL fermée", async () => {
     const closedDatabase = createPostgresDatabase({ url: process.env.DATABASE_URL ?? "" });
     await closedDatabase.close();
-    const app = createApp({ db: closedDatabase, auth: makeAuth(), log: () => undefined });
+    const app = createApp({
+      db: closedDatabase,
+      auth: makeAuth(),
+      log: () => undefined,
+      spaces: makeSpaces(),
+    });
 
     const response = await app.request("/health");
 
