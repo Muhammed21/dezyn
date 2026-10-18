@@ -36,3 +36,22 @@ export const spaceMember = pgTable(
       .where(sql`${table.closedAt} IS NULL`),
   ],
 );
+
+export const spaceInvitation = pgTable(
+  "space_invitation",
+  {
+    id: uuid("id").primaryKey(),
+    spaceId: uuid("space_id")
+      .notNull()
+      .references(() => space.id),
+    email: text("email").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    invitedBy: uuid("invited_by")
+      .notNull()
+      .references(() => identityUser.id),
+    createdAt: at("created_at").notNull(),
+    expiresAt: at("expires_at").notNull(),
+    acceptedAt: at("accepted_at"),
+  },
+  (table) => [index("space_invitation_space_id_idx").on(table.spaceId)],
+);

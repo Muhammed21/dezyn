@@ -7,6 +7,7 @@ import { createIdentityAuth } from "./modules/identity/infrastructure/better-aut
 import { spaceModule } from "./modules/space/space-module.ts";
 import type { LogSink } from "./platform/logging.ts";
 import { createPostgresDatabase } from "./platform/postgres-database.ts";
+import { createSmtpMailer } from "./platform/smtp-mailer.ts";
 
 export type RunningApi = {
   readonly url: string;
@@ -26,6 +27,8 @@ export const startApi = async ({
   authSecret,
   baseURL,
   trustedIpHeader,
+  smtp,
+  webUrl,
 }: {
   readonly databaseUrl: string;
   readonly migration: Migration;
@@ -34,10 +37,12 @@ export const startApi = async ({
   readonly authSecret: string;
   readonly baseURL: string;
   readonly trustedIpHeader: string;
+  readonly smtp: { readonly host: string; readonly port: number; readonly from: string };
+  readonly webUrl: string;
 }): Promise<RunningApi> => {
   await assertSchemaVersion({ connectionString: databaseUrl, migration });
   const db = createPostgresDatabase({ url: databaseUrl });
-  const spaces = spaceModule(db);
+  const spaces = spaceModule({ db, mailer: createSmtpMailer(smtp), webUrl });
   const auth = await createIdentityAuth({
     db,
     secret: authSecret,

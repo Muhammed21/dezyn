@@ -1,16 +1,45 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
+import type { Mailer } from "../../platform/mailer.ts";
 import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import { inviteMember } from "./application/invite-member.ts";
 import { readSpace } from "./application/read-space.ts";
 import { createPersonalSpace, listMySpaces } from "./application/spaces.ts";
+import { postgresInvitationStore } from "./infrastructure/postgres-invitation-store.ts";
 import { postgresMembershipReader } from "./infrastructure/postgres-membership-reader.ts";
 import { postgresSpaceStore } from "./infrastructure/postgres-space-store.ts";
 
-export const spaceModule = (db: PostgresDatabase) => {
+const now = () => new Date();
+
+const newToken = () => randomBytes(32).toString("base64url");
+
+const hashToken = (token: string) => createHash("sha256").update(token).digest("base64url");
+
+export const spaceModule = ({
+  db,
+  mailer,
+  webUrl,
+}: {
+  readonly db: PostgresDatabase;
+  readonly mailer: Mailer;
+  readonly webUrl: string;
+}) => {
   const store = postgresSpaceStore(db);
+  const memberships = postgresMembershipReader(db);
   return {
-    createPersonalSpace: createPersonalSpace({ store, newId: randomUUID, now: () => new Date() }),
+    createPersonalSpace: createPersonalSpace({ store, newId: randomUUID, now }),
     listMySpaces: listMySpaces({ store }),
-    readSpace: readSpace({ memberships: postgresMembershipReader(db), spaces: store }),
+    readSpace: readSpace({ memberships, spaces: store }),
+    inviteMember: inviteMember({
+      memberships,
+      spaces: store,
+      invitations: postgresInvitationStore(db),
+      mailer,
+      newId: randomUUID,
+      newToken,
+      hashToken,
+      now,
+      webUrl,
+    }),
   };
 };

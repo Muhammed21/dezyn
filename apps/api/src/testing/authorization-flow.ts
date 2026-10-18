@@ -6,10 +6,12 @@ import { withThrowawayDatabase } from "@repo/db/testing";
 import { createApp } from "../create-app.ts";
 import { createIdentityAuth } from "../modules/identity/infrastructure/better-auth.ts";
 import { spaceModule } from "../modules/space/space-module.ts";
+import type { Mailer } from "../platform/mailer.ts";
 import { createPostgresDatabase, type PostgresDatabase } from "../platform/postgres-database.ts";
 
 export const BASE_URL = "http://127.0.0.1:3000";
 export const RESOURCE = `${BASE_URL}/v1`;
+export const WEB_URL = "http://127.0.0.1:5173";
 export const CLIENT_REDIRECT = "http://localhost:33418/callback";
 export const ADA = {
   name: "Ada Lovelace",
@@ -26,16 +28,18 @@ export const withIdentityApp = (
   {
     baseURL = BASE_URL,
     wrapUserCreated = (created) => created,
+    mailer = { send: () => Promise.resolve() },
   }: {
     readonly baseURL?: string;
     readonly wrapUserCreated?: (created: UserCreated) => UserCreated;
+    readonly mailer?: Mailer;
   } = {},
 ) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
     await migrate({ connectionString: migratorUrl });
     const db = createPostgresDatabase({ url: appUrl });
     try {
-      const spaces = spaceModule(db);
+      const spaces = spaceModule({ db, mailer, webUrl: WEB_URL });
       const auth = await createIdentityAuth({
         db,
         secret: "secret-de-test-de-32-caracteres-au-moins",

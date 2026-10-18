@@ -75,6 +75,16 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 30
+      mailpit:
+        image: axllent/mailpit:v1.31.2
+        ports:
+          - 1025:1025
+          - 8025:8025
+        options: >-
+          --health-cmd "/mailpit readyz"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     env:
       # secretlint-disable -- identifiants factices, propres au service de la CI
       DATABASE_URL_MIGRATOR: postgresql://migrator:ci_migrator@127.0.0.1:5432/dezyn

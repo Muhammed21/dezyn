@@ -1,1 +1,1 @@
-export const LATEST_MIGRATION = { tag: "0003_space", when: 1792326353818 };
+export const LATEST_MIGRATION = { tag: "0004_space_invitation", when: 1792328041667 };

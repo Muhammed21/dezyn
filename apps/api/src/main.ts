@@ -20,6 +20,12 @@ const api = await startApi({
   authSecret: required("BETTER_AUTH_SECRET"),
   baseURL: required("BETTER_AUTH_URL"),
   trustedIpHeader: process.env.TRUSTED_IP_HEADER ?? "x-forwarded-for",
+  smtp: {
+    host: required("SMTP_HOST"),
+    port: Number(required("SMTP_PORT")),
+    from: required("MAIL_FROM"),
+  },
+  webUrl: required("WEB_URL"),
   migration: LATEST_MIGRATION,
   port: Number(process.env.PORT ?? 3000),
   log,

@@ -29,6 +29,13 @@
       "when": 1792326353818,
       "tag": "0003_space",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792328041667,
+      "tag": "0004_space_invitation",
+      "breakpoints": true
     }
   ]
 }
