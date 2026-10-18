@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import type { Auth } from "./modules/identity/application/auth.ts";
 import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
+import { type AuthenticatedEnv, requireAccessToken } from "./platform/access-token.ts";
 import type { Database } from "./platform/database.ts";
 import type { AppEnv } from "./platform/http.ts";
 import { errorDetails, type LogSink } from "./platform/logging.ts";
@@ -25,14 +26,14 @@ export const createApp = ({
 
   app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
   app.route("/", authPages({ auth, baseURL: auth.baseURL }));
-  app.post(
-    "/v1/mcp",
-    mcpEndpoint({
+  const v1 = new Hono<AuthenticatedEnv>().use(
+    requireAccessToken({
       verifyAccessToken: auth.verifyAccessToken,
       resourceMetadataUrl: new URL("/.well-known/oauth-protected-resource/v1", auth.baseURL).href,
-      registerTools: registerWhoami,
     }),
   );
+  v1.post("/mcp", mcpEndpoint({ registerTools: registerWhoami }));
+  app.route("/v1", v1);
   app.get("/.well-known/oauth-authorization-server", (c) =>
     auth.authorizationServerMetadata(c.req.raw),
   );
