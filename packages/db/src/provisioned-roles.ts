@@ -1,4 +1,4 @@
-const EXPECTED_ROLES: readonly string[] = ["migrator", "app"];
+const EXPECTED_ROLES: readonly string[] = ["migrator", "app", "history_maintainer"];
 
 export const assertRolesProvisioned = async ({
   listRoles,

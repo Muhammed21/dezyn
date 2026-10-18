@@ -47,12 +47,13 @@ check_not "docker/up.sh échoue si db-init échoue (mauvais mot de passe)" env E
 check "docker/up.sh relancé avec la bonne configuration réussit" env ENV_FILE="$ENV_FILE" "$ROOT/docker/up.sh"
 
 echo "Rôles et base"
-for role in migrator app; do
+for role in migrator app history_maintainer; do
   check "le rôle $role existe" test "$(psql_admin "SELECT count(*) FROM pg_roles WHERE rolname = '$role' AND rolcanlogin")" = "1"
 done
 check "migrator est propriétaire de la base $PG_DATABASE" test "$(psql_admin "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = '$PG_DATABASE'")" = "migrator"
 check "migrator a CREATEDB (shadow database)" test "$(psql_admin "SELECT rolcreatedb FROM pg_roles WHERE rolname = 'migrator'")" = "t"
 check "app n'a pas CREATEDB" test "$(psql_admin "SELECT rolcreatedb FROM pg_roles WHERE rolname = 'app'")" = "f"
+check "history_maintainer n'a pas CREATEDB" test "$(psql_admin "SELECT rolcreatedb FROM pg_roles WHERE rolname = 'history_maintainer'")" = "f"
 check "aucun rôle applicatif n'est superutilisateur" test "$(psql_admin "SELECT count(*) FROM pg_roles WHERE rolsuper AND rolname <> 'postgres'")" = "0"
 
 echo "Cloisonnement de la base"
@@ -61,6 +62,8 @@ check "migrator se connecte à $PG_DATABASE" psql_as migrator "$PG_PASSWORD_MIGR
 check "app se connecte par le réseau Docker avec son mot de passe" psql_network app "$PG_PASSWORD_APP" "$PG_DATABASE" "SELECT 1"
 check_not "app refusé par le réseau Docker avec un mauvais mot de passe" psql_network app wrong "$PG_DATABASE" "SELECT 1"
 check_not "app ne crée pas de table dans le schéma public" psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "CREATE TABLE infra_test_app (id int)"
+check "history_maintainer se connecte à $PG_DATABASE" psql_as history_maintainer "$PG_PASSWORD_HISTORY_MAINTAINER" "$PG_DATABASE" "SELECT 1"
+check_not "history_maintainer ne crée pas de table dans le schéma public" psql_as history_maintainer "$PG_PASSWORD_HISTORY_MAINTAINER" "$PG_DATABASE" "CREATE TABLE infra_test_maintainer (id int)"
 check "migrator crée une table dans le schéma public" psql_as migrator "$PG_PASSWORD_MIGRATOR" "$PG_DATABASE" "CREATE TABLE infra_test_migrator (id int); DROP TABLE infra_test_migrator"
 
 echo "Migrations (ADR 0009)"
@@ -71,6 +74,8 @@ check "migrator relance les migrations sans erreur" migrate_as "$DATABASE_URL_MI
 check "app lit la version du schéma" test "$(psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "SELECT count(*) > 0 FROM drizzle.__drizzle_migrations")" = "t"
 check_not "app n'applique pas les migrations" migrate_as "$APP_URL"
 check_not "app n'écrit pas dans la table des migrations" psql_as app "$PG_PASSWORD_APP" "$PG_DATABASE" "DELETE FROM drizzle.__drizzle_migrations"
+check "history_maintainer supprime dans l'historique" psql_as history_maintainer "$PG_PASSWORD_HISTORY_MAINTAINER" "$PG_DATABASE" "DELETE FROM history_entry WHERE false"
+check_not "history_maintainer ne modifie pas l'historique" psql_as history_maintainer "$PG_PASSWORD_HISTORY_MAINTAINER" "$PG_DATABASE" "UPDATE history_entry SET action = action WHERE false"
 
 echo "Idempotence de db-init"
 check "db-init relancé une première fois réussit" compose run --rm db-init

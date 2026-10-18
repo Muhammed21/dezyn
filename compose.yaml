@@ -31,6 +31,7 @@ services:
       PG_DATABASE: ${PG_DATABASE}
       PG_PASSWORD_MIGRATOR: ${PG_PASSWORD_MIGRATOR}
       PG_PASSWORD_APP: ${PG_PASSWORD_APP}
+      PG_PASSWORD_HISTORY_MAINTAINER: ${PG_PASSWORD_HISTORY_MAINTAINER}
     volumes:
       - ./docker/postgres/init-roles.sh:/init-roles.sh:ro
     entrypoint: ["sh", "/init-roles.sh"]

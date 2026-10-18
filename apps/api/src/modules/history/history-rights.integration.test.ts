@@ -23,7 +23,7 @@ const seedHistoryEntry = async (db: PostgresDatabase) => {
     .insert(schema.project)
     .values({ id: projectId, spaceId, name: "Site vitrine", createdAt: now });
   await db.orm.insert(schema.historyAuthor).values({ id: authorId, spaceId, userId });
-  await db.orm.insert(schema.historyEntry).values({
+  const entry = {
     id: randomUUID(),
     spaceId,
     projectId,
@@ -34,7 +34,9 @@ const seedHistoryEntry = async (db: PostgresDatabase) => {
     after: { name: "Site vitrine" },
     correlationId: "seed",
     occurredAt: now,
-  });
+  };
+  await db.orm.insert(schema.historyEntry).values(entry);
+  return entry;
 };
 
 const withAppDatabase = (run: (db: PostgresDatabase) => Promise<void>) =>
@@ -46,6 +48,25 @@ const withAppDatabase = (run: (db: PostgresDatabase) => Promise<void>) =>
     } finally {
       await db.close();
     }
+  });
+
+const withMaintainerDatabase = (
+  run: (databases: { app: PostgresDatabase; maintainer: PostgresDatabase }) => Promise<void>,
+) =>
+  withThrowawayDatabase(async ({ migratorUrl, appUrl, maintainerUrl }) => {
+    await migrate({ connectionString: migratorUrl });
+    const app = createPostgresDatabase({ url: appUrl });
+    const maintainer = createPostgresDatabase({ url: maintainerUrl });
+    try {
+      await run({ app, maintainer });
+    } finally {
+      await Promise.all([app.close(), maintainer.close()]);
+    }
+  });
+
+const permissionDenied = (table: string) =>
+  expect.objectContaining({
+    cause: expect.objectContaining({ message: `permission denied for table ${table}` }),
   });
 
 describe("l'historique est en ajout seul pour le rôle app (ADR 0019 §1)", () => {
@@ -62,11 +83,7 @@ describe("l'historique est en ajout seul pour le rôle app (ADR 0019 §1)", () =
 
       await expect(
         db.orm.update(schema.historyEntry).set({ action: "project.renamed" }),
-      ).rejects.toThrow(
-        expect.objectContaining({
-          cause: expect.objectContaining({ message: "permission denied for table history_entry" }),
-        }),
-      );
+      ).rejects.toThrow(permissionDenied("history_entry"));
     }));
 
   it("app ne supprime pas une entrée", () =>
@@ -74,9 +91,36 @@ describe("l'historique est en ajout seul pour le rôle app (ADR 0019 §1)", () =
       await seedHistoryEntry(db);
 
       await expect(db.orm.delete(schema.historyEntry)).rejects.toThrow(
-        expect.objectContaining({
-          cause: expect.objectContaining({ message: "permission denied for table history_entry" }),
-        }),
+        permissionDenied("history_entry"),
       );
+    }));
+});
+
+describe("le rôle history_maintainer purge l'historique, sans le modifier (ADR 0019 §2)", () => {
+  it("history_maintainer supprime une entrée", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      await maintainer.orm.delete(schema.historyEntry);
+
+      expect(await app.orm.select().from(schema.historyEntry)).toEqual([]);
+    }));
+
+  it("history_maintainer ne modifie pas une entrée", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      await expect(
+        maintainer.orm.update(schema.historyEntry).set({ action: "project.renamed" }),
+      ).rejects.toThrow(permissionDenied("history_entry"));
+    }));
+
+  it("history_maintainer n'ajoute pas d'entrée", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      const entry = await seedHistoryEntry(app);
+
+      await expect(
+        maintainer.orm.insert(schema.historyEntry).values({ ...entry, id: randomUUID() }),
+      ).rejects.toThrow(permissionDenied("history_entry"));
     }));
 });
