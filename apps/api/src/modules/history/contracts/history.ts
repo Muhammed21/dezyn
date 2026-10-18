@@ -19,4 +19,7 @@ export const HistoryEntryOutput = z.looseObject({
   correlationId: z.string(),
 });
 
-export const HistoryOutput = z.looseObject({ entries: z.array(HistoryEntryOutput) });
+export const HistoryOutput = z.looseObject({
+  entries: z.array(HistoryEntryOutput),
+  nextCursor: z.string().nullable(),
+});

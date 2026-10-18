@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { schema } from "@repo/db";
@@ -23,7 +23,7 @@ const StoredEntry = z.object({
 });
 
 export const postgresHistoryReader = (db: PostgresDatabase): HistoryReader => ({
-  entriesOf: async (projectId) => {
+  entriesOf: async (projectId, { after, take }) => {
     const rows = await db.orm
       .select({
         id: historyEntry.id,
@@ -41,8 +41,19 @@ export const postgresHistoryReader = (db: PostgresDatabase): HistoryReader => ({
       .from(historyEntry)
       .innerJoin(historyAuthor, eq(historyAuthor.id, historyEntry.authorId))
       .innerJoin(identityUser, eq(identityUser.id, historyAuthor.userId))
-      .where(eq(historyEntry.projectId, projectId))
-      .orderBy(desc(historyEntry.occurredAt), desc(historyEntry.id));
+      .where(
+        and(
+          eq(historyEntry.projectId, projectId),
+          after === undefined
+            ? undefined
+            : or(
+                lt(historyEntry.occurredAt, after.occurredAt),
+                and(eq(historyEntry.occurredAt, after.occurredAt), lt(historyEntry.id, after.id)),
+              ),
+        ),
+      )
+      .orderBy(desc(historyEntry.occurredAt), desc(historyEntry.id))
+      .limit(take);
     return rows.map((row) => {
       const { userId, name, ...entry } = StoredEntry.parse(row);
       return { ...entry, author: { kind: "member", userId, name } };

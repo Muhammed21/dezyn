@@ -2,6 +2,7 @@ import { err, ok, type Result } from "@repo/result";
 
 import type { ProjectFinder } from "../../project/contracts/project.ts";
 import { can, type MembershipReader } from "../../space/contracts/membership.ts";
+import { encodeCursor, type HistoryPosition } from "./history-cursor.ts";
 
 export type HistoryAuthor = {
   readonly kind: "member";
@@ -22,9 +23,26 @@ export type HistoryEntry = {
   readonly correlationId: string;
 };
 
+export type HistoryPage = {
+  readonly entries: readonly HistoryEntry[];
+  readonly nextCursor: string | null;
+};
+
 export interface HistoryReader {
-  entriesOf(projectId: string): Promise<readonly HistoryEntry[]>;
+  entriesOf(
+    projectId: string,
+    page: { readonly after: HistoryPosition | undefined; readonly take: number },
+  ): Promise<readonly HistoryEntry[]>;
 }
+
+const pageOf = (rows: readonly HistoryEntry[], limit: number): HistoryPage => {
+  const entries = rows.slice(0, limit);
+  const last = entries.at(-1);
+  return {
+    entries,
+    nextCursor: rows.length > limit && last !== undefined ? encodeCursor(last) : null,
+  };
+};
 
 export const readHistory =
   ({
@@ -39,10 +57,14 @@ export const readHistory =
   async ({
     projectId,
     userId,
+    after,
+    limit,
   }: {
     readonly projectId: string;
     readonly userId: string;
-  }): Promise<Result<readonly HistoryEntry[], "not_found">> => {
+    readonly after: HistoryPosition | undefined;
+    readonly limit: number;
+  }): Promise<Result<HistoryPage, "not_found">> => {
     const project = await projects.find(projectId);
     if (project === undefined) {
       return err("not_found");
@@ -51,5 +73,5 @@ export const readHistory =
     if (!can({ membership, action: "space.read" })) {
       return err("not_found");
     }
-    return ok(await history.entriesOf(projectId));
+    return ok(pageOf(await history.entriesOf(projectId, { after, take: limit + 1 }), limit));
   };
