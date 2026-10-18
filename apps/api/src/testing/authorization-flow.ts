@@ -229,6 +229,29 @@ export const obtainAccessToken = async (app: App) => {
   };
 };
 
+type Browser = ReturnType<typeof makeBrowser>;
+
+export const authorizeAnotherAi = async (
+  app: App,
+  { browser, clientName }: { readonly browser: Browser; readonly clientName: string },
+) => {
+  const clientId = await registerClient(app, { ip: makeClientIp(), clientName });
+  const pkce = makePkce();
+  const consentPage = await browser.get(authorizePath({ clientId, challenge: pkce.challenge }));
+  const backToClient = await browser.postForm("/consent", {
+    ...formFields(await consentPage.text()),
+    accept: "true",
+  });
+  const callback = new URL(backToClient.headers.get("location") ?? "", BASE_URL);
+  const token = await exchangeCode(app, {
+    clientId,
+    code: callback.searchParams.get("code") ?? "",
+    verifier: pkce.verifier,
+  });
+  const { access_token: accessToken, refresh_token: refreshToken } = await token.json();
+  return { clientId, accessToken: String(accessToken), refreshToken: String(refreshToken) };
+};
+
 export const refreshTokens = (
   app: App,
   { clientId, refreshToken }: { clientId: string; refreshToken: string },

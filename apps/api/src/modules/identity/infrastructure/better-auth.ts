@@ -15,7 +15,7 @@ import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { Auth } from "../application/auth.ts";
 import { defaultToNativeForLoopback } from "../domain/client-registration.ts";
 import { refreshGrantOutcome } from "../domain/refresh-grant.ts";
-import { postgresActiveSessions } from "./postgres-active-sessions.ts";
+import { postgresActiveGrants } from "./postgres-active-grants.ts";
 
 const DAY_SECONDS = 86_400;
 const HOUR_SECONDS = 3_600;
@@ -53,6 +53,7 @@ const RefreshGrant = z.object({
 
 const StoredRefreshToken = z.object({
   userId: z.string(),
+  clientId: z.string(),
   sessionId: z.string().nullable(),
   revoked: z.date().nullable(),
   rotationReplayExpiresAt: z.date().nullable(),
@@ -73,7 +74,18 @@ const guardRefreshGrant = async (ctx: GenericEndpointContext): Promise<void> => 
   if (!stored.success) {
     return;
   }
-  const outcome = refreshGrantOutcome({ token: stored.data, now: new Date() });
+  const consent = await ctx.context.adapter.findOne({
+    model: "oauthConsent",
+    where: [
+      { field: "userId", value: stored.data.userId },
+      { field: "clientId", value: stored.data.clientId },
+    ],
+  });
+  const outcome = refreshGrantOutcome({
+    token: stored.data,
+    consented: consent !== null,
+    now: new Date(),
+  });
   if (outcome === "reuse") {
     await ctx.context.internalAdapter.deleteUserSessions(stored.data.userId);
     return;
@@ -161,7 +173,7 @@ export const createIdentityAuth = async ({
     jwksUrl: new URL("/auth/jwks", baseURL).href,
     issuer,
     audience: apiResourceOf(baseURL),
-    activeSessions: postgresActiveSessions(db),
+    activeGrants: postgresActiveGrants(db),
     fetchJwks: (url) => auth.handler(new Request(url)),
   });
   const authorizationServerMetadata = oauthProviderAuthServerMetadata(auth);

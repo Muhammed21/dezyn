@@ -19,8 +19,12 @@ const makeToken = (overrides: Partial<StoredRefreshToken> = {}): StoredRefreshTo
 
 const CONSUMED_BY_ROTATION = { revoked: secondsFromNow(-10) };
 
-const outcomeOf = (overrides: Partial<StoredRefreshToken>) =>
-  refreshGrantOutcome({ token: makeToken(overrides), now: NOW });
+const outcomeOf = (
+  overrides: Partial<StoredRefreshToken>,
+  { consented = true }: { readonly consented?: boolean } = {},
+) => refreshGrantOutcome({ token: makeToken(overrides), consented, now: NOW });
+
+const WITHDRAWN = { consented: false };
 
 describe("rejeu d'un refresh token (ADR 0018 §3)", () => {
   it("laisse passer un jeton encore actif", () => {
@@ -81,5 +85,19 @@ describe("refresh token sans session", () => {
 
   it("refuse la session fermée avant de regarder la durée de vie", () => {
     expect(outcomeOf({ sessionId: null, authTime: daysBefore(200) })).toBe("orphaned");
+  });
+});
+
+describe("refresh d'une IA dont l'utilisateur a retiré l'accès", () => {
+  it("refuse le refresh", () => {
+    expect(outcomeOf({}, WITHDRAWN)).toBe("withdrawn");
+  });
+
+  it("voit le rejeu avant le retrait", () => {
+    expect(outcomeOf(CONSUMED_BY_ROTATION, WITHDRAWN)).toBe("reuse");
+  });
+
+  it("refuse le retrait avant de regarder la durée de vie", () => {
+    expect(outcomeOf({ authTime: daysBefore(200) }, WITHDRAWN)).toBe("withdrawn");
   });
 });
