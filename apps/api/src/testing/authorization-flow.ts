@@ -18,6 +18,13 @@ export const ADA = {
   email: "ada@dezyn.test",
   password: "un-mot-de-passe-solide",
 };
+export const GRACE = {
+  name: "Grace Hopper",
+  email: "grace@dezyn.test",
+  password: "un-autre-mot-de-passe-solide",
+};
+
+type User = typeof ADA;
 
 export type App = ReturnType<typeof createApp>;
 
@@ -140,14 +147,14 @@ const registerClient = async (
   return clientId;
 };
 
-export const signUp = async (app: App, ip: string): Promise<string> => {
+export const signUp = async (app: App, ip: string, user: User = ADA): Promise<string> => {
   const response = await app.request(`${BASE_URL}/auth/sign-up/email`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: BASE_URL, "x-forwarded-for": ip },
-    body: JSON.stringify(ADA),
+    body: JSON.stringify(user),
   });
-  const { user } = await response.json();
-  return user.id;
+  const { user: created } = await response.json();
+  return created.id;
 };
 
 const authorizePath = ({ clientId, challenge }: { clientId: string; challenge: string }) =>
@@ -185,19 +192,20 @@ export const reachConsent = async (
   app: App,
   {
     clientName = "Claude Code",
-    password = ADA.password,
-  }: { readonly clientName?: string; readonly password?: string } = {},
+    user = ADA,
+    password = user.password,
+  }: { readonly clientName?: string; readonly user?: User; readonly password?: string } = {},
 ) => {
   const ip = makeClientIp();
   const clientId = await registerClient(app, { ip, clientName });
-  const userId = await signUp(app, ip);
+  const userId = await signUp(app, ip, user);
   const pkce = makePkce();
   const browser = makeBrowser(app, ip);
 
   const loginPage = await browser.get(authorizePath({ clientId, challenge: pkce.challenge }));
   const consentPage = await browser.postForm("/login", {
     ...formFields(await loginPage.text()),
-    email: ADA.email,
+    email: user.email,
     password,
   });
   return {
@@ -210,8 +218,11 @@ export const reachConsent = async (
   };
 };
 
-export const signInAndConsent = async (app: App, { accept }: { accept: boolean }) => {
-  const { browser, consentHtml, ...flow } = await reachConsent(app);
+export const signInAndConsent = async (
+  app: App,
+  { accept, user = ADA }: { readonly accept: boolean; readonly user?: User },
+) => {
+  const { browser, consentHtml, ...flow } = await reachConsent(app, { user });
   const backToClient = await browser.postForm("/consent", {
     ...formFields(consentHtml),
     accept: String(accept),
@@ -225,9 +236,13 @@ export const signInAndConsent = async (app: App, { accept }: { accept: boolean }
   };
 };
 
-export const obtainAccessToken = async (app: App) => {
+export const obtainAccessToken = async (
+  app: App,
+  { user = ADA }: { readonly user?: User } = {},
+) => {
   const { clientId, userId, pkce, browser, callback } = await signInAndConsent(app, {
     accept: true,
+    user,
   });
   const token = await exchangeCode(app, {
     clientId,

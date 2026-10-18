@@ -1,73 +1,22 @@
-import { createHash, randomUUID } from "node:crypto";
-
-import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { schema } from "@repo/db";
 
-import type { OutgoingEmail } from "../../platform/mailer.ts";
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import { obtainAccessToken, WEB_URL, withIdentityApp } from "../../testing/authorization-flow.ts";
 import {
-  type App,
-  BASE_URL,
-  obtainAccessToken,
-  WEB_URL,
-  withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+  hashOf,
+  invite,
+  makeOutbox,
+  personalSpaceOf,
+  seedTeamSpace,
+  seedTeamSpaceWith,
+  switchToTeam,
+  tokenOf,
+} from "../../testing/space-fixtures.ts";
 
 const DAY_MS = 86_400_000;
 const GRACE = "grace@dezyn.test";
 const PLAN_REQUIRED = "https://dezyn.app/problems/plan-required";
-
-const makeOutbox = () => {
-  const sent: OutgoingEmail[] = [];
-  return { sent, mailer: { send: async (email: OutgoingEmail) => void sent.push(email) } };
-};
-
-const invite = (
-  app: App,
-  { accessToken, spaceId, email = GRACE }: { accessToken: string; spaceId: string; email?: string },
-) =>
-  app.request(`${BASE_URL}/v1/spaces/${spaceId}/invitations`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-
-const personalSpaceOf = async (db: PostgresDatabase, userId: string) => {
-  const [membership] = await db.orm
-    .select({ spaceId: schema.spaceMember.spaceId })
-    .from(schema.spaceMember)
-    .where(eq(schema.spaceMember.userId, userId));
-  return membership?.spaceId ?? "";
-};
-
-const switchToTeam = (db: PostgresDatabase, spaceId: string) =>
-  db.orm.update(schema.space).set({ plan: "team" }).where(eq(schema.space.id, spaceId));
-
-const seedTeamSpace = async (db: PostgresDatabase) => {
-  const spaceId = randomUUID();
-  await db.orm
-    .insert(schema.space)
-    .values({ id: spaceId, name: "Studio Grace", plan: "team", createdAt: new Date() });
-  return spaceId;
-};
-
-const seedTeamSpaceWith = async (
-  db: PostgresDatabase,
-  { userId, role }: { userId: string; role: "owner" | "editor" },
-) => {
-  const spaceId = await seedTeamSpace(db);
-  await db.orm
-    .insert(schema.spaceMember)
-    .values({ id: randomUUID(), spaceId, userId, role, joinedAt: new Date() });
-  return spaceId;
-};
-
-const tokenOf = (email: OutgoingEmail | undefined) =>
-  new RegExp(`${WEB_URL}/invitations/([A-Za-z0-9_-]{43})`).exec(email?.text ?? "")?.[1] ?? "";
-
-const hashOf = (token: string) => createHash("sha256").update(token).digest("base64url");
 
 describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 0011 §4)", () => {
   it("crée l'invitation pour 7 jours et envoie un lien dont seul le hash est gardé", () => {

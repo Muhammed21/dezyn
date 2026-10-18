@@ -2,9 +2,11 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import type { Mailer } from "../../platform/mailer.ts";
 import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import { acceptInvitation } from "./application/accept-invitation.ts";
 import { inviteMember } from "./application/invite-member.ts";
 import { readSpace } from "./application/read-space.ts";
 import { createPersonalSpace, listMySpaces } from "./application/spaces.ts";
+import { postgresInvitationAcceptance } from "./infrastructure/postgres-invitation-acceptance.ts";
 import { postgresInvitationStore } from "./infrastructure/postgres-invitation-store.ts";
 import { postgresMembershipReader } from "./infrastructure/postgres-membership-reader.ts";
 import { postgresSpaceStore } from "./infrastructure/postgres-space-store.ts";
@@ -40,6 +42,12 @@ export const spaceModule = ({
       hashToken,
       now,
       webUrl,
+    }),
+    acceptInvitation: acceptInvitation({
+      acceptance: postgresInvitationAcceptance(db),
+      hashToken,
+      newId: randomUUID,
+      now,
     }),
   };
 };

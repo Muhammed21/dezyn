@@ -8,6 +8,7 @@ import { problemResponse } from "../../../platform/problem.ts";
 import { validate } from "../../../platform/validate.ts";
 import type { InvitationFailure } from "../application/invite-member.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";
+import { planRequiredProblem } from "./plan-required-problem.ts";
 
 const InvitationRequest = z.object({ email: z.email() });
 
@@ -20,12 +21,7 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
   if (failure === "forbidden") {
     return problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
   }
-  return problemResponse(c, {
-    type: "https://dezyn.app/problems/plan-required",
-    title: "Plan Team requis",
-    status: 403,
-    extensions: { requiredPlan: failure.requiredPlan },
-  });
+  return planRequiredProblem(c, failure);
 };
 
 export const spacesRoutes = ({ listMySpaces, readSpace, inviteMember }: SpaceUseCases) =>

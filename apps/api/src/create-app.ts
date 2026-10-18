@@ -4,6 +4,7 @@ import type { Auth } from "./modules/identity/application/auth.ts";
 import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
 import type { SpaceUseCases } from "./modules/space/application/spaces.ts";
+import { invitationsRoutes } from "./modules/space/presentation/invitations-routes.ts";
 import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
 import { spacesRoutes } from "./modules/space/presentation/spaces-routes.ts";
 import { type AuthenticatedEnv, requireAccessToken } from "./platform/access-token.ts";
@@ -48,6 +49,7 @@ export const createApp = ({
     }),
   );
   v1.route("/spaces", spacesRoutes(spaces));
+  v1.route("/invitations", invitationsRoutes(spaces));
   app.route("/v1", v1);
   app.get("/.well-known/oauth-authorization-server", (c) =>
     auth.authorizationServerMetadata(c.req.raw),
