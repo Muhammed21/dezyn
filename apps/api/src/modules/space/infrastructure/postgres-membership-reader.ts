@@ -1,18 +1,12 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { z } from "zod";
 
 import { schema } from "@repo/db";
 
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { MembershipReader } from "../application/membership-reader.ts";
+import { StoredMembership } from "./stored-rows.ts";
 
 const { spaceMember } = schema;
-
-const StoredMembership = z.object({
-  spaceId: z.string(),
-  userId: z.string(),
-  role: z.enum(["owner", "editor"]),
-});
 
 export const postgresMembershipReader = (db: PostgresDatabase): MembershipReader => ({
   activeMembership: async ({ spaceId, userId }) => {

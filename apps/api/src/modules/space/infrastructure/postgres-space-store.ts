@@ -1,22 +1,13 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { z } from "zod";
 
 import { schema } from "@repo/db";
 
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { SpaceFinder } from "../application/read-space.ts";
 import type { SpaceStore } from "../application/spaces.ts";
+import { StoredMySpace, StoredSpace } from "./stored-rows.ts";
 
 const { space, spaceMember } = schema;
-
-const StoredMySpace = z.object({
-  id: z.string(),
-  name: z.string(),
-  plan: z.enum(["free", "team"]),
-  role: z.enum(["owner", "editor"]),
-});
-
-const StoredSpace = z.object({ id: z.string(), name: z.string(), plan: z.enum(["free", "team"]) });
 
 export const postgresSpaceStore = (db: PostgresDatabase): SpaceStore & SpaceFinder => ({
   find: async (spaceId) => {

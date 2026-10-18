@@ -1,19 +1,13 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { z } from "zod";
 
 import { schema } from "@repo/db";
 import { err, ok } from "@repo/result";
 
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { Departures } from "../application/leave-space.ts";
+import { StoredMembership } from "./stored-rows.ts";
 
 const { spaceMember } = schema;
-
-const StoredMembership = z.object({
-  spaceId: z.string(),
-  userId: z.string(),
-  role: z.enum(["owner", "editor"]),
-});
 
 export const postgresDepartures = (db: PostgresDatabase): Departures => ({
   leave: ({ spaceId, userId }, decide) =>

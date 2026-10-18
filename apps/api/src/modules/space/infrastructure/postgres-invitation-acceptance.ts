@@ -7,10 +7,9 @@ import { err, ok } from "@repo/result";
 
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { InvitationAcceptance } from "../application/accept-invitation.ts";
+import { StoredSpace } from "./stored-rows.ts";
 
 const { identityUser, space, spaceInvitation, spaceMember } = schema;
-
-const StoredSpace = z.object({ id: z.string(), name: z.string(), plan: z.enum(["free", "team"]) });
 
 const StoredUser = z.object({ email: z.string() });
 
