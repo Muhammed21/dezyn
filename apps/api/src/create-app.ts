@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import type { Auth } from "./modules/identity/application/auth.ts";
 import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
-import type { MySpace } from "./modules/space/domain/space.ts";
+import type { SpaceUseCases } from "./modules/space/application/spaces.ts";
 import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
 import { spacesRoutes } from "./modules/space/presentation/spaces-routes.ts";
 import { type AuthenticatedEnv, requireAccessToken } from "./platform/access-token.ts";
@@ -23,7 +23,7 @@ export const createApp = ({
   readonly db: Database;
   readonly auth: Auth;
   readonly log: LogSink;
-  readonly spaces: { readonly listMySpaces: (userId: string) => Promise<readonly MySpace[]> };
+  readonly spaces: SpaceUseCases;
 }) => {
   const app = new Hono<AppEnv>();
 

@@ -1,4 +1,12 @@
+import type { Result } from "@repo/result";
+
 import { type MySpace, type PersonalSpace, personalSpaceOf } from "../domain/space.ts";
+import type { MembershipKey } from "./membership-reader.ts";
+
+export type SpaceUseCases = {
+  readonly listMySpaces: (userId: string) => Promise<readonly MySpace[]>;
+  readonly readSpace: (key: MembershipKey) => Promise<Result<MySpace, "not_found">>;
+};
 
 export interface SpaceStore {
   createPersonal(personal: PersonalSpace): Promise<void>;

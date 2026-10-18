@@ -2,6 +2,7 @@ import { err } from "@repo/result";
 
 import { createApp } from "../create-app.ts";
 import type { Auth } from "../modules/identity/application/auth.ts";
+import type { SpaceUseCases } from "../modules/space/application/spaces.ts";
 import type { Database } from "../platform/database.ts";
 import type { LogRecord } from "../platform/logging.ts";
 
@@ -19,7 +20,10 @@ export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
   ...overrides,
 });
 
-export const makeSpaces = () => ({ listMySpaces: () => Promise.resolve([]) });
+export const makeSpaces = (): SpaceUseCases => ({
+  listMySpaces: () => Promise.resolve([]),
+  readSpace: () => Promise.resolve(err("not_found")),
+});
 
 export const makeApp = ({
   db = makeDatabase(),

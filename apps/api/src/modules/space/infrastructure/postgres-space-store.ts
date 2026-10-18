@@ -4,6 +4,7 @@ import { z } from "zod";
 import { schema } from "@repo/db";
 
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
+import type { SpaceFinder } from "../application/read-space.ts";
 import type { SpaceStore } from "../application/spaces.ts";
 
 const { space, spaceMember } = schema;
@@ -15,7 +16,16 @@ const StoredMySpace = z.object({
   role: z.enum(["owner", "editor"]),
 });
 
-export const postgresSpaceStore = (db: PostgresDatabase): SpaceStore => ({
+const StoredSpace = z.object({ id: z.string(), name: z.string(), plan: z.enum(["free", "team"]) });
+
+export const postgresSpaceStore = (db: PostgresDatabase): SpaceStore & SpaceFinder => ({
+  find: async (spaceId) => {
+    const [row] = await db.orm
+      .select({ id: space.id, name: space.name, plan: space.plan })
+      .from(space)
+      .where(eq(space.id, spaceId));
+    return StoredSpace.parse(row);
+  },
   createPersonal: ({ space: personal, owner, at }) =>
     db.orm.transaction(async (tx) => {
       await tx.insert(space).values({ ...personal, createdAt: at });
