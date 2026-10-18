@@ -1,11 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { z } from "zod";
 
 import { schema } from "@repo/db";
 import { err, ok } from "@repo/result";
 
-import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
+import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { InvitationAcceptance } from "../application/accept-invitation.ts";
 import { StoredSpace } from "./stored-rows.ts";
 
@@ -13,10 +12,8 @@ const { identityUser, space, spaceInvitation, spaceMember } = schema;
 
 const StoredUser = z.object({ email: z.string() });
 
-type Transaction = Parameters<Parameters<NodePgDatabase["transaction"]>[0]>[0];
-
 const lockedFactsOf = async (
-  tx: Transaction,
+  tx: PostgresTransaction,
   { tokenHash, userId }: { readonly tokenHash: string; readonly userId: string },
 ) => {
   const [invitation] = await tx

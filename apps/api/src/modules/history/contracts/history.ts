@@ -1,0 +1,22 @@
+import { z } from "zod";
+
+import { extensibleUnion, openEnum, Uuid } from "@repo/contracts";
+
+export const HistoryAuthor = extensibleUnion("kind", [
+  z.looseObject({ kind: z.literal("member"), userId: Uuid, name: z.string() }),
+]);
+
+export const HistoryEntryOutput = z.looseObject({
+  id: Uuid,
+  action: openEnum(["project.created"]),
+  spaceId: Uuid,
+  projectId: Uuid,
+  author: HistoryAuthor,
+  clientId: z.string().nullable(),
+  before: z.unknown(),
+  after: z.unknown(),
+  occurredAt: z.iso.datetime(),
+  correlationId: z.string(),
+});
+
+export const HistoryOutput = z.looseObject({ entries: z.array(HistoryEntryOutput) });

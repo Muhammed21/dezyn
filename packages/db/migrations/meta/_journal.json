@@ -36,6 +36,13 @@
       "when": 1792328041667,
       "tag": "0004_space_invitation",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792337655314,
+      "tag": "0005_history",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,8 @@ export type PostgresDatabase = Database & {
   readonly close: () => Promise<void>;
 };
 
+export type PostgresTransaction = Parameters<Parameters<NodePgDatabase["transaction"]>[0]>[0];
+
 export const createPostgresDatabase = ({ url }: { readonly url: string }): PostgresDatabase => {
   const pool = new Pool({
     connectionString: url,
