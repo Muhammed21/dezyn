@@ -27,20 +27,26 @@ const asMigrator = async (run: (client: Client) => Promise<void>) => {
   }
 };
 
-const BACKEND_EXIT_TIMEOUT_MS = 5_000;
-const BACKEND_EXIT_POLL_MS = 20;
+const DROP_TIMEOUT_MS = 5_000;
+const DROP_RETRY_MS = 20;
+const INSUFFICIENT_PRIVILEGE = "42501";
 
-const waitForBackendsToExit = async (client: Client, database: string) => {
-  const deadline = Date.now() + BACKEND_EXIT_TIMEOUT_MS;
-  const remaining = async () =>
-    (
-      await client.query<{ count: number }>(
-        "SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = $1",
-        [database],
-      )
-    ).rows[0]?.count ?? 0;
-  while ((await remaining()) > 0 && Date.now() < deadline) {
-    await sleep(BACKEND_EXIT_POLL_MS);
+const isInsufficientPrivilege = (error: unknown): boolean =>
+  error instanceof Error && "code" in error && error.code === INSUFFICIENT_PRIVILEGE;
+
+const dropOnceAppBackendsLeave = async (
+  client: Client,
+  database: string,
+  deadline: number,
+): Promise<void> => {
+  try {
+    await client.query(`DROP DATABASE ${database} WITH (FORCE)`);
+  } catch (error) {
+    if (!isInsufficientPrivilege(error) || Date.now() >= deadline) {
+      throw error;
+    }
+    await sleep(DROP_RETRY_MS);
+    await dropOnceAppBackendsLeave(client, database, deadline);
   }
 };
 
@@ -63,8 +69,7 @@ export const createThrowawayDatabase = async (): Promise<ThrowawayDatabase> => {
     appUrl: onDatabase(urlOf("DATABASE_URL"), database),
     drop: () =>
       asMigrator(async (client) => {
-        await waitForBackendsToExit(client, database);
-        await client.query(`DROP DATABASE ${database} WITH (FORCE)`);
+        await dropOnceAppBackendsLeave(client, database, Date.now() + DROP_TIMEOUT_MS);
       }),
   };
 };

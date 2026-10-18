@@ -13,6 +13,7 @@ import type { LogSink } from "../../../platform/logging.ts";
 import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { Auth } from "../application/auth.ts";
 import { defaultToNativeForLoopback } from "../domain/client-registration.ts";
+import { postgresActiveSessions } from "./postgres-active-sessions.ts";
 
 const DAY_SECONDS = 86_400;
 const HOUR_SECONDS = 3_600;
@@ -114,6 +115,7 @@ export const createIdentityAuth = async ({
     jwksUrl: new URL("/auth/jwks", baseURL).href,
     issuer,
     audience: apiResourceOf(baseURL),
+    activeSessions: postgresActiveSessions(db),
     fetchJwks: (url) => auth.handler(new Request(url)),
   });
   const authorizationServerMetadata = oauthProviderAuthServerMetadata(auth);

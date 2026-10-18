@@ -70,6 +70,12 @@ export const makeBrowser = (app: App, ip: string) => {
   };
   return {
     get: async (path: string) => follow(await send(path)),
+    postJson: async (path: string, body: unknown) =>
+      send(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
     postForm: async (
       path: string,
       fields: Readonly<Record<string, string>>,
@@ -198,18 +204,21 @@ export const signInAndConsent = async (app: App, { accept }: { accept: boolean }
 
   return {
     ...flow,
+    browser,
     consentHtml,
     callback: new URL(backToClient.headers.get("location") ?? "", BASE_URL),
   };
 };
 
 export const obtainAccessToken = async (app: App) => {
-  const { clientId, userId, pkce, callback } = await signInAndConsent(app, { accept: true });
+  const { clientId, userId, pkce, browser, callback } = await signInAndConsent(app, {
+    accept: true,
+  });
   const token = await exchangeCode(app, {
     clientId,
     code: callback.searchParams.get("code") ?? "",
     verifier: pkce.verifier,
   });
   const { access_token: accessToken } = await token.json();
-  return { clientId, userId, accessToken: String(accessToken) };
+  return { clientId, userId, browser, accessToken: String(accessToken) };
 };

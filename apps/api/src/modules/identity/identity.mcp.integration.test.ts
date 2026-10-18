@@ -6,7 +6,10 @@ import {
 } from "@modelcontextprotocol/sdk/client/auth.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+
+import { schema } from "@repo/db";
 
 import {
   type App,
@@ -105,6 +108,33 @@ describe("MCP : l'IA autorisée appelle whoami", () => {
           content: [{ type: "text", text: JSON.stringify({ userId, clientId }) }],
         },
       });
+    }));
+
+  it("après la déconnexion de l'utilisateur, le jeton encore valide en signature répond 401", () =>
+    withIdentityApp(async (app) => {
+      const { accessToken, browser } = await obtainAccessToken(app);
+      const before = await callMcp(app, { token: accessToken, method: "tools/list" });
+
+      const signOut = await browser.postJson("/auth/sign-out", {});
+      const after = await callMcp(app, { token: accessToken, method: "tools/list" });
+
+      expect([before.status, signOut.status, after.status]).toEqual([200, 200, 401]);
+      expect(after.headers.get("www-authenticate")).toBe(
+        `Bearer error="invalid_token", resource_metadata="${RESOURCE_METADATA}"`,
+      );
+    }));
+
+  it("une session expirée mais pas encore purgée rend le jeton refusé", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, userId } = await obtainAccessToken(app);
+
+      await db.orm
+        .update(schema.identitySession)
+        .set({ expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(schema.identitySession.userId, userId));
+      const response = await callMcp(app, { token: accessToken, method: "tools/list" });
+
+      expect(response.status).toBe(401);
     }));
 
   it("annonce whoami avec sa description et son schéma de sortie, et se présente comme dezyn", () =>

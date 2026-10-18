@@ -1,7 +1,7 @@
 import { exportJWK, generateKeyPair, type JWK, SignJWT } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAccessTokenVerifier } from "./index.ts";
+import { type ActiveSessions, createAccessTokenVerifier } from "./index.ts";
 
 const ISSUER = "http://127.0.0.1:3000/auth";
 const AUDIENCE = "http://127.0.0.1:3000/v1";
@@ -64,11 +64,20 @@ const signToken = ({
     .setExpirationTime(expiresIn)
     .sign(key.privateKey);
 
-const makeVerifier = ({ server }: { server: ReturnType<typeof makeJwksServer> }) =>
+const ALL_ACTIVE: ActiveSessions = { isActive: async () => true };
+
+const makeVerifier = ({
+  server,
+  activeSessions = ALL_ACTIVE,
+}: {
+  server: ReturnType<typeof makeJwksServer>;
+  activeSessions?: ActiveSessions;
+}) =>
   createAccessTokenVerifier({
     jwksUrl: JWKS_URL,
     issuer: ISSUER,
     audience: AUDIENCE,
+    activeSessions,
     fetchJwks: server.fetchJwks,
   });
 
@@ -177,6 +186,72 @@ describe("vérification d'un jeton d'accès (ADR 0018 §1)", () => {
     const verifier = makeVerifier({ server: makeJwksServer([await makeKey("k1")]) });
 
     expect(await verifier.verify("pas-un-jwt")).toEqual({ ok: false, error: "invalid_token" });
+  });
+});
+
+describe("session du jeton (ADR 0018 §2)", () => {
+  it("lit la session portée par le jeton", async () => {
+    const key = await makeKey("k1");
+    const checked: string[] = [];
+    const verifier = makeVerifier({
+      server: makeJwksServer([key]),
+      activeSessions: {
+        isActive: async (sid) => {
+          checked.push(sid);
+          return true;
+        },
+      },
+    });
+
+    expect(await verifier.verify(await signToken({ key }))).toMatchObject({ ok: true });
+    expect(checked).toEqual(["sid-1"]);
+  });
+
+  it("refuse un jeton dont la session n'est plus active", async () => {
+    const key = await makeKey("k1");
+    const verifier = makeVerifier({
+      server: makeJwksServer([key]),
+      activeSessions: { isActive: async (sid) => sid !== "sid-1" },
+    });
+
+    expect(await verifier.verify(await signToken({ key }))).toEqual({
+      ok: false,
+      error: "revoked",
+    });
+  });
+
+  it("refuse le jeton quand les sessions sont illisibles, sans jamais l'accepter", async () => {
+    const key = await makeKey("k1");
+    const verifier = makeVerifier({
+      server: makeJwksServer([key]),
+      activeSessions: {
+        isActive: async () => {
+          throw new Error("PostgreSQL injoignable");
+        },
+      },
+    });
+
+    expect(await verifier.verify(await signToken({ key }))).toEqual({
+      ok: false,
+      error: "unavailable",
+    });
+  });
+
+  it("ne lit pas les sessions pour un jeton mal signé", async () => {
+    const checked: string[] = [];
+    const verifier = makeVerifier({
+      server: makeJwksServer([await makeKey("k1")]),
+      activeSessions: {
+        isActive: async (sid) => {
+          checked.push(sid);
+          return true;
+        },
+      },
+    });
+
+    await verifier.verify(await signToken({ key: await makeKey("k1") }));
+
+    expect(checked).toEqual([]);
   });
 });
 

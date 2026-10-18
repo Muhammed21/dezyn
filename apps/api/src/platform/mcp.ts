@@ -23,7 +23,7 @@ export const mcpEndpoint = ({
   readonly resourceMetadataUrl: string;
   readonly registerTools: McpTools;
 }) => {
-  const unauthorized = (c: Context<AppEnv>, error?: VerificationFailure) => {
+  const unauthorized = (c: Context<AppEnv>, error?: "invalid_token") => {
     c.header(
       "www-authenticate",
       error === undefined
@@ -40,7 +40,9 @@ export const mcpEndpoint = ({
     }
     const verification = await verifyAccessToken(token);
     if (!verification.ok) {
-      return unauthorized(c, verification.error);
+      return verification.error === "unavailable"
+        ? problemResponse(c, { type: "about:blank", title: "Service indisponible", status: 503 })
+        : unauthorized(c, "invalid_token");
     }
     const server = new McpServer({ name: "dezyn", version: "0.0.0" });
     registerTools(server, verification.value);
