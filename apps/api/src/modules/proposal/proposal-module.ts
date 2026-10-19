@@ -10,6 +10,7 @@ import { closeBatch, openBatch } from "./application/proposition-lots.ts";
 import {
   batchOf,
   listBatches,
+  pendingPropositionsOf,
   reviewProposition,
   validateBatch,
 } from "./application/review-propositions.ts";
@@ -69,5 +70,6 @@ export const proposalModule = ({
     batchOf: batchOf(access),
     reviewProposition: reviewProposition({ ...access, unitOfWork: reviewUnitOfWork }),
     validateBatch: validateBatch({ ...access, unitOfWork: reviewUnitOfWork }),
+    pendingPropositionsOf: pendingPropositionsOf(access),
   };
 };

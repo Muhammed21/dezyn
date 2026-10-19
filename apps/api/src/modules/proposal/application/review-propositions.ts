@@ -38,6 +38,11 @@ export interface PropositionReader {
   pendingTokensOf(
     projectId: string,
   ): Promise<readonly { readonly name: string; readonly $type: string }[]>;
+  pendingPropositionsOf(projectId: string): Promise<
+    readonly (Proposition & {
+      readonly lot: Pick<PropositionLot, "id" | "state" | "lastWrittenAt">;
+    })[]
+  >;
   proposition(
     propositionId: string,
   ): Promise<{ readonly proposition: Proposition; readonly projectId: string } | undefined>;
@@ -365,4 +370,20 @@ export const validateBatch =
         rejected: plan.toReject.map(({ id }) => id),
       });
     });
+  };
+
+export const pendingPropositionsOf =
+  ({ propositions, now }: { readonly propositions: PropositionReader; readonly now: () => Date }) =>
+  async (projectId: string) => {
+    const at = now();
+    return (await propositions.pendingPropositionsOf(projectId)).map(
+      ({ id, name, kind, status, token, lot }) => ({
+        id,
+        name,
+        kind,
+        status,
+        lot: { id: lot.id, state: lotStateAt({ lot, now: at }) },
+        token,
+      }),
+    );
   };

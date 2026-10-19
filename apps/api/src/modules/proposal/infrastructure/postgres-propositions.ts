@@ -185,6 +185,25 @@ export const postgresPropositionReader = (db: PostgresDatabase): PropositionRead
       return { name, $type };
     });
   },
+  pendingPropositionsOf: async (projectId) => {
+    const rows = await db.orm
+      .select({
+        proposition,
+        lot: {
+          id: propositionLot.id,
+          state: propositionLot.state,
+          lastWrittenAt: propositionLot.lastWrittenAt,
+        },
+      })
+      .from(proposition)
+      .innerJoin(propositionLot, eq(propositionLot.id, proposition.lotId))
+      .where(and(eq(propositionLot.projectId, projectId), eq(proposition.status, "proposed")))
+      .orderBy(asc(proposition.tokenName));
+    return rows.map((row) => ({
+      ...propositionOf(row.proposition),
+      lot: { ...row.lot, state: LotState.parse(row.lot.state) },
+    }));
+  },
   proposition: async (propositionId) => {
     const [row] = await db.orm
       .select({ proposition, projectId: propositionLot.projectId })

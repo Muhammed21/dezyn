@@ -2,6 +2,7 @@ import type { closeBatch, openBatch } from "./proposition-lots.ts";
 import type {
   batchOf,
   listBatches,
+  pendingPropositionsOf,
   reviewProposition,
   validateBatch,
 } from "./review-propositions.ts";
@@ -15,4 +16,5 @@ export type ProposalUseCases = {
   readonly batchOf: ReturnType<typeof batchOf>;
   readonly reviewProposition: ReturnType<typeof reviewProposition>;
   readonly validateBatch: ReturnType<typeof validateBatch>;
+  readonly pendingPropositionsOf: ReturnType<typeof pendingPropositionsOf>;
 };
