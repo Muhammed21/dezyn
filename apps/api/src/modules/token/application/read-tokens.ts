@@ -22,6 +22,7 @@ export interface ValidatedTokenReader {
 export type TokenFigmaState = {
   readonly tokenId: string;
   readonly state: FigmaState;
+  readonly figmaVariables?: readonly string[];
   readonly declaredAt: Date;
   readonly author: { readonly kind: "member"; readonly userId: string; readonly name: string };
   readonly clientId: string;

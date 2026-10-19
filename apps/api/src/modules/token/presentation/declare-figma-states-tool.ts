@@ -22,12 +22,22 @@ type MalformedStates = { readonly code: "malformed_states"; readonly issues: rea
 
 type DeclarationFailure = RecordFailure | MalformedStates | InvalidDeclaration;
 
-const StatesInput = z.array(z.object({ name: z.string(), state: z.string() })).min(1);
+const StatesInput = z
+  .array(
+    z.object({
+      name: z.string(),
+      state: z.string(),
+      figmaVariables: z.array(z.string()).optional(),
+    }),
+  )
+  .min(1);
 
 const REFUSAL_ISSUES: Readonly<Record<FigmaRefusal, string>> = {
   unknown_token: "name : Token inconnu du projet",
   unknown_state: "state : État Figma inconnu",
   duplicate_name: "name : Token déjà nommé dans cette déclaration",
+  too_few_figma_variables: "figmaVariables : Au moins deux variables Figma distinctes",
+  figma_variables_without_duplicate: "figmaVariables : Réservé à un doublon dans Figma",
 };
 
 const pathOf = (path: readonly PropertyKey[]): string =>
@@ -69,7 +79,7 @@ export const registerDeclareFigmaStates =
       "declare_figma_states",
       {
         description:
-          "Déclare l'état Figma de tokens d'un projet, après comparaison avec Figma : synced si la variable Figma a la même valeur dans chaque mode, missing_in_figma si elle n'existe pas. La déclaration s'applique sans relecture et remplace l'état précédent ; une entrée invalide refuse toute la déclaration.",
+          "Déclare l'état Figma de tokens d'un projet, après comparaison avec Figma : synced si la variable Figma a la même valeur dans chaque mode, missing_in_figma si elle n'existe pas, duplicate_in_figma si plusieurs variables Figma correspondent au token, avec leurs noms dans figmaVariables (au moins deux). La déclaration s'applique sans relecture et remplace l'état précédent ; une entrée invalide refuse toute la déclaration.",
         inputSchema: { projectId: Uuid, states: z.array(z.unknown()).optional() },
         outputSchema: DeclaredFigmaStatesOutput,
       },

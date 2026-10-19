@@ -38,7 +38,7 @@ describe("une déclaration invalide est refusée en entier, entrée par entrée"
     ).toEqual({ refusals: [{ index: 1, refusal: "unknown_token" }] });
   });
 
-  it.each([["en_retard"], [""], ["diverged"], ["duplicate_in_figma"]])(
+  it.each([["en_retard"], [""], ["diverged"]])(
     "refuse l'état %j, qui n'est pas un état déclarable",
     (state) => {
       expect(
@@ -77,5 +77,92 @@ describe("une déclaration invalide est refusée en entier, entrée par entrée"
         { index: 2, refusal: "unknown_state" },
       ],
     });
+  });
+});
+
+describe("un doublon dans Figma nomme au moins deux variables Figma (ADR 0024 §2)", () => {
+  it("garde les variables Figma d'un doublon dans Figma", () => {
+    expect(
+      checkFigmaDeclaration({
+        entries: [
+          {
+            name: "couleur.fond",
+            state: "duplicate_in_figma",
+            figmaVariables: ["Couleurs/Fond", "Legacy/Fond"],
+          },
+        ],
+        tokens: [FOND],
+      }),
+    ).toEqual({
+      states: [
+        {
+          tokenId: FOND.id,
+          name: "couleur.fond",
+          state: "duplicate_in_figma",
+          figmaVariables: ["Couleurs/Fond", "Legacy/Fond"],
+        },
+      ],
+    });
+  });
+
+  it.each([
+    ["sans variables", undefined],
+    ["sans aucune variable", []],
+    ["avec une seule variable", ["Couleurs/Fond"]],
+    ["avec deux fois la même variable", ["Couleurs/Fond", "Couleurs/Fond"]],
+    ["avec une variable sans nom", ["Couleurs/Fond", ""]],
+  ])("refuse un doublon dans Figma %s", (_, figmaVariables) => {
+    expect(
+      checkFigmaDeclaration({
+        entries: [{ name: "couleur.fond", state: "duplicate_in_figma", figmaVariables }],
+        tokens: [FOND],
+      }),
+    ).toEqual({ refusals: [{ index: 0, refusal: "too_few_figma_variables" }] });
+  });
+
+  it("accepte trois variables, dont deux identiques, tant que deux sont distinctes", () => {
+    expect(
+      checkFigmaDeclaration({
+        entries: [
+          {
+            name: "couleur.fond",
+            state: "duplicate_in_figma",
+            figmaVariables: ["Couleurs/Fond", "Couleurs/Fond", "Legacy/Fond"],
+          },
+        ],
+        tokens: [FOND],
+      }),
+    ).toMatchObject({ states: [{ state: "duplicate_in_figma" }] });
+  });
+
+  it.each([["synced"], ["missing_in_figma"]])(
+    "refuse des variables Figma sur l'état %s",
+    (state) => {
+      expect(
+        checkFigmaDeclaration({
+          entries: [
+            { name: "couleur.fond", state, figmaVariables: ["Couleurs/Fond", "Legacy/Fond"] },
+          ],
+          tokens: [FOND],
+        }),
+      ).toEqual({ refusals: [{ index: 0, refusal: "figma_variables_without_duplicate" }] });
+    },
+  );
+});
+
+describe("un état inconnu n'est refusé qu'une fois, même avec des variables Figma", () => {
+  it("refuse l'état seul, sans juger ses variables Figma", () => {
+    expect(
+      checkFigmaDeclaration({
+        entries: [
+          {
+            name: "couleur.fond",
+            state: "en_retard",
+            figmaVariables: ["Couleurs/Fond", "Legacy/Fond"],
+          },
+        ],
+        tokens: [FOND],
+      }),
+    ).toEqual({ refusals: [{ index: 0, refusal: "unknown_state" }] });
   });
 });

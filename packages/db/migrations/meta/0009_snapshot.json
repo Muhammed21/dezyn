@@ -1,5 +1,5 @@
 {
-  "id": "44b1e291-f730-44c6-8fc5-b3eae2eff018",
+  "id": "f79468f7-8da3-4998-9ac7-26e310e54f01",
   "prevId": "7acfc577-9e25-4760-86e5-76216cc14c3d",
   "version": "7",
   "dialect": "postgresql",
@@ -2357,6 +2357,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "figma_variables": {
+          "name": "figma_variables",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "declared_at": {
           "name": "declared_at",

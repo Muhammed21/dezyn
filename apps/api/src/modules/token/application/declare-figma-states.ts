@@ -7,7 +7,6 @@ import {
   type DeclaredState,
   type FigmaEntry,
   type FigmaRefusal,
-  type FigmaState,
 } from "../domain/figma-declaration.ts";
 import type { ProjectTokenReader } from "./add-token.ts";
 
@@ -23,11 +22,7 @@ export interface FigmaStateWriter {
 }
 
 export type DeclaredFigmaStates = {
-  readonly states: readonly {
-    readonly name: string;
-    readonly state: FigmaState;
-    readonly declaredAt: Date;
-  }[];
+  readonly states: readonly (Omit<DeclaredState, "tokenId"> & { readonly declaredAt: Date })[];
 };
 
 export type InvalidDeclaration = {
@@ -79,6 +74,9 @@ export const declareFigmaStates =
     const declaredAt = now();
     await figmaStates.declare({ states: checked.states, declaredAt, userId, clientId });
     return ok({
-      states: checked.states.map(({ name, state }) => ({ name, state, declaredAt })),
+      states: checked.states.map((state) => {
+        const { tokenId: _, ...declared } = state;
+        return { ...declared, declaredAt };
+      }),
     });
   };

@@ -234,7 +234,13 @@ describe("un token lu porte son état Figma, s'il a été comparé (ADR 0024 §1
       properties: {
         figma: {
           properties: {
-            state: { anyOf: [{ enum: ["synced", "missing_in_figma"] }, { type: "string" }] },
+            state: {
+              anyOf: [
+                { enum: ["synced", "missing_in_figma", "duplicate_in_figma"] },
+                { type: "string" },
+              ],
+            },
+            figmaVariables: { type: "array", items: { type: "string" } },
             author: { anyOf: [{ properties: { kind: { const: "member" } } }, {}] },
           },
         },
@@ -261,6 +267,31 @@ describe("la déclaration rend l'état Figma déclaré de chaque token (ADR 0023
     expect(
       DeclaredFigmaStatesOutput.safeParse({ states: [makeDeclared({ [field]: undefined })] })
         .success,
+    ).toBe(false);
+  });
+});
+
+describe("un doublon dans Figma se lit avec ses variables Figma", () => {
+  it("décode les variables Figma d'un doublon, à la lecture comme à la déclaration", () => {
+    const figmaVariables = ["Couleurs/Fond", "Legacy/Fond"];
+    const token = makeTokenOutput({
+      figma: makeFigmaOutput({ state: "duplicate_in_figma", figmaVariables }),
+    });
+    const declared = {
+      states: [makeDeclared({ state: "duplicate_in_figma", figmaVariables })],
+    };
+
+    expect(TokenOutput.parse(token)).toEqual(token);
+    expect(DeclaredFigmaStatesOutput.parse(declared)).toEqual(declared);
+  });
+
+  it.each([[[1, 2]], ["Couleurs/Fond"]])("refuse des variables Figma %j", (figmaVariables) => {
+    expect(
+      TokenOutput.safeParse(makeTokenOutput({ figma: makeFigmaOutput({ figmaVariables }) }))
+        .success,
+    ).toBe(false);
+    expect(
+      DeclaredFigmaStatesOutput.safeParse({ states: [makeDeclared({ figmaVariables })] }).success,
     ).toBe(false);
   });
 });

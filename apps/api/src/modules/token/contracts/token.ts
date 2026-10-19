@@ -10,10 +10,13 @@ const DefinitionOutput = z.looseObject({
   $description: z.string().optional(),
 });
 
-const FigmaStateEnum = openEnum(["synced", "missing_in_figma"]);
+const FigmaStateEnum = openEnum(["synced", "missing_in_figma", "duplicate_in_figma"]);
+
+const FigmaVariables = z.array(z.string()).optional();
 
 const FigmaStateOutput = z.looseObject({
   state: FigmaStateEnum,
+  figmaVariables: FigmaVariables,
   declaredAt: z.iso.datetime(),
   author: extensibleUnion("kind", [
     z.looseObject({ kind: z.literal("member"), userId: Uuid, name: z.string() }),
@@ -44,6 +47,11 @@ export const TokensOutput = z.looseObject({
 
 export const DeclaredFigmaStatesOutput = z.looseObject({
   states: z.array(
-    z.looseObject({ name: z.string(), state: FigmaStateEnum, declaredAt: z.iso.datetime() }),
+    z.looseObject({
+      name: z.string(),
+      state: FigmaStateEnum,
+      figmaVariables: FigmaVariables,
+      declaredAt: z.iso.datetime(),
+    }),
   ),
 });

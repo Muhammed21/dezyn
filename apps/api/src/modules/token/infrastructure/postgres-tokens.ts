@@ -148,12 +148,20 @@ export const postgresFigmaStateWriter = (db: PostgresDatabase): FigmaStateWriter
     await db.orm
       .insert(tokenFigmaState)
       .values(
-        states.map(({ tokenId, state }) => ({ tokenId, state, declaredAt, userId, clientId })),
+        states.map((declared) => ({
+          tokenId: declared.tokenId,
+          state: declared.state,
+          figmaVariables: declared.state === "duplicate_in_figma" ? declared.figmaVariables : null,
+          declaredAt,
+          userId,
+          clientId,
+        })),
       )
       .onConflictDoUpdate({
         target: tokenFigmaState.tokenId,
         set: {
           state: sql`excluded.state`,
+          figmaVariables: sql`excluded.figma_variables`,
           declaredAt: sql`excluded.declared_at`,
           userId: sql`excluded.user_id`,
           clientId: sql`excluded.client_id`,
@@ -162,7 +170,9 @@ export const postgresFigmaStateWriter = (db: PostgresDatabase): FigmaStateWriter
   },
 });
 
-const FigmaState = z.enum(["synced", "missing_in_figma"]);
+const FigmaState = z.enum(["synced", "missing_in_figma", "duplicate_in_figma"]);
+
+const FigmaVariables = z.array(z.string()).nullable();
 
 export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader => ({
   figmaStatesOf: async (projectId) => {
@@ -170,6 +180,7 @@ export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader
       .select({
         tokenId: tokenFigmaState.tokenId,
         state: tokenFigmaState.state,
+        figmaVariables: tokenFigmaState.figmaVariables,
         declaredAt: tokenFigmaState.declaredAt,
         userId: tokenFigmaState.userId,
         name: identityUser.name,
@@ -179,12 +190,16 @@ export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader
       .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
       .innerJoin(identityUser, eq(identityUser.id, tokenFigmaState.userId))
       .where(eq(token.projectId, projectId));
-    return rows.map(({ tokenId, state, declaredAt, userId, name, clientId }) => ({
-      tokenId,
-      state: FigmaState.parse(state),
-      declaredAt,
-      author: { kind: "member", userId, name },
-      clientId,
-    }));
+    return rows.map(({ tokenId, state, figmaVariables, declaredAt, userId, name, clientId }) => {
+      const variables = FigmaVariables.parse(figmaVariables);
+      return {
+        tokenId,
+        state: FigmaState.parse(state),
+        ...(variables === null ? {} : { figmaVariables: variables }),
+        declaredAt,
+        author: { kind: "member", userId, name },
+        clientId,
+      };
+    });
   },
 });

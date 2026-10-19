@@ -335,7 +335,7 @@ describe("declare_figma_states s'annonce à l'IA", () => {
             expect.objectContaining({
               name: "declare_figma_states",
               description:
-                "Déclare l'état Figma de tokens d'un projet, après comparaison avec Figma : synced si la variable Figma a la même valeur dans chaque mode, missing_in_figma si elle n'existe pas. La déclaration s'applique sans relecture et remplace l'état précédent ; une entrée invalide refuse toute la déclaration.",
+                "Déclare l'état Figma de tokens d'un projet, après comparaison avec Figma : synced si la variable Figma a la même valeur dans chaque mode, missing_in_figma si elle n'existe pas, duplicate_in_figma si plusieurs variables Figma correspondent au token, avec leurs noms dans figmaVariables (au moins deux). La déclaration s'applique sans relecture et remplace l'état précédent ; une entrée invalide refuse toute la déclaration.",
               inputSchema: expect.objectContaining({
                 required: ["projectId"],
                 properties: expect.objectContaining({ states: expect.anything() }),
@@ -347,5 +347,88 @@ describe("declare_figma_states s'annonce à l'IA", () => {
           ]),
         },
       });
+    }));
+});
+
+describe("l'IA déclare un doublon dans Figma avec ses variables Figma (ADR 0024 §2)", () => {
+  const FIGMA_VARIABLES = ["Couleurs/Fond", "Legacy/Fond"];
+
+  it("la déclaration et la lecture rendent les variables Figma du doublon", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedComparedProject(app, db);
+
+      const declared = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [
+          { name: "couleur.fond", state: "duplicate_in_figma", figmaVariables: FIGMA_VARIABLES },
+          { name: "couleur.bord", state: "synced" },
+        ],
+      });
+      const overHttp = await readTokensOverHttp(app, { accessToken, projectId });
+      const overMcp = await callTool(app, {
+        token: accessToken,
+        name: "read_tokens",
+        args: { projectId },
+      });
+
+      expect(declared.structuredContent.states).toEqual([
+        {
+          name: "couleur.fond",
+          state: "duplicate_in_figma",
+          figmaVariables: FIGMA_VARIABLES,
+          declaredAt: expect.any(String),
+        },
+        { name: "couleur.bord", state: "synced", declaredAt: expect.any(String) },
+      ]);
+      expect(overHttp.body.tokens[0].figma).not.toHaveProperty("figmaVariables");
+      expect(overHttp.body.tokens[1].figma).toMatchObject({
+        state: "duplicate_in_figma",
+        figmaVariables: FIGMA_VARIABLES,
+      });
+      expect(overMcp.structuredContent).toEqual(overHttp.body);
+    }));
+
+  it("une déclaration synced efface les variables Figma du doublon", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedComparedProject(app, db);
+      await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [
+          { name: "couleur.fond", state: "duplicate_in_figma", figmaVariables: FIGMA_VARIABLES },
+        ],
+      });
+
+      await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [{ name: "couleur.fond", state: "synced" }],
+      });
+      const { body } = await readTokensOverHttp(app, { accessToken, projectId });
+
+      expect(body.tokens[1].figma).toMatchObject({ state: "synced" });
+      expect(body.tokens[1].figma).not.toHaveProperty("figmaVariables");
+    }));
+
+  it("un doublon sans deux variables et des variables sur un autre état refusent la déclaration", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedComparedProject(app, db);
+
+      const result = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [
+          { name: "couleur.fond", state: "duplicate_in_figma", figmaVariables: ["Couleurs/Fond"] },
+          { name: "couleur.bord", state: "synced", figmaVariables: FIGMA_VARIABLES },
+        ],
+      });
+
+      expect(result.content).toEqual([
+        {
+          type: "text",
+          text: "states[0].figmaVariables : Au moins deux variables Figma distinctes\nstates[1].figmaVariables : Réservé à un doublon dans Figma",
+        },
+      ]);
     }));
 });

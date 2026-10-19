@@ -80,6 +80,7 @@ export const tokenFigmaState = pgTable("token_figma_state", {
     .primaryKey()
     .references(() => token.id),
   state: text("state").notNull(),
+  figmaVariables: jsonb("figma_variables"),
   declaredAt: timestamp("declared_at", { withTimezone: true }).notNull(),
   userId: uuid("user_id")
     .notNull()
