@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { createApp } from "./create-app.ts";
 import { createPostgresDatabase } from "./platform/postgres-database.ts";
-import { makeAuth, makeHistory, makeProjects, makeSpaces } from "./testing/make-app.ts";
+import { makeAuth, makeHistory, makeProjects, makeSpaces, makeTokens } from "./testing/make-app.ts";
 
 const reachableDatabase = createPostgresDatabase({ url: process.env.DATABASE_URL ?? "" });
 const unroutableDatabase = createPostgresDatabase({
@@ -21,6 +21,7 @@ describe("GET /health", () => {
       spaces: makeSpaces(),
       projects: makeProjects(),
       history: makeHistory(),
+      tokens: makeTokens(),
     });
 
     const response = await app.request("/health");
@@ -37,6 +38,7 @@ describe("GET /health", () => {
       spaces: makeSpaces(),
       projects: makeProjects(),
       history: makeHistory(),
+      tokens: makeTokens(),
     });
     const startedAt = performance.now();
 
@@ -56,6 +58,7 @@ describe("GET /health", () => {
       spaces: makeSpaces(),
       projects: makeProjects(),
       history: makeHistory(),
+      tokens: makeTokens(),
     });
 
     const response = await app.request("/health");

@@ -50,6 +50,13 @@
       "when": 1792338477759,
       "tag": "0006_history_maintainer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792396580099,
+      "tag": "0007_token",
+      "breakpoints": true
     }
   ]
 }

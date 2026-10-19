@@ -5,6 +5,7 @@ import type { HistoryUseCases } from "../modules/history/application/history-use
 import type { Auth } from "../modules/identity/application/auth.ts";
 import type { ProjectUseCases } from "../modules/project/application/create-project.ts";
 import type { SpaceUseCases } from "../modules/space/application/spaces.ts";
+import type { TokenUseCases } from "../modules/token/application/token-use-cases.ts";
 import type { Database } from "../platform/database.ts";
 import type { LogRecord } from "../platform/logging.ts";
 
@@ -39,6 +40,11 @@ export const makeHistory = (): HistoryUseCases => ({
   recordProjectCall: () => Promise.resolve(err("not_found")),
 });
 
+export const makeTokens = (): TokenUseCases => ({
+  addToken: () => Promise.resolve(err("not_found")),
+  readTokens: () => Promise.resolve({ modes: [], tokens: [] }),
+});
+
 export const makeApp = ({
   db = makeDatabase(),
   auth = makeAuth(),
@@ -51,6 +57,7 @@ export const makeApp = ({
     spaces: makeSpaces(),
     projects: makeProjects(),
     history: makeHistory(),
+    tokens: makeTokens(),
   });
   return { app, records };
 };

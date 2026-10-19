@@ -1,6 +1,11 @@
 import type { Role } from "./space.ts";
 
-export type Action = "space.read" | "project.create" | "member.invite" | "member.leave";
+export type Action =
+  | "space.read"
+  | "project.create"
+  | "member.invite"
+  | "member.leave"
+  | "token.create";
 
 export type Membership = {
   readonly spaceId: string;
@@ -9,8 +14,8 @@ export type Membership = {
 };
 
 const PERMISSIONS: Readonly<Record<Role, ReadonlySet<Action>>> = {
-  owner: new Set(["space.read", "project.create", "member.invite", "member.leave"]),
-  editor: new Set(["space.read", "member.leave"]),
+  owner: new Set(["space.read", "project.create", "member.invite", "member.leave", "token.create"]),
+  editor: new Set(["space.read", "member.leave", "token.create"]),
 };
 
 export const can = ({

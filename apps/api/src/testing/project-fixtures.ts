@@ -1,6 +1,10 @@
+import { randomUUID } from "node:crypto";
+
+import { schema } from "@repo/db";
+
 import type { PostgresDatabase } from "../platform/postgres-database.ts";
-import { type App, BASE_URL, obtainAccessToken } from "./authorization-flow.ts";
-import { personalSpaceOf } from "./space-fixtures.ts";
+import { ADA, type App, BASE_URL, obtainAccessToken } from "./authorization-flow.ts";
+import { personalSpaceOf, seedTeamSpaceWith } from "./space-fixtures.ts";
 
 export const seedProject = async (app: App, db: PostgresDatabase) => {
   const owner = await obtainAccessToken(app);
@@ -12,4 +16,29 @@ export const seedProject = async (app: App, db: PostgresDatabase) => {
   });
   const { id } = await created.json();
   return { ...owner, spaceId, projectId: String(id) };
+};
+
+export const seedProjectAsEditor = async (
+  app: App,
+  db: PostgresDatabase,
+  { user = ADA }: { readonly user?: typeof ADA } = {},
+) => {
+  const editor = await obtainAccessToken(app, { user });
+  const spaceId = await seedTeamSpaceWith(db, { userId: editor.userId, role: "editor" });
+  const projectId = randomUUID();
+  await db.orm
+    .insert(schema.project)
+    .values({ id: projectId, spaceId, name: "Site vitrine", createdAt: new Date() });
+  return { ...editor, spaceId, projectId };
+};
+
+export const seedModes = async (
+  db: PostgresDatabase,
+  { projectId, modes }: { readonly projectId: string; readonly modes: readonly string[] },
+) => {
+  const modifierId = randomUUID();
+  await db.orm.insert(schema.modifier).values({ id: modifierId, projectId, name: "apparence" });
+  await db.orm
+    .insert(schema.mode)
+    .values(modes.map((name, position) => ({ id: randomUUID(), modifierId, name, position })));
 };

@@ -49,7 +49,7 @@ export const withIdentityApp = (
     await migrate({ connectionString: migratorUrl });
     const db = createPostgresDatabase({ url: appUrl });
     try {
-      const { spaces, projects, history } = composeModules({
+      const { spaces, projects, history, tokens } = composeModules({
         db,
         mailer,
         webUrl: WEB_URL,
@@ -63,7 +63,10 @@ export const withIdentityApp = (
         log: () => undefined,
         onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
       });
-      await run(createApp({ db, auth, log: () => undefined, spaces, projects, history }), db);
+      await run(
+        createApp({ db, auth, log: () => undefined, spaces, projects, history, tokens }),
+        db,
+      );
     } finally {
       await db.close();
     }
@@ -181,11 +184,16 @@ export const decodeJwtPart = (token: string, index: number): unknown =>
 
 export const exchangeCode = (
   app: App,
-  { clientId, code, verifier }: { clientId: string; code: string; verifier: string },
+  {
+    clientId,
+    code,
+    verifier,
+    ip = makeClientIp(),
+  }: { clientId: string; code: string; verifier: string; ip?: string },
 ) =>
   app.request(`${BASE_URL}/auth/oauth2/token`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": ip },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,

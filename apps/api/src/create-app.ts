@@ -12,6 +12,9 @@ import type { SpaceUseCases } from "./modules/space/application/spaces.ts";
 import { invitationsRoutes } from "./modules/space/presentation/invitations-routes.ts";
 import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
 import { spacesRoutes } from "./modules/space/presentation/spaces-routes.ts";
+import type { TokenUseCases } from "./modules/token/application/token-use-cases.ts";
+import { registerReadTokens } from "./modules/token/presentation/read-tokens-tool.ts";
+import { tokensRoutes } from "./modules/token/presentation/tokens-routes.ts";
 import { type AuthenticatedEnv, requireAccessToken } from "./platform/access-token.ts";
 import type { Database } from "./platform/database.ts";
 import type { AppEnv } from "./platform/http.ts";
@@ -27,6 +30,7 @@ export const createApp = ({
   spaces,
   projects,
   history,
+  tokens,
 }: {
   readonly db: Database;
   readonly auth: Auth;
@@ -34,6 +38,7 @@ export const createApp = ({
   readonly spaces: SpaceUseCases;
   readonly projects: ProjectUseCases;
   readonly history: HistoryUseCases;
+  readonly tokens: TokenUseCases;
 }) => {
   const app = new Hono<AppEnv>();
 
@@ -49,6 +54,10 @@ export const createApp = ({
   );
   const registerSpaceTools = registerListSpaces(spaces);
   const registerHistoryTools = registerReadHistory(history);
+  const registerTokenTools = registerReadTokens({
+    readTokens: tokens.readTokens,
+    recordProjectCall: history.recordProjectCall,
+  });
   v1.post(
     "/mcp",
     mcpEndpoint({
@@ -56,12 +65,14 @@ export const createApp = ({
         registerWhoami(server, call);
         registerSpaceTools(server, call);
         registerHistoryTools(server, call);
+        registerTokenTools(server, call);
       },
     }),
   );
   v1.route("/spaces", spacesRoutes(spaces));
   v1.route("/spaces", projectsRoutes(projects));
   v1.route("/projects", historyRoutes(history));
+  v1.route("/projects", tokensRoutes(tokens));
   v1.route("/invitations", invitationsRoutes(spaces));
   app.route("/v1", v1);
   app.get("/.well-known/oauth-authorization-server", (c) =>
