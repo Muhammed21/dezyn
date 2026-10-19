@@ -28,6 +28,9 @@ pnpm install
 cp .env.example .env
 pnpm infra:up       # services locaux
 pnpm test:infra     # tests de l'infrastructure locale
+pnpm migrate        # migrations sur la base locale
+pnpm seed           # utilisateur, espace d'équipe et projet de dev (--name, --email, --password)
+pnpm db:reset       # supprime les utilisateurs et tout ce qui leur est lié, garde les clients OAuth ; base locale seulement
 pnpm studio         # Drizzle Studio sur la base locale, rôle migrator
 pnpm lint           # oxlint typé
 pnpm fmt            # oxfmt
