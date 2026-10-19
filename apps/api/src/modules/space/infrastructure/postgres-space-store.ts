@@ -1,8 +1,8 @@
 import { and, eq, isNull } from "drizzle-orm";
 
+import type { PostgresDatabase } from "#db";
 import { schema } from "@repo/db";
 
-import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { SpaceFinder } from "../application/read-space.ts";
 import type { SpaceStore } from "../application/spaces.ts";
 import { StoredMySpace, StoredSpace } from "./stored-rows.ts";

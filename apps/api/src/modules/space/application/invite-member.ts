@@ -1,6 +1,6 @@
+import type { Mailer } from "#platform/mailer.ts";
 import { err, ok, type Result } from "@repo/result";
 
-import type { Mailer } from "../../../platform/mailer.ts";
 import { can } from "../domain/can.ts";
 import {
   type Invitation,

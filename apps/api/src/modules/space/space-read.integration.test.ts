@@ -3,16 +3,15 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import type { PostgresDatabase } from "#db";
 import {
   ADA,
   type App,
   BASE_URL,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
+import { schema } from "@repo/db";
 
 const getSpace = (app: App, { accessToken, spaceId }: { accessToken: string; spaceId: string }) =>
   app.request(`${BASE_URL}/v1/spaces/${spaceId}`, {

@@ -1,7 +1,7 @@
+import type { ProjectFinder } from "#modules/project/contracts/project.ts";
+import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
-import type { ProjectFinder } from "../../project/contracts/project.ts";
-import { can, type MembershipReader } from "../../space/contracts/membership.ts";
 import {
   checkFigmaDeclaration,
   type DeclaredState,

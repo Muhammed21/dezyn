@@ -2,19 +2,19 @@ import { randomInt } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { migrate } from "@repo/db";
-import { withThrowawayDatabase } from "@repo/db/testing";
-
-import { createApp } from "../../create-app.ts";
-import type { LogRecord } from "../../platform/logging.ts";
-import { createPostgresDatabase } from "../../platform/postgres-database.ts";
+import { createApp } from "#create-app";
+import { createPostgresDatabase } from "#db";
+import type { LogRecord } from "#platform/logging.ts";
 import {
   makeHistory,
   makeProjects,
   makeSpaces,
   makeProposals,
   makeTokens,
-} from "../../testing/make-app.ts";
+} from "#testing/make-app.ts";
+import { migrate } from "@repo/db";
+import { withThrowawayDatabase } from "@repo/db/testing";
+
 import { createIdentityAuth } from "./infrastructure/better-auth.ts";
 
 const BASE_URL = "http://127.0.0.1:3000";

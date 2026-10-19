@@ -1,7 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import { describe, expect, it } from "vitest";
 
-import { makeApp } from "./testing/make-app.ts";
+import { makeApp } from "#testing/make-app.ts";
 
 describe("erreurs au format problem+json", () => {
   it("une route inconnue répond 404, avec le chemin sans la query", async () => {

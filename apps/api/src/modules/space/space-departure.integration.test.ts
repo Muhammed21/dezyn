@@ -1,16 +1,14 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import type { PostgresDatabase } from "#db";
 import {
   type App,
   BASE_URL,
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
 import {
   invite,
   makeOutbox,
@@ -18,7 +16,8 @@ import {
   seedTeamSpace,
   switchToTeam,
   tokenOf,
-} from "../../testing/space-fixtures.ts";
+} from "#testing/space-fixtures.ts";
+import { schema } from "@repo/db";
 
 const LAST_OWNER = "https://dezyn.app/problems/last-owner";
 

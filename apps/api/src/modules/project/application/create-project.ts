@@ -1,7 +1,7 @@
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
-import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
-import { can, type MembershipReader } from "../../space/contracts/membership.ts";
 import type { Project } from "../domain/project.ts";
 
 export interface ProjectWriter {

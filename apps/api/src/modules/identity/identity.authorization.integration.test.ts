@@ -2,8 +2,6 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
 import {
   ADA,
   BASE_URL,
@@ -18,7 +16,8 @@ import {
   RESOURCE,
   signInAndConsent,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
+import { schema } from "@repo/db";
 
 describe("autorisation d'une IA par l'utilisateur", () => {
   it("l'IA autorisée reçoit un jeton at+jwt pour la ressource /v1, au nom de l'utilisateur", () =>

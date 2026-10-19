@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { makeApp, makeAuth } from "../../testing/make-app.ts";
+import { makeApp, makeAuth } from "#testing/make-app.ts";
 
 const recordingAuth = () => {
   const received: Request[] = [];

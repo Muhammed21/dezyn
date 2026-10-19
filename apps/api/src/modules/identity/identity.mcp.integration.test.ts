@@ -9,8 +9,6 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
 import {
   BASE_URL,
   callMcp,
@@ -21,7 +19,8 @@ import {
   obtainAccessToken,
   signUp,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
+import { schema } from "@repo/db";
 
 const RESOURCE_METADATA = `${BASE_URL}/.well-known/oauth-protected-resource/v1`;
 

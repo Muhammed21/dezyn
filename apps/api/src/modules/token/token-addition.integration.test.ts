@@ -2,22 +2,16 @@ import { randomUUID } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
-import {
-  ADA,
-  GRACE,
-  obtainAccessToken,
-  withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { seedProject, seedProjectAsEditor } from "../../testing/project-fixtures.ts";
+import { ADA, GRACE, obtainAccessToken, withIdentityApp } from "#testing/authorization-flow.ts";
+import { seedProject, seedProjectAsEditor } from "#testing/project-fixtures.ts";
 import {
   ADDITION_CORRELATION_ID,
   addToken,
   historyOf,
   makeColorToken,
   PRIMARY_BLUE,
-} from "../../testing/token-fixtures.ts";
+} from "#testing/token-fixtures.ts";
+import { schema } from "@repo/db";
 
 describe("un membre ajoute un token couleur, Validé d'emblée (ADR 0012 §2)", () => {
   it("un propriétaire ajoute une couleur décrite, et l'historique montre token.created", () =>

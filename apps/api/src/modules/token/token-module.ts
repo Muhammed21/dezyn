@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import type { Clock } from "../../platform/clock.ts";
-import type { PostgresDatabase, PostgresTransaction } from "../../platform/postgres-database.ts";
-import type { HistoryWriter } from "../history/contracts/history-writer.ts";
-import type { ProjectFinder } from "../project/contracts/project.ts";
-import type { MembershipReader } from "../space/contracts/membership.ts";
+import type { PostgresDatabase, PostgresTransaction } from "#db";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectFinder } from "#modules/project/contracts/project.ts";
+import type { MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { Clock } from "#platform/clock.ts";
+
 import { addToken, type PendingProposals } from "./application/add-token.ts";
 import { checkTokens } from "./application/check-tokens.ts";
 import { validatedTokenWriter } from "./application/create-validated-token.ts";

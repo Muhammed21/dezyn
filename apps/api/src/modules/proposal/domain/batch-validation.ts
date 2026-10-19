@@ -1,4 +1,5 @@
-import { referencedNames } from "../../token/contracts/token-definition.ts";
+import { referencedNames } from "#modules/token/contracts/token-definition.ts";
+
 import type { BatchState, Proposal } from "./proposal.ts";
 
 export type BatchPlan =

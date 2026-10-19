@@ -4,7 +4,8 @@ import { type Context, Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 
-import type { AppEnv } from "../../../platform/http.ts";
+import type { AppEnv } from "#platform/http.ts";
+
 import type { Auth } from "../application/auth.ts";
 import {
   CONSENT_PATH,

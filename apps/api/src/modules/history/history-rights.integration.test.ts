@@ -2,10 +2,9 @@ import { randomUUID } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
+import { createPostgresDatabase, type PostgresDatabase } from "#db";
 import { migrate, schema } from "@repo/db";
 import { withThrowawayDatabase } from "@repo/db/testing";
-
-import { createPostgresDatabase, type PostgresDatabase } from "../../platform/postgres-database.ts";
 
 const seedHistoryEntry = async (db: PostgresDatabase) => {
   const now = new Date();

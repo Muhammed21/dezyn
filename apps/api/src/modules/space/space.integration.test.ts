@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
 import {
   ADA,
   type App,
@@ -10,7 +8,8 @@ import {
   makeClientIp,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
+import { schema } from "@repo/db";
 
 const failingOnce = (created: (user: { id: string; name: string }) => Promise<void>) => {
   const calls = { count: 0 };

@@ -7,15 +7,15 @@ import {
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { seedModes, seedProject } from "../../testing/project-fixtures.ts";
+} from "#testing/authorization-flow.ts";
+import { seedModes, seedProject } from "#testing/project-fixtures.ts";
 import {
   addToken,
   historyOf,
   makeColorToken,
   PRIMARY_BLUE,
   seedProposedToken,
-} from "../../testing/token-fixtures.ts";
+} from "#testing/token-fixtures.ts";
 
 const CORRELATION_ID = "lecture-des-tokens-1";
 

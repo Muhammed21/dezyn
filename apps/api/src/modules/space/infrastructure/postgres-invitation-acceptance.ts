@@ -1,10 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
+import type { PostgresDatabase, PostgresTransaction } from "#db";
 import { schema } from "@repo/db";
 import { err, ok } from "@repo/result";
 
-import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { InvitationAcceptance } from "../application/accept-invitation.ts";
 import { StoredSpace } from "./stored-rows.ts";
 

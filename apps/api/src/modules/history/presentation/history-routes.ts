@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
+import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
-import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
-import { validate } from "../../../platform/validate.ts";
 import { decodeCursor } from "../application/history-cursor.ts";
 import type { HistoryUseCases } from "../application/history-use-cases.ts";
 import { DEFAULT_PAGE_SIZE } from "../application/read-history.ts";

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
+import type { PostgresDatabase } from "#db";
 import { schema } from "@repo/db";
 
-import type { PostgresDatabase } from "../platform/postgres-database.ts";
 import { type App, BASE_URL } from "./authorization-flow.ts";
 
 export const ADDITION_CORRELATION_ID = "ajout-du-token-1";

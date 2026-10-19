@@ -2,14 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
-import {
-  GRACE,
-  obtainAccessToken,
-  WEB_URL,
-  withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+import { GRACE, obtainAccessToken, WEB_URL, withIdentityApp } from "#testing/authorization-flow.ts";
 import {
   hashOf,
   invite,
@@ -19,7 +12,8 @@ import {
   seedTeamSpaceWith,
   switchToTeam,
   tokenOf,
-} from "../../testing/space-fixtures.ts";
+} from "#testing/space-fixtures.ts";
+import { schema } from "@repo/db";
 
 const DAY_MS = 86_400_000;
 const PLAN_REQUIRED = "https://dezyn.app/problems/plan-required";

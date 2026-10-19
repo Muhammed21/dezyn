@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import type { Clock } from "../../platform/clock.ts";
-import type { PostgresDatabase, PostgresTransaction } from "../../platform/postgres-database.ts";
-import type { HistoryWriter } from "../history/contracts/history-writer.ts";
-import type { ProjectFinder } from "../project/contracts/project.ts";
-import type { MembershipReader } from "../space/contracts/membership.ts";
-import type { CheckTokens, ValidatedTokenWriter } from "../token/contracts/token-issues.ts";
+import type { PostgresDatabase, PostgresTransaction } from "#db";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectFinder } from "#modules/project/contracts/project.ts";
+import type { MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { CheckTokens, ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
+import type { Clock } from "#platform/clock.ts";
+
 import { closeBatch, openBatch } from "./application/proposal-batches.ts";
 import {
   batchOf,

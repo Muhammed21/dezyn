@@ -1,6 +1,6 @@
+import type { PostgresDatabase } from "#db";
 import { schema } from "@repo/db";
 
-import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { InvitationStore } from "../application/invite-member.ts";
 
 export const postgresInvitationStore = (db: PostgresDatabase): InvitationStore => ({

@@ -9,9 +9,9 @@ import {
   callMcp,
   refreshTokens,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { seedProject } from "../../testing/project-fixtures.ts";
-import { historyOf, makeColorToken } from "../../testing/token-fixtures.ts";
+} from "#testing/authorization-flow.ts";
+import { seedProject } from "#testing/project-fixtures.ts";
+import { historyOf, makeColorToken } from "#testing/token-fixtures.ts";
 
 const INTENTION = "Import du Figma Healthcare";
 

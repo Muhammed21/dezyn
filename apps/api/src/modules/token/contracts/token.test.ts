@@ -243,14 +243,14 @@ describe("un token lu porte son état Figma, s'il a été comparé (ADR 0024 §1
   });
 });
 
-describe("la déclaration rend l'état Figma déclaré de chaque token (ADR 0023)", () => {
-  const makeDeclared = (overrides: Readonly<Record<string, unknown>> = {}) => ({
-    name: "couleur.fond",
-    state: "synced",
-    declaredAt: "2026-10-19T09:00:00.000Z",
-    ...overrides,
-  });
+const makeDeclared = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  name: "couleur.fond",
+  state: "synced",
+  declaredAt: "2026-10-19T09:00:00.000Z",
+  ...overrides,
+});
 
+describe("la déclaration rend l'état Figma déclaré de chaque token (ADR 0023)", () => {
   it("décode les états déclarés, et accepte un état ajouté plus tard", () => {
     const declared = { states: [makeDeclared(), makeDeclared({ state: "renamed_in_figma" })] };
 

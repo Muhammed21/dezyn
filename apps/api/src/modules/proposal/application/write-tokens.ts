@@ -1,11 +1,11 @@
-import { err, ok, type Result } from "@repo/result";
-
 import {
   type ComparedDefinition,
   sameDefinition,
   type TokenDefinition,
-} from "../../token/contracts/token-definition.ts";
-import type { CheckTokens, TokenCheck } from "../../token/contracts/token-issues.ts";
+} from "#modules/token/contracts/token-definition.ts";
+import type { CheckTokens, TokenCheck } from "#modules/token/contracts/token-issues.ts";
+import { err, ok, type Result } from "@repo/result";
+
 import type { Proposal, ProposalBatch } from "../domain/proposal.ts";
 import { liveBatchOf } from "./proposal-batches.ts";
 

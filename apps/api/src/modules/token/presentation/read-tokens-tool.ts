@@ -1,11 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import type { McpCall } from "#platform/mcp.ts";
+import { RECORD_FAILURE_TEXT, type RecordProjectCall } from "#platform/project-call.ts";
 import { Uuid } from "@repo/contracts";
 import { ok, type Result } from "@repo/result";
 
-import type { McpCall } from "../../../platform/mcp.ts";
-import { RECORD_FAILURE_TEXT, type RecordProjectCall } from "../../../platform/project-call.ts";
 import type { ProjectTokens } from "../application/read-tokens.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import type { TokenDefinition } from "../contracts/token-definition.ts";

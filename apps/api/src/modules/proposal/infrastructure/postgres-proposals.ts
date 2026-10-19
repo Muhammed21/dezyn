@@ -1,13 +1,13 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import type { PostgresDatabase, PostgresTransaction } from "#db";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import { TokenDefinitionInput } from "#modules/token/contracts/token-definition.ts";
+import type { ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
 import { schema } from "@repo/db";
 import type { Err, Result } from "@repo/result";
 
-import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
-import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
-import { TokenDefinitionInput } from "../../token/contracts/token-definition.ts";
-import type { ValidatedTokenWriter } from "../../token/contracts/token-issues.ts";
 import type {
   ProposalReader,
   ReviewUnit,

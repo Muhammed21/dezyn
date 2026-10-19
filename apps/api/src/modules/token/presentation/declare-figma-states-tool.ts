@@ -1,15 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { Uuid } from "@repo/contracts";
-import { err, type Result } from "@repo/result";
-
-import type { McpCall } from "../../../platform/mcp.ts";
+import type { McpCall } from "#platform/mcp.ts";
 import {
   RECORD_FAILURE_TEXT,
   type RecordFailure,
   type RecordProjectCall,
-} from "../../../platform/project-call.ts";
+} from "#platform/project-call.ts";
+import { Uuid } from "@repo/contracts";
+import { err, type Result } from "@repo/result";
+
 import type {
   DeclaredFigmaStates,
   InvalidDeclaration,

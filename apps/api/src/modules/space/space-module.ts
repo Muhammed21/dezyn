@@ -1,7 +1,8 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import type { Mailer } from "../../platform/mailer.ts";
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import type { PostgresDatabase } from "#db";
+import type { Mailer } from "#platform/mailer.ts";
+
 import { acceptInvitation } from "./application/accept-invitation.ts";
 import { inviteMember } from "./application/invite-member.ts";
 import { leaveSpace } from "./application/leave-space.ts";

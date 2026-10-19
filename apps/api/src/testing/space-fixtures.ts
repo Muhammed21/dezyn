@@ -2,10 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
+import type { PostgresDatabase } from "#db";
+import type { OutgoingEmail } from "#platform/mailer.ts";
 import { schema } from "@repo/db";
 
-import type { OutgoingEmail } from "../platform/mailer.ts";
-import type { PostgresDatabase } from "../platform/postgres-database.ts";
 import { type App, BASE_URL, GRACE, WEB_URL } from "./authorization-flow.ts";
 
 export const makeOutbox = () => {

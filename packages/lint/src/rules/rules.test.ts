@@ -54,6 +54,12 @@ tester.run("module-boundaries", moduleBoundaries, {
   ],
   invalid: [
     {
+      name: "import par alias du domaine d'un autre module",
+      filename: inModule("project", "application/create-project.ts"),
+      code: 'import { SpaceId } from "#modules/space/domain/space-id.ts";',
+      errors: [{ messageId: "crossModule", data: { from: "project", to: "space" } }],
+    },
+    {
       name: "import du domaine d'un autre module",
       filename: inModule("project", "application/create-project.ts"),
       code: 'import { SpaceId } from "../../space/domain/space-id.ts";',
@@ -143,6 +149,12 @@ tester.run("layer-dependencies", layerDependencies, {
       code: `import { x } from "../${to}/other.ts";`,
       errors: [{ messageId: "forbiddenLayer", data: { from, to } }],
     })),
+    {
+      name: "par alias, le domaine n'importe pas l'application de son module",
+      filename: inModule("space", "domain/space-id.ts"),
+      code: 'import { x } from "#modules/space/application/other.ts";',
+      errors: [{ messageId: "forbiddenLayer", data: { from: "domain", to: "application" } }],
+    },
     {
       name: "le domaine n'importe pas la racine du module",
       filename: inModule("space", "domain/space-id.ts"),

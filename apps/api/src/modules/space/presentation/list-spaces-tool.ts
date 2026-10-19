@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import type { McpCall } from "../../../platform/mcp.ts";
+import type { McpCall } from "#platform/mcp.ts";
+
 import { MySpacesOutput } from "../contracts/my-spaces.ts";
 import type { MySpace } from "../domain/space.ts";
 

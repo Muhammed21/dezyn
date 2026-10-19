@@ -1,11 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import type { McpCall } from "#platform/mcp.ts";
+import { RECORD_FAILURE_TEXT, type RecordFailure } from "#platform/project-call.ts";
 import { Uuid } from "@repo/contracts";
 import { err, type Result } from "@repo/result";
 
-import type { McpCall } from "../../../platform/mcp.ts";
-import { RECORD_FAILURE_TEXT, type RecordFailure } from "../../../platform/project-call.ts";
 import { decodeCursor } from "../application/history-cursor.ts";
 import type { HistoryUseCases } from "../application/history-use-cases.ts";
 import { DEFAULT_PAGE_SIZE, type HistoryPage } from "../application/read-history.ts";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { makeApp } from "./testing/make-app.ts";
+import { makeApp } from "#testing/make-app.ts";
 
 const requestRecords = async (path: string, init: RequestInit = {}) => {
   const { app, records } = makeApp();

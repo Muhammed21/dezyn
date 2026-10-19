@@ -1,6 +1,6 @@
+import { createJsonLineSink } from "#platform/json-line-sink.ts";
 import { LATEST_MIGRATION } from "@repo/db";
 
-import { createJsonLineSink } from "./platform/json-line-sink.ts";
 import { startApi } from "./start-api.ts";
 
 const required = (variable: string): string => {

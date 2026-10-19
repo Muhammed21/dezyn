@@ -8,14 +8,9 @@ import {
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { seedProject, seedProjectAsEditor } from "../../testing/project-fixtures.ts";
-import {
-  addToken,
-  historyOf,
-  makeColorToken,
-  seedProposedToken,
-} from "../../testing/token-fixtures.ts";
+} from "#testing/authorization-flow.ts";
+import { seedProject, seedProjectAsEditor } from "#testing/project-fixtures.ts";
+import { addToken, historyOf, makeColorToken, seedProposedToken } from "#testing/token-fixtures.ts";
 
 const DECLARATION_CORRELATION_ID = "comparaison-figma-1";
 

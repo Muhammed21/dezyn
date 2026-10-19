@@ -1,4 +1,4 @@
-import type { TokenDefinition } from "../../token/contracts/token-definition.ts";
+import type { TokenDefinition } from "#modules/token/contracts/token-definition.ts";
 
 export type BatchState = "open" | "closed";
 

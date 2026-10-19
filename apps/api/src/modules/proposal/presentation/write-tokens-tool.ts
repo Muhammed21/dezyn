@@ -1,17 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { Uuid } from "@repo/contracts";
-import { err, type Result } from "@repo/result";
-
-import type { McpCall } from "../../../platform/mcp.ts";
+import { TokenDefinitionInput } from "#modules/token/contracts/token-definition.ts";
+import { issuesOfCheck } from "#modules/token/contracts/token-issues.ts";
+import type { McpCall } from "#platform/mcp.ts";
 import {
   RECORD_FAILURE_TEXT,
   type RecordFailure,
   type RecordProjectCall,
-} from "../../../platform/project-call.ts";
-import { TokenDefinitionInput } from "../../token/contracts/token-definition.ts";
-import { issuesOfCheck } from "../../token/contracts/token-issues.ts";
+} from "#platform/project-call.ts";
+import { Uuid } from "@repo/contracts";
+import { err, type Result } from "@repo/result";
+
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
 import type { UncheckedTokens, Written } from "../application/write-tokens.ts";
 import { WrittenTokensOutput } from "../contracts/proposal.ts";

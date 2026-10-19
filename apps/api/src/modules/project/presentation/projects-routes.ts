@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
+import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import { problemResponse } from "#platform/problem.ts";
+import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
-import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
-import { problemResponse } from "../../../platform/problem.ts";
-import { validate } from "../../../platform/validate.ts";
 import type { ProjectUseCases } from "../application/create-project.ts";
 
 const ProjectRequest = z.object({ name: z.string().trim().min(1).max(100) });

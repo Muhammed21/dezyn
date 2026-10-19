@@ -1,12 +1,12 @@
-import { err, ok, type Result } from "@repo/result";
-
-import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
-import type { ProjectFinder } from "../../project/contracts/project.ts";
-import { can, type MembershipReader } from "../../space/contracts/membership.ts";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectFinder } from "#modules/project/contracts/project.ts";
+import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
 import type {
   ValidatedTokenFailure,
   ValidatedTokenWriter,
-} from "../../token/contracts/token-issues.ts";
+} from "#modules/token/contracts/token-issues.ts";
+import { err, ok, type Result } from "@repo/result";
+
 import { planBatchValidation } from "../domain/batch-validation.ts";
 import { batchStateAt } from "../domain/proposal-batch.ts";
 import {
