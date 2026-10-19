@@ -14,16 +14,23 @@ import {
   type PropositionStatus,
   review,
 } from "../domain/proposition.ts";
+import type { ValidatedDefinition, ValidatedTokensOf } from "./write-tokens.ts";
 
 export type BatchSummary = Pick<PropositionLot, "id" | "intention" | "state"> & {
   readonly toReview: number;
 };
 
-export type Batch = PropositionLot & { readonly propositions: readonly Proposition[] };
+export type StoredBatch = PropositionLot & { readonly propositions: readonly Proposition[] };
+
+export type Batch = PropositionLot & {
+  readonly propositions: readonly (Proposition & {
+    readonly validated: ValidatedDefinition | null;
+  })[];
+};
 
 export interface PropositionReader {
   batchesOf(projectId: string): Promise<readonly BatchSummary[]>;
-  batch(batchId: string): Promise<Batch | undefined>;
+  batch(batchId: string): Promise<StoredBatch | undefined>;
   pendingTokensOf(
     projectId: string,
   ): Promise<readonly { readonly name: string; readonly $type: string }[]>;
@@ -87,8 +94,28 @@ export const listBatches =
     return ok(await propositions.batchesOf(projectId));
   };
 
+const definitionOf = ({ name, $type, $value, modes, $description }: ValidatedDefinition) => ({
+  name,
+  $type,
+  $value,
+  modes,
+  $description,
+});
+
+const validatedOf = (
+  validated: readonly ValidatedDefinition[],
+  { name }: Proposition,
+): ValidatedDefinition | null => validated.find((token) => token.name === name) ?? null;
+
 export const batchOf =
-  ({ propositions, ...access }: Access & { readonly propositions: PropositionReader }) =>
+  ({
+    propositions,
+    validatedTokensOf,
+    ...access
+  }: Access & {
+    readonly propositions: PropositionReader;
+    readonly validatedTokensOf: ValidatedTokensOf;
+  }) =>
   async ({
     batchId,
     userId,
@@ -104,17 +131,26 @@ export const batchOf =
     ) {
       return err("not_found");
     }
-    return ok(batch);
+    const validated = await validatedTokensOf(batch.projectId);
+    return ok({
+      ...batch,
+      propositions: batch.propositions.map((proposition) => ({
+        ...proposition,
+        validated: validatedOf(validated, proposition),
+      })),
+    });
   };
 
 export const reviewProposition =
   ({
     propositions,
+    validatedTokensOf,
     unitOfWork,
     now,
     ...access
   }: Access & {
     readonly propositions: PropositionReader;
+    readonly validatedTokensOf: ValidatedTokensOf;
     readonly unitOfWork: ReviewUnitOfWork;
     readonly now: () => Date;
   }) =>
@@ -144,15 +180,20 @@ export const reviewProposition =
         return err("already_reviewed");
       }
       const occurredAt = now();
+      const before = validatedOf(await validatedTokensOf(projectId), proposition);
       if (reviewed.status === "validated") {
-        const created = await unit.tokens.create({
+        const validated = {
           projectId,
           token: proposition.token,
           pending: await propositions.pendingTokensOf(projectId),
           createdAt: occurredAt,
-        });
-        if (created !== undefined) {
-          return err(created);
+        };
+        const failure =
+          proposition.kind === "create"
+            ? await unit.tokens.create(validated)
+            : await unit.tokens.replace(validated);
+        if (failure !== undefined) {
+          return err(failure);
         }
       }
       await unit.propositions.settle(propositionId, reviewed.status);
@@ -162,7 +203,7 @@ export const reviewProposition =
         action: `proposition.${reviewed.status}`,
         userId,
         clientId: null,
-        before: null,
+        before: before === null ? null : definitionOf(before),
         after: { propositionId, token: proposition.token },
         correlationId,
         occurredAt,

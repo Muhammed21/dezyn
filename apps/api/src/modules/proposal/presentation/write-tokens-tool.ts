@@ -50,9 +50,10 @@ const issuesOf = (failure: InvalidTokens | UncheckedTokens): readonly string[] =
 const errorTextOf = (failure: WriteFailure): string =>
   typeof failure === "string" ? ERROR_TEXT[failure] : issuesOf(failure).join("\n");
 
-const writtenOutputOf = ({ lot, propositions }: Written) => ({
-  lot: { id: lot.id, state: lot.state },
+const writtenOutputOf = ({ lot, propositions, unchanged }: Written) => ({
+  lot: lot === null ? null : { id: lot.id, state: lot.state },
   propositions: propositions.map(({ id, name, kind, status }) => ({ id, name, kind, status })),
+  unchanged,
 });
 
 export const registerWriteTokens =

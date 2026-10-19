@@ -7,7 +7,8 @@ export type TokenCheckFailure =
   | {
       readonly code: "invalid_references";
       readonly refusals: readonly { readonly mode?: string; readonly refusal: ReferenceRefusal }[];
-    };
+    }
+  | { readonly code: "type_changed" };
 
 export type TokenCheck = { readonly index: number; readonly failure: TokenCheckFailure };
 
@@ -18,11 +19,14 @@ export type CheckTokens = (written: {
 
 export type ValidatedTokenFailure = TokenCheckFailure | { readonly code: "name_taken" };
 
+export type ValidatedToken = {
+  readonly projectId: string;
+  readonly token: TokenDefinition;
+  readonly pending: readonly WrittenToken[];
+  readonly createdAt: Date;
+};
+
 export interface ValidatedTokenWriter {
-  create(validated: {
-    readonly projectId: string;
-    readonly token: TokenDefinition;
-    readonly pending: readonly WrittenToken[];
-    readonly createdAt: Date;
-  }): Promise<ValidatedTokenFailure | undefined>;
+  create(validated: ValidatedToken): Promise<ValidatedTokenFailure | undefined>;
+  replace(validated: ValidatedToken): Promise<ValidatedTokenFailure | undefined>;
 }

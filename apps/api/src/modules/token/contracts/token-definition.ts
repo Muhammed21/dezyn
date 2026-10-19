@@ -200,3 +200,4 @@ export const TokenDefinitionInput = z
     });
   });
 export type { TokenDefinition } from "../domain/token.ts";
+export { type ComparedDefinition, sameDefinition } from "../domain/same-definition.ts";

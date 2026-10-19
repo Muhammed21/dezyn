@@ -42,6 +42,7 @@ export const composeModules = ({
     memberships: spaces.memberships,
     projects: projects.finder,
     checkTokens: tokens.checkTokens,
+    validatedTokensOf: async (projectId) => (await tokens.readTokens(projectId)).tokens,
     historyWriterOn: writerOn,
     validatedTokenWriterOn,
   });

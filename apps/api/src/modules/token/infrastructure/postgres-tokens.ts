@@ -7,6 +7,7 @@ import type { PostgresDatabase, PostgresTransaction } from "../../../platform/po
 import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
 import type {
   ModeReader,
+  ModeValue,
   ProjectTokenReader,
   TokenUnitOfWork,
   TokenWriter,
@@ -15,7 +16,7 @@ import type { ValidatedTokenReader } from "../application/read-tokens.ts";
 
 const { mode, modifier, token, tokenValue } = schema;
 
-type Queryable = Pick<PostgresTransaction, "select" | "insert">;
+type Queryable = Pick<PostgresTransaction, "select" | "insert" | "update" | "delete">;
 
 export const postgresProjectTokenReader = (orm: Queryable): ProjectTokenReader => ({
   tokensOf: (projectId) =>
@@ -34,6 +35,29 @@ export const postgresModeReader = (orm: Queryable): ModeReader => ({
       .where(eq(modifier.projectId, projectId))
       .orderBy(asc(mode.position)),
 });
+
+const insertValues = async (
+  tx: Queryable,
+  {
+    newId,
+    tokenId,
+    values,
+  }: {
+    readonly newId: () => string;
+    readonly tokenId: string;
+    readonly values: readonly ModeValue[];
+  },
+) => {
+  await tx.insert(tokenValue).values(
+    values.map(({ modeId, value, referencedTokenId }) => ({
+      id: newId(),
+      tokenId,
+      modeId,
+      value,
+      referencedTokenId,
+    })),
+  );
+};
 
 export const postgresTokenWriter = (
   tx: Queryable,
@@ -56,16 +80,20 @@ export const postgresTokenWriter = (
     if (inserted.length === 0) {
       return "name_taken";
     }
-    await tx.insert(tokenValue).values(
-      values.map(({ modeId, value, referencedTokenId }) => ({
-        id: newId(),
-        tokenId: added.id,
-        modeId,
-        value,
-        referencedTokenId,
-      })),
-    );
+    await insertValues(tx, { newId, tokenId: added.id, values });
     return "created";
+  },
+  replace: async (replaced, values) => {
+    const [updated] = await tx
+      .update(token)
+      .set({ description: replaced.$description ?? null })
+      .where(and(eq(token.projectId, replaced.projectId), eq(token.name, replaced.name)))
+      .returning({ id: token.id });
+    if (updated === undefined) {
+      return;
+    }
+    await tx.delete(tokenValue).where(eq(tokenValue.tokenId, updated.id));
+    await insertValues(tx, { newId, tokenId: updated.id, values });
   },
 });
 

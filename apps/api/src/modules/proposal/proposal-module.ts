@@ -6,7 +6,7 @@ import type { ProjectFinder } from "../project/contracts/project.ts";
 import type { MembershipReader } from "../space/contracts/membership.ts";
 import type { CheckTokens, ValidatedTokenWriter } from "../token/contracts/token-issues.ts";
 import { batchOf, listBatches, reviewProposition } from "./application/review-propositions.ts";
-import { writeTokens } from "./application/write-tokens.ts";
+import { type ValidatedTokensOf, writeTokens } from "./application/write-tokens.ts";
 import {
   postgresPropositionReader,
   postgresPropositionUnitOfWork,
@@ -20,6 +20,7 @@ export const proposalModule = ({
   memberships,
   projects,
   checkTokens,
+  validatedTokensOf,
   historyWriterOn,
   validatedTokenWriterOn,
 }: {
@@ -27,13 +28,20 @@ export const proposalModule = ({
   readonly memberships: MembershipReader;
   readonly projects: ProjectFinder;
   readonly checkTokens: CheckTokens;
+  readonly validatedTokensOf: ValidatedTokensOf;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
 }) => {
-  const access = { projects, memberships, propositions: postgresPropositionReader(db) };
+  const access = {
+    projects,
+    memberships,
+    validatedTokensOf,
+    propositions: postgresPropositionReader(db),
+  };
   return {
     writeTokens: writeTokens({
       checkTokens,
+      validatedTokensOf,
       unitOfWork: postgresPropositionUnitOfWork(db),
       newId: randomUUID,
       now,

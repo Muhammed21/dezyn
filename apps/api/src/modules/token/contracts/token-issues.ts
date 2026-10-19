@@ -46,7 +46,13 @@ const referenceIssueOf = ({
 
 export const issuesOfCheck = (
   failure: TokenCheckFailure,
-): readonly { readonly path: string; readonly message: string }[] =>
-  failure.code === "invalid_modes"
-    ? failure.refusals.map(modeIssueOf)
-    : failure.refusals.map(referenceIssueOf);
+): readonly { readonly path: string; readonly message: string }[] => {
+  switch (failure.code) {
+    case "invalid_modes":
+      return failure.refusals.map(modeIssueOf);
+    case "invalid_references":
+      return failure.refusals.map(referenceIssueOf);
+    default:
+      return [{ path: "$type", message: "Type différent du token validé" }];
+  }
+};

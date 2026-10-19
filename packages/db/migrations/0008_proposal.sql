@@ -26,3 +26,8 @@ CREATE UNIQUE INDEX "proposition_lot_open_key" ON "proposition_lot" USING btree 
 GRANT SELECT, INSERT ON "proposition_lot", "proposition" TO app;
 --> statement-breakpoint
 GRANT UPDATE ("status") ON "proposition" TO app;
+--> statement-breakpoint
+-- Valider une modification remplace la description du token et ses valeurs par mode.
+GRANT UPDATE ("description") ON "token" TO app;
+--> statement-breakpoint
+GRANT DELETE ON "token_value" TO app;

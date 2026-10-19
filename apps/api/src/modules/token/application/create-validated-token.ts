@@ -1,4 +1,4 @@
-import type { ValidatedTokenWriter } from "../domain/token-check.ts";
+import type { ValidatedToken, ValidatedTokenWriter } from "../domain/token-check.ts";
 import {
   checkedValues,
   type ModeReader,
@@ -6,6 +6,19 @@ import {
   type ProjectTokenReader,
   type TokenWriter,
 } from "./add-token.ts";
+
+const checkedFor = async (
+  {
+    modes,
+    projectTokens,
+  }: { readonly modes: ModeReader; readonly projectTokens: ProjectTokenReader },
+  { projectId, token, pending }: ValidatedToken,
+) =>
+  checkedValues(token, {
+    projectModes: await modes.modesOf(projectId),
+    tokens: await projectTokens.tokensOf(projectId),
+    pending,
+  });
 
 export const validatedTokenWriter = ({
   modes,
@@ -18,12 +31,9 @@ export const validatedTokenWriter = ({
   readonly tokens: TokenWriter;
   readonly newId: () => string;
 }): ValidatedTokenWriter => ({
-  create: async ({ projectId, token, pending, createdAt }) => {
-    const checked = checkedValues(token, {
-      projectModes: await modes.modesOf(projectId),
-      tokens: await projectTokens.tokensOf(projectId),
-      pending,
-    });
+  create: async (validated) => {
+    const { projectId, token, createdAt } = validated;
+    const checked = await checkedFor({ modes, projectTokens }, validated);
     if (!checked.ok) {
       return checked.error;
     }
@@ -32,5 +42,16 @@ export const validatedTokenWriter = ({
       checked.value.map(modeValueOf),
     );
     return outcome === "name_taken" ? { code: "name_taken" } : undefined;
+  },
+  replace: async (validated) => {
+    const checked = await checkedFor({ modes, projectTokens }, validated);
+    if (!checked.ok) {
+      return checked.error;
+    }
+    await tokens.replace(
+      { ...validated.token, projectId: validated.projectId },
+      checked.value.map(modeValueOf),
+    );
+    return undefined;
   },
 });

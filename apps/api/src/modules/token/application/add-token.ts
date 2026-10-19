@@ -31,6 +31,10 @@ export type ModeValue = {
 
 export interface TokenWriter {
   create(token: Token, values: readonly ModeValue[]): Promise<"created" | "name_taken">;
+  replace(
+    token: TokenDefinition & { readonly projectId: string },
+    values: readonly ModeValue[],
+  ): Promise<void>;
 }
 
 export interface TokenUnitOfWork {

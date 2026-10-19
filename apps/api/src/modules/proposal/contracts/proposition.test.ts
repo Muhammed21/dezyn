@@ -13,6 +13,7 @@ const makeWrittenTokens = (overrides: Readonly<Record<string, unknown>> = {}) =>
       status: "proposed",
     },
   ],
+  unchanged: [],
   ...overrides,
 });
 
@@ -23,7 +24,17 @@ describe("le contrat de sortie d'une écriture de l'IA reste ouvert (ADR 0023)",
     expect(WrittenTokensOutput.parse(written)).toEqual(written);
   });
 
-  it.each([["lot"], ["propositions"]])("refuse une écriture sans %s", (field) => {
+  it("décode une écriture qui n'a rien proposé, sans lot", () => {
+    const written = makeWrittenTokens({
+      lot: null,
+      propositions: [],
+      unchanged: ["couleur.bleu.500"],
+    });
+
+    expect(WrittenTokensOutput.parse(written)).toEqual(written);
+  });
+
+  it.each([["lot"], ["propositions"], ["unchanged"]])("refuse une écriture sans %s", (field) => {
     expect(WrittenTokensOutput.safeParse(makeWrittenTokens({ [field]: undefined })).success).toBe(
       false,
     );
@@ -36,7 +47,7 @@ describe("le contrat de sortie d'une écriture de l'IA reste ouvert (ADR 0023)",
         {
           id: "1c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
           name: "couleur.bleu.500",
-          kind: "update",
+          kind: "delete",
           status: "replaced",
         },
       ],
@@ -49,12 +60,15 @@ describe("le contrat de sortie d'une écriture de l'IA reste ouvert (ADR 0023)",
     expect(z.toJSONSchema(WrittenTokensOutput)).toMatchObject({
       properties: {
         lot: {
-          properties: { state: { anyOf: [{ enum: ["open"] }, { type: "string" }] } },
+          anyOf: [
+            { properties: { state: { anyOf: [{ enum: ["open"] }, { type: "string" }] } } },
+            { type: "null" },
+          ],
         },
         propositions: {
           items: {
             properties: {
-              kind: { anyOf: [{ enum: ["create"] }, { type: "string" }] },
+              kind: { anyOf: [{ enum: ["create", "update"] }, { type: "string" }] },
               status: { anyOf: [{ enum: ["proposed"] }, { type: "string" }] },
             },
           },

@@ -15,6 +15,10 @@ export const checkTokens =
       projectTokens.tokensOf(projectId),
     ]);
     return tokens.flatMap((token, index): readonly TokenCheck[] => {
+      const validated = existing.find(({ name }) => name === token.name);
+      if (validated !== undefined && validated.$type !== token.$type) {
+        return [{ index, failure: { code: "type_changed" } }];
+      }
       const checked = checkedValues(token, { projectModes, tokens: existing, written: tokens });
       return checked.ok ? [] : [{ index, failure: checked.error }];
     });

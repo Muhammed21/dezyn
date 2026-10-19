@@ -7,6 +7,7 @@ import { type Problem, problemResponse } from "../../../platform/problem.ts";
 import { issuesOfCheck } from "../../token/contracts/token-issues.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
 import type { ReviewFailure } from "../application/review-propositions.ts";
+import type { ValidatedDefinition } from "../application/write-tokens.ts";
 import type { Decision, Proposition } from "../domain/proposition.ts";
 
 const proposedOf = ({ token: { $type, $value, modes, $description } }: Proposition) => ({
@@ -16,12 +17,21 @@ const proposedOf = ({ token: { $type, $value, modes, $description } }: Propositi
   $description,
 });
 
-const propositionOutputOf = (proposition: Proposition) => ({
+const validatedOutputOf = ({ $type, $value, modes, $description }: ValidatedDefinition) => ({
+  $type,
+  $value,
+  modes,
+  $description,
+});
+
+const propositionOutputOf = (
+  proposition: Proposition & { readonly validated: ValidatedDefinition | null },
+) => ({
   id: proposition.id,
   name: proposition.name,
   kind: proposition.kind,
   status: proposition.status,
-  validated: null,
+  validated: proposition.validated === null ? null : validatedOutputOf(proposition.validated),
   proposed: proposedOf(proposition),
 });
 

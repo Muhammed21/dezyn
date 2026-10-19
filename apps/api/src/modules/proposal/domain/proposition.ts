@@ -14,7 +14,7 @@ export type Proposition = {
   readonly id: string;
   readonly lotId: string;
   readonly name: string;
-  readonly kind: "create";
+  readonly kind: "create" | "update";
   readonly token: TokenDefinition;
   readonly status: PropositionStatus;
   readonly createdAt: Date;

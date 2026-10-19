@@ -35,6 +35,7 @@ export const postgresPropositionUnitOfWork = (db: PostgresDatabase): Proposition
   run: (work) =>
     db.orm.transaction((tx) =>
       work({
+        findOpenLot: (writer) => findOpenLot(tx, writer),
         openLotOf: async (candidate) => {
           await tx.insert(propositionLot).values(candidate).onConflictDoNothing();
           return (await findOpenLot(tx, candidate)) ?? candidate;
@@ -62,7 +63,7 @@ const PropositionRow = z.object({
   id: z.string(),
   lotId: z.string(),
   tokenName: z.string(),
-  kind: z.literal("create"),
+  kind: z.enum(["create", "update"]),
   payload: TokenDefinitionInput,
   status: PropositionStatus,
   createdAt: z.date(),
