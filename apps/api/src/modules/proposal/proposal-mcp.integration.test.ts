@@ -1,0 +1,252 @@
+import { describe, expect, it } from "vitest";
+
+import { schema } from "@repo/db";
+
+import {
+  ADA,
+  type App,
+  callMcp,
+  GRACE,
+  obtainAccessToken,
+  withIdentityApp,
+} from "../../testing/authorization-flow.ts";
+import { seedProject } from "../../testing/project-fixtures.ts";
+import { historyOf, makeColorToken } from "../../testing/token-fixtures.ts";
+
+const CORRELATION_ID = "proposition-de-tokens-1";
+
+const callTool = async (
+  app: App,
+  { token, name, args }: { token: string; name: string; args: object },
+) => {
+  const response = await callMcp(app, {
+    token,
+    method: "tools/call",
+    params: { name, arguments: args },
+    correlationId: CORRELATION_ID,
+  });
+  const { result } = await response.json();
+  return result;
+};
+
+const writeTokens = (
+  app: App,
+  { token, projectId, tokens }: { token: string; projectId: string; tokens: readonly object[] },
+) => callTool(app, { token, name: "write_tokens", args: { projectId, tokens } });
+
+describe("une écriture de l'IA est une proposition, rangée dans un lot (ADR 0012 §1, ADR 0013 §2)", () => {
+  it("sans lot ouvert, write_tokens ouvre un lot automatique et propose la création de chaque token", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const tokens = [
+        makeColorToken({ name: "couleur.bleu.500" }),
+        makeColorToken({ name: "couleur.bleu.700" }),
+      ];
+
+      const result = await writeTokens(app, { token: accessToken, projectId, tokens });
+
+      expect(result.structuredContent).toEqual({
+        lot: { id: expect.any(String), state: "open" },
+        propositions: [
+          { id: expect.any(String), name: "couleur.bleu.500", kind: "create", status: "proposed" },
+          { id: expect.any(String), name: "couleur.bleu.700", kind: "create", status: "proposed" },
+        ],
+      });
+      expect(result.content).toEqual([
+        { type: "text", text: JSON.stringify(result.structuredContent) },
+      ]);
+    }));
+
+  it("une seconde écriture de la même IA va dans le lot encore ouvert", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const first = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [makeColorToken({ name: "couleur.bleu.500" })],
+      });
+
+      const second = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [makeColorToken({ name: "couleur.bleu.700" })],
+      });
+
+      expect(second.structuredContent.lot).toEqual(first.structuredContent.lot);
+    }));
+});
+
+describe("une proposition ne fait pas foi tant qu'elle attend (ADR 0012 §3, §6)", () => {
+  it("read_tokens ne rend pas un token proposé", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await writeTokens(app, { token: accessToken, projectId, tokens: [makeColorToken()] });
+
+      const read = await callTool(app, {
+        token: accessToken,
+        name: "read_tokens",
+        args: { projectId },
+      });
+
+      expect(read.structuredContent.tokens).toEqual([]);
+    }));
+});
+
+describe("write_tokens entre dans l'historique et refuse ce qui ne lui revient pas (ADR 0021)", () => {
+  it("l'appel laisse une entrée mcp.write_tokens avec l'auteur, le client OAuth et les tokens", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, clientId, userId, spaceId, projectId } = await seedProject(app, db);
+      const tokens = [makeColorToken()];
+
+      await writeTokens(app, { token: accessToken, projectId, tokens });
+
+      expect((await historyOf(app, { accessToken, projectId }))[0]).toEqual({
+        id: expect.any(String),
+        action: "mcp.write_tokens",
+        spaceId,
+        projectId,
+        author: { kind: "member", userId, name: ADA.name },
+        clientId,
+        before: null,
+        after: { outcome: "success", input: { tokens } },
+        occurredAt: expect.any(String),
+        correlationId: CORRELATION_ID,
+      });
+    }));
+
+  it("l'IA d'un non-membre reçoit « Projet introuvable », sans lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { projectId } = await seedProject(app, db);
+      const grace = await obtainAccessToken(app, { user: GRACE });
+
+      const result = await writeTokens(app, {
+        token: grace.accessToken,
+        projectId,
+        tokens: [makeColorToken()],
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [{ type: "text", text: "Projet introuvable" }],
+      });
+      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+    }));
+
+  it("une définition invalide refuse tout l'appel, en nommant le token et le champ, sans lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const outOfRange = { colorSpace: "srgb", components: [0.2, 1.4, 0.8] };
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [
+          makeColorToken({ name: "couleur.bleu.500" }),
+          makeColorToken({ name: "couleur.bleu.700", $value: outOfRange }),
+        ],
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: "tokens[1].$value.components : Composante hors de l'intervalle 0 à 1",
+          },
+        ],
+      });
+      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+      expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
+        action: "mcp.write_tokens",
+        after: { outcome: "error" },
+      });
+    }));
+
+  it("chaque refus tient sur sa ligne", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [makeColorToken({ name: "couleur..bleu" }), makeColorToken({ name: "{couleur}" })],
+      });
+
+      expect(result.content).toEqual([
+        {
+          type: "text",
+          text: "tokens[0].name : Segment de nom vide\ntokens[1].name : Accolade interdite dans un nom",
+        },
+      ]);
+    }));
+
+  it("si l'entrée ne peut pas être écrite, l'outil rend une erreur au lieu du lot", () =>
+    withIdentityApp(
+      async (app, db) => {
+        const { accessToken, projectId } = await seedProject(app, db);
+
+        const result = await writeTokens(app, {
+          token: accessToken,
+          projectId,
+          tokens: [makeColorToken()],
+        });
+
+        expect(result).toMatchObject({
+          isError: true,
+          content: [{ type: "text", text: "Historique indisponible" }],
+        });
+        expect(result.structuredContent).toBeUndefined();
+      },
+      {
+        wrapHistoryWriter: (writer) => ({
+          append: (entry) =>
+            entry.action.startsWith("mcp.")
+              ? Promise.reject(new Error("historique indisponible"))
+              : writer.append(entry),
+        }),
+      },
+    ));
+
+  it("un appel sans token est refusé", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, { token: accessToken, projectId, tokens: [] });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [{ type: "text", text: expect.stringMatching(/^tokens : /) }],
+      });
+    }));
+});
+
+describe("write_tokens s'annonce à l'IA", () => {
+  it("tools/list annonce write_tokens, son entrée et sa sortie", () =>
+    withIdentityApp(async (app) => {
+      const { accessToken } = await obtainAccessToken(app);
+
+      const response = await callMcp(app, { token: accessToken, method: "tools/list" });
+
+      expect(await response.json()).toMatchObject({
+        result: {
+          tools: expect.arrayContaining([
+            expect.objectContaining({
+              name: "write_tokens",
+              description:
+                "Propose la création de tokens DTCG dans un projet : chaque token devient une proposition Proposée, rangée dans le lot ouvert de l'IA, à relire par un éditeur.",
+              inputSchema: expect.objectContaining({
+                required: ["projectId"],
+                properties: expect.objectContaining({ tokens: expect.anything() }),
+              }),
+              outputSchema: expect.objectContaining({
+                properties: expect.objectContaining({
+                  lot: expect.anything(),
+                  propositions: expect.anything(),
+                }),
+              }),
+            }),
+          ]),
+        },
+      });
+    }));
+});

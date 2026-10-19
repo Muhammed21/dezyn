@@ -57,6 +57,13 @@
       "when": 1792396580099,
       "tag": "0007_token",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792398296699,
+      "tag": "0008_proposal",
+      "breakpoints": true
     }
   ]
 }

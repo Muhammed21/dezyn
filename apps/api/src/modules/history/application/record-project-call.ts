@@ -18,7 +18,7 @@ export const recordProjectCall =
     readonly history: HistoryWriter;
     readonly now: () => Date;
   }) =>
-  async <T, E extends string>({
+  async <T, E>({
     tool,
     projectId,
     userId,

@@ -1,6 +1,7 @@
 import type { HistoryWriter } from "./modules/history/contracts/history-writer.ts";
 import { historyModule, historyWriterOn } from "./modules/history/history-module.ts";
 import { projectModule } from "./modules/project/project-module.ts";
+import { proposalModule } from "./modules/proposal/proposal-module.ts";
 import { spaceModule } from "./modules/space/space-module.ts";
 import { tokenModule } from "./modules/token/token-module.ts";
 import type { Mailer } from "./platform/mailer.ts";
@@ -36,5 +37,6 @@ export const composeModules = ({
     projects: projects.finder,
     historyWriterOn: writerOn,
   });
-  return { spaces, projects, history, tokens };
+  const proposals = proposalModule({ db });
+  return { spaces, projects, history, tokens, proposals };
 };

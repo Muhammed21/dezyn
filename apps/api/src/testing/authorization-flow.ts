@@ -49,7 +49,7 @@ export const withIdentityApp = (
     await migrate({ connectionString: migratorUrl });
     const db = createPostgresDatabase({ url: appUrl });
     try {
-      const { spaces, projects, history, tokens } = composeModules({
+      const { spaces, projects, history, tokens, proposals } = composeModules({
         db,
         mailer,
         webUrl: WEB_URL,
@@ -64,7 +64,7 @@ export const withIdentityApp = (
         onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
       });
       await run(
-        createApp({ db, auth, log: () => undefined, spaces, projects, history, tokens }),
+        createApp({ db, auth, log: () => undefined, spaces, projects, history, tokens, proposals }),
         db,
       );
     } finally {

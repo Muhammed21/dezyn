@@ -8,6 +8,8 @@ import { authPages } from "./modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
 import type { ProjectUseCases } from "./modules/project/application/create-project.ts";
 import { projectsRoutes } from "./modules/project/presentation/projects-routes.ts";
+import type { ProposalUseCases } from "./modules/proposal/application/proposal-use-cases.ts";
+import { registerWriteTokens } from "./modules/proposal/presentation/write-tokens-tool.ts";
 import type { SpaceUseCases } from "./modules/space/application/spaces.ts";
 import { invitationsRoutes } from "./modules/space/presentation/invitations-routes.ts";
 import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
@@ -31,6 +33,7 @@ export const createApp = ({
   projects,
   history,
   tokens,
+  proposals,
 }: {
   readonly db: Database;
   readonly auth: Auth;
@@ -39,6 +42,7 @@ export const createApp = ({
   readonly projects: ProjectUseCases;
   readonly history: HistoryUseCases;
   readonly tokens: TokenUseCases;
+  readonly proposals: ProposalUseCases;
 }) => {
   const app = new Hono<AppEnv>();
 
@@ -58,6 +62,10 @@ export const createApp = ({
     readTokens: tokens.readTokens,
     recordProjectCall: history.recordProjectCall,
   });
+  const registerProposalTools = registerWriteTokens({
+    ...proposals,
+    recordProjectCall: history.recordProjectCall,
+  });
   v1.post(
     "/mcp",
     mcpEndpoint({
@@ -66,6 +74,7 @@ export const createApp = ({
         registerSpaceTools(server, call);
         registerHistoryTools(server, call);
         registerTokenTools(server, call);
+        registerProposalTools(server, call);
       },
     }),
   );
