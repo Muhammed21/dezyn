@@ -18,8 +18,10 @@ import type {
   FigmaProposals,
   FigmaStateWriter,
   FigmaUnitOfWork,
+  RejectedValueReader,
 } from "../application/declare-figma-states.ts";
 import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
+import type { ComparedDefinition } from "../domain/same-definition.ts";
 
 const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue } = schema;
 
@@ -229,5 +231,39 @@ export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
       .update(tokenFigmaState)
       .set({ state: "synced", proposalId: null })
       .where(eq(tokenFigmaState.proposalId, proposalId));
+  },
+  proposalRejected: async ({
+    proposalId,
+    token: { $value, modes, $description },
+  }: {
+    readonly proposalId: string;
+    readonly token: ComparedDefinition;
+  }) => {
+    await tx
+      .update(tokenFigmaState)
+      .set({ rejectedValue: { $value, modes, $description }, proposalId: null })
+      .where(eq(tokenFigmaState.proposalId, proposalId));
+  },
+});
+
+const RejectedValue = z
+  .object({
+    $value: z.unknown().optional(),
+    modes: z.record(z.string(), z.unknown()).optional(),
+    $description: z.string().optional(),
+  })
+  .nullable();
+
+export const postgresRejectedValueReader = (db: PostgresDatabase): RejectedValueReader => ({
+  rejectedValuesOf: async (projectId) => {
+    const rows = await db.orm
+      .select({ tokenId: tokenFigmaState.tokenId, rejectedValue: tokenFigmaState.rejectedValue })
+      .from(tokenFigmaState)
+      .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+      .where(eq(token.projectId, projectId));
+    return rows.flatMap(({ tokenId, rejectedValue }) => {
+      const rejected = RejectedValue.parse(rejectedValue);
+      return rejected === null ? [] : [{ tokenId, rejected }];
+    });
   },
 });

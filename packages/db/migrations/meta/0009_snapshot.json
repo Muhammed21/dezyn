@@ -1,5 +1,5 @@
 {
-  "id": "e433360c-6bc3-43cf-8bd1-1ef3412016f5",
+  "id": "ba0a2f4a-f5cc-4fef-b4fe-457aa29c510f",
   "prevId": "7acfc577-9e25-4760-86e5-76216cc14c3d",
   "version": "7",
   "dialect": "postgresql",
@@ -2360,6 +2360,12 @@
         },
         "figma_variables": {
           "name": "figma_variables",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_value": {
+          "name": "rejected_value",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false

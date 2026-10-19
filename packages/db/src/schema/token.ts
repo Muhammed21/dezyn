@@ -82,6 +82,7 @@ export const tokenFigmaState = pgTable("token_figma_state", {
     .references(() => token.id),
   state: text("state").notNull(),
   figmaVariables: jsonb("figma_variables"),
+  rejectedValue: jsonb("rejected_value"),
   declaredAt: timestamp("declared_at", { withTimezone: true }).notNull(),
   userId: uuid("user_id")
     .notNull()

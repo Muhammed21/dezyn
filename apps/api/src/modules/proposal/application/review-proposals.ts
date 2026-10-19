@@ -1,6 +1,7 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import type { ProjectFinder } from "#modules/project/contracts/project.ts";
 import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { TokenDefinition } from "#modules/token/contracts/token-definition.ts";
 import type {
   ValidatedTokenFailure,
   ValidatedTokenWriter,
@@ -50,6 +51,10 @@ export interface ProposalReader {
 
 export interface FigmaStateSynchronizer {
   proposalValidated(proposalId: string): Promise<void>;
+  proposalRejected(rejected: {
+    readonly proposalId: string;
+    readonly token: TokenDefinition;
+  }): Promise<void>;
 }
 
 export type ReviewUnit = {
@@ -226,6 +231,8 @@ export const reviewProposal =
           return err(failure);
         }
         await unit.figmaStates.proposalValidated(proposalId);
+      } else {
+        await unit.figmaStates.proposalRejected({ proposalId, token: proposal.token });
       }
       await unit.proposals.settle(proposalId, reviewed.status);
       await unit.history.append({
@@ -354,6 +361,11 @@ export const validateBatch =
         await unit.proposals.settle(proposal.id, status);
         if (status === "validated") {
           await unit.figmaStates.proposalValidated(proposal.id);
+        } else {
+          await unit.figmaStates.proposalRejected({
+            proposalId: proposal.id,
+            token: proposal.token,
+          });
         }
         await unit.history.append({
           spaceId,

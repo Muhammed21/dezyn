@@ -8,7 +8,7 @@ import {
   type FigmaEntry,
   type FigmaRefusal,
 } from "../domain/figma-declaration.ts";
-import { sameDefinition } from "../domain/same-definition.ts";
+import { type ComparedDefinition, sameDefinition } from "../domain/same-definition.ts";
 import type { CheckTokens, TokenCheckFailure } from "../domain/token-check.ts";
 import type { TokenDefinition } from "../domain/token.ts";
 import type { ProjectTokenReader } from "./add-token.ts";
@@ -42,6 +42,12 @@ export interface FigmaProposals {
     readonly batch: { readonly id: string; readonly state: string } | null;
     readonly proposals: readonly { readonly id: string; readonly name: string }[];
   }>;
+}
+
+export interface RejectedValueReader {
+  rejectedValuesOf(
+    projectId: string,
+  ): Promise<readonly { readonly tokenId: string; readonly rejected: ComparedDefinition }[]>;
 }
 
 export interface FigmaUnitOfWork {
@@ -99,6 +105,7 @@ const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
 
 type Divergence = {
   readonly index: number;
+  readonly tokenId: string;
   readonly validated: ReadToken | undefined;
   readonly parsed: ReturnType<ParseFigmaValue>;
 };
@@ -129,7 +136,7 @@ const divergencesOf = (
           ...(current?.$description === undefined ? {} : { $description: current.$description }),
         })
       : { issues: [{ path: "", message: "Objet attendu, avec $value ou modes" }] };
-    return [{ index, validated: current, parsed }];
+    return [{ index, tokenId: declared.tokenId, validated: current, parsed }];
   });
 
 export const declareFigmaStates =
@@ -138,6 +145,7 @@ export const declareFigmaStates =
     memberships,
     projectTokens,
     validatedTokensOf,
+    rejectedValues,
     parseFigmaValue,
     checkTokens,
     unitOfWork,
@@ -147,6 +155,7 @@ export const declareFigmaStates =
     readonly memberships: MembershipReader;
     readonly projectTokens: ProjectTokenReader;
     readonly validatedTokensOf: (projectId: string) => Promise<readonly ReadToken[]>;
+    readonly rejectedValues: RejectedValueReader;
     readonly parseFigmaValue: ParseFigmaValue;
     readonly checkTokens: CheckTokens;
     readonly unitOfWork: FigmaUnitOfWork;
@@ -180,8 +189,8 @@ export const declareFigmaStates =
     }
     const validated = await validatedTokensOf(projectId);
     const divergences = divergencesOf(checked.states, { tokens, validated, parseFigmaValue });
-    const parsedDivergences = divergences.flatMap(({ index, validated: current, parsed }) =>
-      "definition" in parsed ? [{ index, validated: current, definition: parsed.definition }] : [],
+    const parsedDivergences = divergences.flatMap(({ parsed, ...divergence }) =>
+      "definition" in parsed ? [{ ...divergence, definition: parsed.definition }] : [],
     );
     const tokenChecks = await checkTokens({
       projectId,
@@ -218,16 +227,21 @@ export const declareFigmaStates =
     if (failures.length > 0) {
       return err({ code: "invalid_figma_values", failures });
     }
+    const rejected = await rejectedValues.rejectedValuesOf(projectId);
+    const proposable = parsedDivergences.filter(({ tokenId, definition }) => {
+      const last = rejected.find((candidate) => candidate.tokenId === tokenId);
+      return last === undefined || !sameDefinition(last.rejected, definition);
+    });
     const declaredAt = now();
     const proposed = await unitOfWork.run(async ({ figmaStates, proposals }) => {
       const written =
-        parsedDivergences.length === 0
+        proposable.length === 0
           ? { batch: null, proposals: [] }
           : await proposals.propose({
               projectId,
               userId,
               clientId,
-              tokens: parsedDivergences.map(({ definition }) => definition),
+              tokens: proposable.map(({ definition }) => definition),
               validated,
               createdAt: declaredAt,
             });

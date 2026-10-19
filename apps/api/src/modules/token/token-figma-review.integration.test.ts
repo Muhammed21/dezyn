@@ -126,6 +126,109 @@ describe("valider la valeur Figma passe le token à synchronisé, à la date de 
     }));
 });
 
+describe("rejeter la valeur Figma garde le token divergent, et la même valeur ne revient plus (ADR 0024 §4)", () => {
+  it("après un rejet, le token reste divergent et relire la valeur rejetée ne propose rien", () =>
+    withClock(async (app, db, clock) => {
+      const { accessToken, projectId, fond } = await seedDivergence(app, db, clock);
+      await request(app, { accessToken, path: `/proposals/${fond.id}/reject`, body: {} });
+
+      const redeclared = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [{ name: "couleur.fond", state: "diverged", figmaValue: { $value: NIGHT_BLUE } }],
+      });
+      const tokens = await tokensOf(app, { accessToken, projectId });
+
+      expect(redeclared.states).toEqual([
+        {
+          name: "couleur.fond",
+          state: "diverged",
+          declaredAt: "2026-10-19T11:00:00.000Z",
+          proposal: null,
+        },
+      ]);
+      expect(tokens[1]).toMatchObject({ name: "couleur.fond", figma: { state: "diverged" } });
+    }));
+
+  it("un token rejeté dans un lot ne repropose pas sa valeur rejetée", () =>
+    withClock(async (app, db, clock) => {
+      const { accessToken, projectId, fond, bord } = await seedDivergence(app, db, clock);
+      await callTool(app, {
+        token: accessToken,
+        name: "close_proposal_batch",
+        args: { projectId },
+      });
+      await request(app, {
+        accessToken,
+        path: `/proposal-batches/${fond.batch.id}/validate`,
+        body: { rejected: [bord.id] },
+      });
+
+      const redeclared = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [{ name: "couleur.bord", state: "diverged", figmaValue: { $value: SKY_BLUE } }],
+      });
+
+      expect(redeclared.states).toMatchObject([{ name: "couleur.bord", proposal: null }]);
+    }));
+
+  it("une valeur Figma différente de la valeur rejetée fait encore naître une proposition", () =>
+    withClock(async (app, db, clock) => {
+      const { accessToken, projectId, fond } = await seedDivergence(app, db, clock);
+      await request(app, { accessToken, path: `/proposals/${fond.id}/reject`, body: {} });
+
+      const redeclared = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [{ name: "couleur.fond", state: "diverged", figmaValue: { $value: SKY_BLUE } }],
+      });
+
+      expect(redeclared.states[0].proposal).toMatchObject({ id: expect.any(String) });
+      expect(redeclared.states[0].proposal.id).not.toBe(fond.id);
+    }));
+
+  it("la valeur rejetée d'un token n'empêche pas un autre token de la proposer", () =>
+    withClock(async (app, db, clock) => {
+      const { accessToken, projectId, fond } = await seedDivergence(app, db, clock);
+      await request(app, { accessToken, path: `/proposals/${fond.id}/reject`, body: {} });
+
+      const redeclared = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [{ name: "couleur.bord", state: "diverged", figmaValue: { $value: NIGHT_BLUE } }],
+      });
+
+      expect(redeclared.states[0].proposal).toMatchObject({ id: expect.any(String) });
+    }));
+
+  it("rejeter une proposition de write_tokens ne retient aucune valeur Figma rejetée", () =>
+    withClock(async (app, db, clock) => {
+      const { accessToken, projectId, fond } = await seedDivergence(app, db, clock);
+      await request(app, { accessToken, path: `/proposals/${fond.id}/validate`, body: {} });
+      const written = await callTool(app, {
+        token: accessToken,
+        name: "write_tokens",
+        args: { projectId, tokens: [makeColorToken({ name: "couleur.fond", $value: SKY_BLUE })] },
+      });
+      await request(app, {
+        accessToken,
+        path: `/proposals/${written.structuredContent.proposals[0].id}/reject`,
+        body: {},
+      });
+
+      const redeclared = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [{ name: "couleur.fond", state: "diverged", figmaValue: { $value: SKY_BLUE } }],
+      });
+      const tokens = await tokensOf(app, { accessToken, projectId });
+
+      expect(redeclared.states[0].proposal).toMatchObject({ id: expect.any(String) });
+      expect(tokens[1]).toMatchObject({ figma: { state: "diverged" } });
+    }));
+});
+
 describe("seule la proposition née de la dernière comparaison synchronise le token", () => {
   it("après une nouvelle déclaration, valider l'ancienne proposition ne change plus l'état", () =>
     withClock(async (app, db, clock) => {
