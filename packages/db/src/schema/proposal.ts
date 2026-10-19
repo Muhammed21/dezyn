@@ -27,14 +27,25 @@ export const proposalBatch = pgTable(
   ],
 );
 
-export const proposal = pgTable("proposal", {
-  id: uuid("id").primaryKey(),
-  batchId: uuid("batch_id")
-    .notNull()
-    .references(() => proposalBatch.id),
-  tokenName: text("token_name").notNull(),
-  kind: text("kind").notNull(),
-  payload: jsonb("payload").notNull(),
-  status: text("status").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
+export const proposal = pgTable(
+  "proposal",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => proposalBatch.id),
+    tokenName: text("token_name").notNull(),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("proposal_pending_key")
+      .on(table.projectId, table.tokenName)
+      .where(sql`${table.status} = 'proposed'`),
+  ],
+);

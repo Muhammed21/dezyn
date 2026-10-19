@@ -8,7 +8,8 @@ export type TokenCheckFailure =
       readonly code: "invalid_references";
       readonly refusals: readonly { readonly mode?: string; readonly refusal: ReferenceRefusal }[];
     }
-  | { readonly code: "type_changed" };
+  | { readonly code: "type_changed" }
+  | { readonly code: "duplicate_name" };
 
 export type TokenCheck = { readonly index: number; readonly failure: TokenCheckFailure };
 

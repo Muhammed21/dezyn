@@ -31,7 +31,7 @@ export interface ProposalStore {
   openBatchOf(candidate: ProposalBatch): Promise<ProposalBatch>;
   closeBatch(batchId: string): Promise<void>;
   touchBatch(batchId: string, lastWrittenAt: Date): Promise<void>;
-  propose(proposals: readonly Proposal[]): Promise<void>;
+  propose(projectId: string, proposals: readonly Proposal[]): Promise<void>;
 }
 
 export interface ProposalUnitOfWork {
@@ -125,7 +125,7 @@ export const writeTokens =
         status: "proposed",
         createdAt,
       }));
-      await store.propose(proposals);
+      await store.propose(writer.projectId, proposals);
       return ok({ batch, proposals, unchanged, replaced });
     });
   };

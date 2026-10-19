@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { schema } from "@repo/db";
@@ -64,6 +64,17 @@ export const postgresProposalUnitOfWork = (db: PostgresDatabase): ProposalUnitOf
     db.orm.transaction((tx) =>
       work({
         pendingOf: async (projectId, names) => {
+          await [...new Set(names)]
+            .toSorted()
+            .reduce<Promise<unknown>>(
+              (locked, name) =>
+                locked.then(() =>
+                  tx.execute(
+                    sql`select pg_advisory_xact_lock(hashtextextended(${`${projectId}:${name}`}, 0))`,
+                  ),
+                ),
+              Promise.resolve(),
+            );
           const rows = await tx
             .select({ proposal })
             .from(proposal)
@@ -101,10 +112,11 @@ export const postgresProposalUnitOfWork = (db: PostgresDatabase): ProposalUnitOf
             .set({ lastWrittenAt })
             .where(eq(proposalBatch.id, batchId));
         },
-        propose: async (proposals) => {
+        propose: async (projectId, proposals) => {
           await tx.insert(proposal).values(
             proposals.map(({ id, batchId, name, kind, token, status, createdAt }) => ({
               id,
+              projectId,
               batchId,
               tokenName: name,
               kind,

@@ -1,5 +1,5 @@
 {
-  "id": "a2bf964d-8ead-420b-8d1f-e0cf27dfc91d",
+  "id": "7acfc577-9e25-4760-86e5-76216cc14c3d",
   "prevId": "e5368d0e-2b1c-498d-aae7-dc43a694bbc8",
   "version": "7",
   "dialect": "postgresql",
@@ -1817,6 +1817,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "batch_id": {
           "name": "batch_id",
           "type": "uuid",
@@ -1854,8 +1860,40 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "proposal_pending_key": {
+          "name": "proposal_pending_key",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "token_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"proposal\".\"status\" = 'proposed'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
+        "proposal_project_id_project_id_fk": {
+          "name": "proposal_project_id_project_id_fk",
+          "tableFrom": "proposal",
+          "tableTo": "project",
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "proposal_batch_id_proposal_batch_id_fk": {
           "name": "proposal_batch_id_proposal_batch_id_fk",
           "tableFrom": "proposal",

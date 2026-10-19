@@ -15,6 +15,9 @@ export const checkTokens =
       projectTokens.tokensOf(projectId),
     ]);
     return tokens.flatMap((token, index): readonly TokenCheck[] => {
+      if (tokens.findIndex(({ name }) => name === token.name) < index) {
+        return [{ index, failure: { code: "duplicate_name" } }];
+      }
       const validated = existing.find(({ name }) => name === token.name);
       if (validated !== undefined && validated.$type !== token.$type) {
         return [{ index, failure: { code: "type_changed" } }];

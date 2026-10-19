@@ -52,6 +52,8 @@ export const issuesOfCheck = (
       return failure.refusals.map(modeIssueOf);
     case "invalid_references":
       return failure.refusals.map(referenceIssueOf);
+    case "duplicate_name":
+      return [{ path: "name", message: "Token déjà nommé dans cet appel" }];
     default:
       return [{ path: "$type", message: "Type différent du token validé" }];
   }

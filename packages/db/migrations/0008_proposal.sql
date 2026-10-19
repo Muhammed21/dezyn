@@ -1,5 +1,6 @@
 CREATE TABLE "proposal" (
 	"id" uuid PRIMARY KEY NOT NULL,
+	"project_id" uuid NOT NULL,
 	"batch_id" uuid NOT NULL,
 	"token_name" text NOT NULL,
 	"kind" text NOT NULL,
@@ -19,9 +20,11 @@ CREATE TABLE "proposal_batch" (
 	"last_written_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "proposal" ADD CONSTRAINT "proposal_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "proposal" ADD CONSTRAINT "proposal_batch_id_proposal_batch_id_fk" FOREIGN KEY ("batch_id") REFERENCES "public"."proposal_batch"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "proposal_batch" ADD CONSTRAINT "proposal_batch_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "proposal_batch" ADD CONSTRAINT "proposal_batch_user_id_identity_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."identity_user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "proposal_pending_key" ON "proposal" USING btree ("project_id","token_name") WHERE "proposal"."status" = 'proposed';--> statement-breakpoint
 CREATE UNIQUE INDEX "proposal_batch_open_key" ON "proposal_batch" USING btree ("project_id","user_id","client_id") WHERE "proposal_batch"."state" = 'open';--> statement-breakpoint
 -- L'app ouvre les lots de propositions et y écrit les propositions ; un éditeur ne change que leur statut.
 GRANT SELECT, INSERT ON "proposal_batch", "proposal" TO app;

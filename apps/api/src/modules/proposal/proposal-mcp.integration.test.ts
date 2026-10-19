@@ -235,7 +235,7 @@ describe("write_tokens s'annonce à l'IA", () => {
             expect.objectContaining({
               name: "write_tokens",
               description:
-                "Propose la création de tokens DTCG dans un projet : chaque token devient une proposition Proposée, rangée dans le lot ouvert de l'IA, à relire par un éditeur.",
+                "Propose la création ou la modification de tokens DTCG dans un projet : chaque token devient une proposition Proposée, rangée dans le lot ouvert de l'IA, à relire par un éditeur. Un token identique à sa valeur validée ou en attente revient dans unchanged ; une nouvelle valeur remplace la proposition en attente sur le même nom et revient dans replaced. Chaque nom n'apparaît qu'une fois par appel.",
               inputSchema: expect.objectContaining({
                 required: ["projectId"],
                 properties: expect.objectContaining({ tokens: expect.anything() }),
@@ -347,5 +347,58 @@ describe("write_tokens refuse dès la proposition ce que l'ajout d'un membre ref
           { type: "text", text: "tokens[1].$value : Référence vers un token d'un autre type" },
         ],
       });
+    }));
+});
+
+describe("une donnée a au plus une proposition en attente (ADR 0013 §6)", () => {
+  it("un appel qui nomme deux fois le même token est refusé, sans lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [
+          makeColorToken(),
+          makeColorToken({ name: "couleur.bleu.500" }),
+          makeColorToken({ $value: { colorSpace: "srgb", components: [0.1, 0.2, 0.4] } }),
+        ],
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [{ type: "text", text: "tokens[2].name : Token déjà nommé dans cet appel" }],
+      });
+      expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
+    }));
+
+  it("des écritures concurrentes d'un même token laissent une seule proposition en attente", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const values = [0.1, 0.2, 0.3, 0.4].map((red) => ({
+        colorSpace: "srgb",
+        components: [red, 0.2, 0.4],
+      }));
+
+      const results = await Promise.all(
+        values.map(($value) =>
+          writeTokens(app, { token: accessToken, projectId, tokens: [makeColorToken({ $value })] }),
+        ),
+      );
+      const read = await callTool(app, {
+        token: accessToken,
+        name: "read_tokens",
+        args: { projectId, includeProposals: true },
+      });
+
+      expect(results.map(({ isError }) => isError)).toEqual([
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      ]);
+      expect(read.structuredContent.proposals).toEqual([
+        expect.objectContaining({ name: "couleur.fond.primaire", status: "proposed" }),
+      ]);
     }));
 });

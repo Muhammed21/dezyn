@@ -16,6 +16,8 @@ export const HistoryEntryOutput = z.looseObject({
     "mcp.read_history",
     "mcp.read_tokens",
     "mcp.write_tokens",
+    "mcp.open_proposal_batch",
+    "mcp.close_proposal_batch",
   ]),
   spaceId: Uuid,
   projectId: Uuid,

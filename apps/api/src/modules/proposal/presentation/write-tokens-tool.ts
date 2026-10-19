@@ -57,7 +57,7 @@ export const registerWriteTokens =
       "write_tokens",
       {
         description:
-          "Propose la création de tokens DTCG dans un projet : chaque token devient une proposition Proposée, rangée dans le lot ouvert de l'IA, à relire par un éditeur.",
+          "Propose la création ou la modification de tokens DTCG dans un projet : chaque token devient une proposition Proposée, rangée dans le lot ouvert de l'IA, à relire par un éditeur. Un token identique à sa valeur validée ou en attente revient dans unchanged ; une nouvelle valeur remplace la proposition en attente sur le même nom et revient dans replaced. Chaque nom n'apparaît qu'une fois par appel.",
         inputSchema: { projectId: Uuid, tokens: z.array(z.unknown()).optional() },
         outputSchema: WrittenTokensOutput,
       },
