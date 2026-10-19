@@ -22,5 +22,7 @@ ALTER TABLE "proposition" ADD CONSTRAINT "proposition_lot_id_proposition_lot_id_
 ALTER TABLE "proposition_lot" ADD CONSTRAINT "proposition_lot_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "proposition_lot" ADD CONSTRAINT "proposition_lot_user_id_identity_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."identity_user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "proposition_lot_open_key" ON "proposition_lot" USING btree ("project_id","user_id","client_id") WHERE "proposition_lot"."state" = 'open';--> statement-breakpoint
--- L'app ouvre les lots de propositions et y écrit les propositions.
+-- L'app ouvre les lots de propositions et y écrit les propositions ; un éditeur ne change que leur statut.
 GRANT SELECT, INSERT ON "proposition_lot", "proposition" TO app;
+--> statement-breakpoint
+GRANT UPDATE ("status") ON "proposition" TO app;

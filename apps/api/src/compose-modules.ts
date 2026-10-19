@@ -3,7 +3,7 @@ import { historyModule, historyWriterOn } from "./modules/history/history-module
 import { projectModule } from "./modules/project/project-module.ts";
 import { proposalModule } from "./modules/proposal/proposal-module.ts";
 import { spaceModule } from "./modules/space/space-module.ts";
-import { tokenModule } from "./modules/token/token-module.ts";
+import { tokenModule, validatedTokenWriterOn } from "./modules/token/token-module.ts";
 import type { Mailer } from "./platform/mailer.ts";
 import type { PostgresDatabase, PostgresTransaction } from "./platform/postgres-database.ts";
 
@@ -37,6 +37,13 @@ export const composeModules = ({
     projects: projects.finder,
     historyWriterOn: writerOn,
   });
-  const proposals = proposalModule({ db, checkTokens: tokens.checkTokens });
+  const proposals = proposalModule({
+    db,
+    memberships: spaces.memberships,
+    projects: projects.finder,
+    checkTokens: tokens.checkTokens,
+    historyWriterOn: writerOn,
+    validatedTokenWriterOn,
+  });
   return { spaces, projects, history, tokens, proposals };
 };

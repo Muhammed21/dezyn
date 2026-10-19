@@ -16,6 +16,24 @@ export type Proposition = {
   readonly name: string;
   readonly kind: "create";
   readonly token: TokenDefinition;
-  readonly status: "proposed";
+  readonly status: PropositionStatus;
   readonly createdAt: Date;
 };
+
+export type PropositionStatus = "proposed" | "validated" | "rejected" | "replaced";
+
+export type Decision = "validate" | "reject";
+
+const REVIEWED: Readonly<Record<Decision, "validated" | "rejected">> = {
+  validate: "validated",
+  reject: "rejected",
+};
+
+export const review = ({
+  status,
+  decision,
+}: {
+  readonly status: PropositionStatus;
+  readonly decision: Decision;
+}): { readonly status: "validated" | "rejected" } | { readonly refusal: "already_reviewed" } =>
+  status === "proposed" ? { status: REVIEWED[decision] } : { refusal: "already_reviewed" };

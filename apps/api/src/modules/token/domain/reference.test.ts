@@ -114,3 +114,27 @@ describe("une référence peut viser un token de la même écriture de l'IA", ()
     ).toEqual({ written: "couleur.bleu.500" });
   });
 });
+
+describe("une référence vers un token encore proposé n'est pas validée", () => {
+  it("refuse un token qui n'existe qu'en proposition", () => {
+    expect(
+      resolveReference({
+        name: "couleur.bleu.500",
+        $type: "color",
+        tokens: [],
+        pending: [{ name: "couleur.bleu.500", $type: "color" }],
+      }),
+    ).toEqual({ refusal: "unvalidated_reference" });
+  });
+
+  it("garde inexistant un token absent des propositions en attente", () => {
+    expect(
+      resolveReference({
+        name: "couleur.bleu.500",
+        $type: "color",
+        tokens: [],
+        pending: [{ name: "couleur.bleu.700", $type: "color" }],
+      }),
+    ).toEqual({ refusal: "unknown_reference" });
+  });
+});

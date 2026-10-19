@@ -5,27 +5,68 @@ import { schema } from "@repo/db";
 
 import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
-import type { ModeReader, ProjectTokenReader, TokenUnitOfWork } from "../application/add-token.ts";
+import type {
+  ModeReader,
+  ProjectTokenReader,
+  TokenUnitOfWork,
+  TokenWriter,
+} from "../application/add-token.ts";
 import type { ValidatedTokenReader } from "../application/read-tokens.ts";
 
 const { mode, modifier, token, tokenValue } = schema;
 
-export const postgresProjectTokenReader = (db: PostgresDatabase): ProjectTokenReader => ({
+type Queryable = Pick<PostgresTransaction, "select" | "insert">;
+
+export const postgresProjectTokenReader = (orm: Queryable): ProjectTokenReader => ({
   tokensOf: (projectId) =>
-    db.orm
+    orm
       .select({ id: token.id, name: token.name, $type: token.type, status: token.status })
       .from(token)
       .where(eq(token.projectId, projectId)),
 });
 
-export const postgresModeReader = (db: PostgresDatabase): ModeReader => ({
+export const postgresModeReader = (orm: Queryable): ModeReader => ({
   modesOf: (projectId) =>
-    db.orm
+    orm
       .select({ id: mode.id, name: mode.name })
       .from(mode)
       .innerJoin(modifier, eq(modifier.id, mode.modifierId))
       .where(eq(modifier.projectId, projectId))
       .orderBy(asc(mode.position)),
+});
+
+export const postgresTokenWriter = (
+  tx: Queryable,
+  { newId }: { readonly newId: () => string },
+): TokenWriter => ({
+  create: async (added, values) => {
+    const inserted = await tx
+      .insert(token)
+      .values({
+        id: added.id,
+        projectId: added.projectId,
+        name: added.name,
+        type: added.$type,
+        description: added.$description ?? null,
+        status: added.status,
+        createdAt: added.createdAt,
+      })
+      .onConflictDoNothing({ target: [token.projectId, token.name] })
+      .returning({ id: token.id });
+    if (inserted.length === 0) {
+      return "name_taken";
+    }
+    await tx.insert(tokenValue).values(
+      values.map(({ modeId, value, referencedTokenId }) => ({
+        id: newId(),
+        tokenId: added.id,
+        modeId,
+        value,
+        referencedTokenId,
+      })),
+    );
+    return "created";
+  },
 });
 
 export const postgresTokenUnitOfWork = ({
@@ -40,36 +81,7 @@ export const postgresTokenUnitOfWork = ({
   run: (work) =>
     db.orm.transaction((tx) =>
       work({
-        tokens: {
-          create: async (added, values) => {
-            const inserted = await tx
-              .insert(token)
-              .values({
-                id: added.id,
-                projectId: added.projectId,
-                name: added.name,
-                type: added.$type,
-                description: added.$description ?? null,
-                status: added.status,
-                createdAt: added.createdAt,
-              })
-              .onConflictDoNothing({ target: [token.projectId, token.name] })
-              .returning({ id: token.id });
-            if (inserted.length === 0) {
-              return "name_taken";
-            }
-            await tx.insert(tokenValue).values(
-              values.map(({ modeId, value, referencedTokenId }) => ({
-                id: newId(),
-                tokenId: added.id,
-                modeId,
-                value,
-                referencedTokenId,
-              })),
-            );
-            return "created";
-          },
-        },
+        tokens: postgresTokenWriter(tx, { newId }),
         history: historyWriterOn(tx),
       }),
     ),

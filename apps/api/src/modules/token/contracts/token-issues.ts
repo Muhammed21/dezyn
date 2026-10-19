@@ -1,7 +1,13 @@
 import type { ModeRefusal } from "../domain/mode-completeness.ts";
 import type { ReferenceRefusal } from "../domain/reference.ts";
 import type { TokenCheckFailure } from "../domain/token-check.ts";
-export type { CheckTokens, TokenCheck, TokenCheckFailure } from "../domain/token-check.ts";
+export type {
+  CheckTokens,
+  TokenCheck,
+  TokenCheckFailure,
+  ValidatedTokenFailure,
+  ValidatedTokenWriter,
+} from "../domain/token-check.ts";
 
 const MODE_ISSUES: Readonly<Record<ModeRefusal["refusal"], string>> = {
   missing_mode: "Valeur manquante pour ce mode",

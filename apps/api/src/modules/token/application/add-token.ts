@@ -71,17 +71,25 @@ const resolved = (
     $type,
     tokens,
     written,
+    pending,
   }: {
     readonly $type: string;
     readonly tokens: readonly ProjectToken[];
     readonly written: readonly WrittenToken[];
+    readonly pending: readonly WrittenToken[];
   },
 ): readonly Resolved[] =>
   placed.map((value) => ({
     ...value,
     resolution:
       typeof value.value === "string"
-        ? resolveReference({ name: aliasName(value.value) ?? "", $type, tokens, written })
+        ? resolveReference({
+            name: aliasName(value.value) ?? "",
+            $type,
+            tokens,
+            written,
+            pending,
+          })
         : undefined,
   }));
 
@@ -92,7 +100,7 @@ const referenceRefusalsOf = (values: readonly Resolved[]): InvalidReferences["re
       : [],
   );
 
-const modeValueOf = ({ mode, value, resolution }: Resolved): ModeValue => {
+export const modeValueOf = ({ mode, value, resolution }: Resolved): ModeValue => {
   const referencedTokenId =
     resolution !== undefined && "tokenId" in resolution ? resolution.tokenId : null;
   return {
@@ -107,11 +115,13 @@ export const checkedValues = (
   {
     projectModes,
     tokens,
-    written,
+    written = [],
+    pending = [],
   }: {
     readonly projectModes: readonly ProjectMode[];
     readonly tokens: readonly ProjectToken[];
-    readonly written: readonly WrittenToken[];
+    readonly written?: readonly WrittenToken[];
+    readonly pending?: readonly WrittenToken[];
   },
 ): Result<readonly Resolved[], InvalidModes | InvalidReferences> => {
   const refusals = modeRefusals({
@@ -128,6 +138,7 @@ export const checkedValues = (
     $type: token.$type,
     tokens,
     written,
+    pending,
   });
   const referenceRefusals = referenceRefusalsOf(values);
   if (referenceRefusals.length > 0) {
@@ -176,7 +187,6 @@ export const addToken =
     const checked = checkedValues(token, {
       projectModes: await modes.modesOf(projectId),
       tokens: await projectTokens.tokensOf(projectId),
-      written: [],
     });
     if (!checked.ok) {
       return checked;

@@ -49,6 +49,9 @@ export const makeTokens = (): TokenUseCases => ({
 
 export const makeProposals = (): ProposalUseCases => ({
   writeTokens: () => Promise.reject(new Error("Pas de proposition dans ce test")),
+  listBatches: () => Promise.resolve(err("not_found")),
+  batchOf: () => Promise.resolve(err("not_found")),
+  reviewProposition: () => Promise.resolve(err("not_found")),
 });
 
 export const makeApp = ({

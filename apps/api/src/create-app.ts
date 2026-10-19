@@ -9,6 +9,10 @@ import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
 import type { ProjectUseCases } from "./modules/project/application/create-project.ts";
 import { projectsRoutes } from "./modules/project/presentation/projects-routes.ts";
 import type { ProposalUseCases } from "./modules/proposal/application/proposal-use-cases.ts";
+import {
+  projectBatchesRoutes,
+  reviewRoutes,
+} from "./modules/proposal/presentation/review-routes.ts";
 import { registerWriteTokens } from "./modules/proposal/presentation/write-tokens-tool.ts";
 import type { SpaceUseCases } from "./modules/space/application/spaces.ts";
 import { invitationsRoutes } from "./modules/space/presentation/invitations-routes.ts";
@@ -63,7 +67,7 @@ export const createApp = ({
     recordProjectCall: history.recordProjectCall,
   });
   const registerProposalTools = registerWriteTokens({
-    ...proposals,
+    writeTokens: proposals.writeTokens,
     recordProjectCall: history.recordProjectCall,
   });
   v1.post(
@@ -82,6 +86,8 @@ export const createApp = ({
   v1.route("/spaces", projectsRoutes(projects));
   v1.route("/projects", historyRoutes(history));
   v1.route("/projects", tokensRoutes(tokens));
+  v1.route("/projects", projectBatchesRoutes(proposals));
+  v1.route("/", reviewRoutes(proposals));
   v1.route("/invitations", invitationsRoutes(spaces));
   app.route("/v1", v1);
   app.get("/.well-known/oauth-authorization-server", (c) =>

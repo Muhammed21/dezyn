@@ -28,11 +28,13 @@ export const resolveReference = ({
   $type,
   tokens,
   written = [],
+  pending = [],
 }: {
   readonly name: string;
   readonly $type: string;
   readonly tokens: readonly ProjectToken[];
   readonly written?: readonly WrittenToken[];
+  readonly pending?: readonly WrittenToken[];
 }): Resolution => {
   const sibling = written.find((token) => token.name === name);
   if (sibling !== undefined) {
@@ -40,7 +42,9 @@ export const resolveReference = ({
   }
   const target = tokens.find((token) => token.name === name);
   if (target === undefined) {
-    return { refusal: "unknown_reference" };
+    return pending.some((token) => token.name === name)
+      ? { refusal: "unvalidated_reference" }
+      : { refusal: "unknown_reference" };
   }
   if (target.status !== "validated") {
     return { refusal: "unvalidated_reference" };

@@ -59,7 +59,7 @@ export const registerWriteTokens =
   ({
     writeTokens,
     recordProjectCall,
-  }: ProposalUseCases & { readonly recordProjectCall: RecordProjectCall }) =>
+  }: Pick<ProposalUseCases, "writeTokens"> & { readonly recordProjectCall: RecordProjectCall }) =>
   (server: McpServer, { identity, correlationId }: McpCall) => {
     server.registerTool(
       "write_tokens",
