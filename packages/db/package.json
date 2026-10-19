@@ -10,6 +10,7 @@
   "scripts": {
     "generate": "node scripts/latest-migration.ts",
     "migrate": "node --env-file-if-exists=../../.env scripts/migrate.ts",
+    "studio": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs studio",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",

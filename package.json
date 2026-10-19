@@ -6,6 +6,7 @@
     "dev": "turbo run dev",
     "generate": "turbo run generate",
     "migrate": "pnpm --filter @repo/db migrate",
+    "studio": "pnpm --filter @repo/db studio",
     "lint": "oxlint --type-aware .",
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
