@@ -38,7 +38,7 @@ describe("une déclaration invalide est refusée en entier, entrée par entrée"
     ).toEqual({ refusals: [{ index: 1, refusal: "unknown_token" }] });
   });
 
-  it.each([["en_retard"], [""], ["diverged"]])(
+  it.each([["en_retard"], [""], ["renamed_in_figma"]])(
     "refuse l'état %j, qui n'est pas un état déclarable",
     (state) => {
       expect(
@@ -164,5 +164,40 @@ describe("un état inconnu n'est refusé qu'une fois, même avec des variables F
         tokens: [FOND],
       }),
     ).toEqual({ refusals: [{ index: 0, refusal: "unknown_state" }] });
+  });
+});
+
+describe("un token divergent porte la valeur trouvée dans Figma (ADR 0024 §4)", () => {
+  const FIGMA_VALUE = { $value: { colorSpace: "srgb", components: [0.1, 0.2, 0.4] } };
+
+  it("garde la valeur Figma d'un token divergent", () => {
+    expect(
+      checkFigmaDeclaration({
+        entries: [{ name: "couleur.fond", state: "diverged", figmaValue: FIGMA_VALUE }],
+        tokens: [FOND],
+      }),
+    ).toEqual({
+      states: [
+        { tokenId: FOND.id, name: "couleur.fond", state: "diverged", figmaValue: FIGMA_VALUE },
+      ],
+    });
+  });
+
+  it("refuse un token divergent sans valeur Figma", () => {
+    expect(
+      checkFigmaDeclaration({
+        entries: [{ name: "couleur.fond", state: "diverged" }],
+        tokens: [FOND],
+      }),
+    ).toEqual({ refusals: [{ index: 0, refusal: "missing_figma_value" }] });
+  });
+
+  it.each([["synced"], ["missing_in_figma"]])("refuse une valeur Figma sur l'état %s", (state) => {
+    expect(
+      checkFigmaDeclaration({
+        entries: [{ name: "couleur.fond", state, figmaValue: FIGMA_VALUE }],
+        tokens: [FOND],
+      }),
+    ).toEqual({ refusals: [{ index: 0, refusal: "figma_value_without_divergence" }] });
   });
 });

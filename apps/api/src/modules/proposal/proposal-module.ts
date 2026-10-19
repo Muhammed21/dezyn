@@ -15,15 +15,26 @@ import {
   reviewProposal,
   validateBatch,
 } from "./application/review-proposals.ts";
-import { type ValidatedTokensOf, writeTokens } from "./application/write-tokens.ts";
+import {
+  type ProposedTokens,
+  proposeTokens,
+  type ValidatedTokensOf,
+  writeTokens,
+} from "./application/write-tokens.ts";
 import {
   postgresProposalReader,
   postgresProposalReplacer,
+  postgresProposalStore,
   postgresProposalUnitOfWork,
   postgresReviewUnitOfWork,
 } from "./infrastructure/postgres-proposals.ts";
 
 export const proposalReplacerOn = postgresProposalReplacer;
+
+export const proposalWriterOn = (tx: PostgresTransaction) => ({
+  propose: (proposed: ProposedTokens) =>
+    proposeTokens(postgresProposalStore(tx), { ...proposed, newId: randomUUID }),
+});
 
 export const proposalModule = ({
   db,

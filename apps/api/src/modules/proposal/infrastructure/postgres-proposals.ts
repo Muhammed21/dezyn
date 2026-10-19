@@ -13,7 +13,7 @@ import type {
   ReviewUnit,
   ReviewUnitOfWork,
 } from "../application/review-proposals.ts";
-import type { ProposalUnitOfWork, Writer } from "../application/write-tokens.ts";
+import type { ProposalStore, ProposalUnitOfWork, Writer } from "../application/write-tokens.ts";
 import type { Proposal, ProposalBatch } from "../domain/proposal.ts";
 
 const { proposal, proposalBatch } = schema;
@@ -59,75 +59,68 @@ export const postgresProposalReplacer = (tx: PostgresTransaction) => ({
   },
 });
 
+export const postgresProposalStore = (tx: PostgresTransaction): ProposalStore => ({
+  pendingOf: async (projectId, names) => {
+    await [...new Set(names)]
+      .toSorted()
+      .reduce<Promise<unknown>>(
+        (locked, name) =>
+          locked.then(() =>
+            tx.execute(
+              sql`select pg_advisory_xact_lock(hashtextextended(${`${projectId}:${name}`}, 0))`,
+            ),
+          ),
+        Promise.resolve(),
+      );
+    const rows = await tx
+      .select({ proposal })
+      .from(proposal)
+      .innerJoin(proposalBatch, eq(proposalBatch.id, proposal.batchId))
+      .where(
+        and(
+          eq(proposalBatch.projectId, projectId),
+          eq(proposal.status, "proposed"),
+          inArray(proposal.tokenName, [...names]),
+        ),
+      )
+      .for("update", { of: proposal });
+    return rows.map((row) => proposalOf(row.proposal));
+  },
+  replace: async (proposalIds) => {
+    await tx
+      .update(proposal)
+      .set({ status: "replaced" })
+      .where(inArray(proposal.id, [...proposalIds]));
+  },
+  findOpenBatch: (writer) => findOpenBatch(tx, writer),
+  openBatchOf: async (candidate) => {
+    await tx.insert(proposalBatch).values(candidate).onConflictDoNothing();
+    return (await findOpenBatch(tx, candidate)) ?? candidate;
+  },
+  closeBatch: async (batchId) => {
+    await tx.update(proposalBatch).set({ state: "closed" }).where(eq(proposalBatch.id, batchId));
+  },
+  touchBatch: async (batchId, lastWrittenAt) => {
+    await tx.update(proposalBatch).set({ lastWrittenAt }).where(eq(proposalBatch.id, batchId));
+  },
+  propose: async (projectId, proposals) => {
+    await tx.insert(proposal).values(
+      proposals.map(({ id, batchId, name, kind, token, status, createdAt }) => ({
+        id,
+        projectId,
+        batchId,
+        tokenName: name,
+        kind,
+        payload: token,
+        status,
+        createdAt,
+      })),
+    );
+  },
+});
+
 export const postgresProposalUnitOfWork = (db: PostgresDatabase): ProposalUnitOfWork => ({
-  run: (work) =>
-    db.orm.transaction((tx) =>
-      work({
-        pendingOf: async (projectId, names) => {
-          await [...new Set(names)]
-            .toSorted()
-            .reduce<Promise<unknown>>(
-              (locked, name) =>
-                locked.then(() =>
-                  tx.execute(
-                    sql`select pg_advisory_xact_lock(hashtextextended(${`${projectId}:${name}`}, 0))`,
-                  ),
-                ),
-              Promise.resolve(),
-            );
-          const rows = await tx
-            .select({ proposal })
-            .from(proposal)
-            .innerJoin(proposalBatch, eq(proposalBatch.id, proposal.batchId))
-            .where(
-              and(
-                eq(proposalBatch.projectId, projectId),
-                eq(proposal.status, "proposed"),
-                inArray(proposal.tokenName, [...names]),
-              ),
-            )
-            .for("update", { of: proposal });
-          return rows.map((row) => proposalOf(row.proposal));
-        },
-        replace: async (proposalIds) => {
-          await tx
-            .update(proposal)
-            .set({ status: "replaced" })
-            .where(inArray(proposal.id, [...proposalIds]));
-        },
-        findOpenBatch: (writer) => findOpenBatch(tx, writer),
-        openBatchOf: async (candidate) => {
-          await tx.insert(proposalBatch).values(candidate).onConflictDoNothing();
-          return (await findOpenBatch(tx, candidate)) ?? candidate;
-        },
-        closeBatch: async (batchId) => {
-          await tx
-            .update(proposalBatch)
-            .set({ state: "closed" })
-            .where(eq(proposalBatch.id, batchId));
-        },
-        touchBatch: async (batchId, lastWrittenAt) => {
-          await tx
-            .update(proposalBatch)
-            .set({ lastWrittenAt })
-            .where(eq(proposalBatch.id, batchId));
-        },
-        propose: async (projectId, proposals) => {
-          await tx.insert(proposal).values(
-            proposals.map(({ id, batchId, name, kind, token, status, createdAt }) => ({
-              id,
-              projectId,
-              batchId,
-              tokenName: name,
-              kind,
-              payload: token,
-              status,
-              createdAt,
-            })),
-          );
-        },
-      }),
-    ),
+  run: (work) => db.orm.transaction((tx) => work(postgresProposalStore(tx))),
 });
 
 const BatchState = z.enum(["open", "closed"]);

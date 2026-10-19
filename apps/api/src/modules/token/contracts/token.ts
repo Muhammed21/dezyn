@@ -10,7 +10,9 @@ const DefinitionOutput = z.looseObject({
   $description: z.string().optional(),
 });
 
-const FigmaStateEnum = openEnum(["synced", "missing_in_figma", "duplicate_in_figma"]);
+const FigmaStateEnum = openEnum(["synced", "missing_in_figma", "duplicate_in_figma", "diverged"]);
+
+const BatchRef = z.looseObject({ id: Uuid, state: openEnum(["open", "closed"]) });
 
 const FigmaVariables = z.array(z.string()).optional();
 
@@ -35,7 +37,7 @@ const ProposalOutput = z.looseObject({
   name: z.string(),
   kind: openEnum(["create", "update"]),
   status: openEnum(["proposed"]),
-  batch: z.looseObject({ id: Uuid, state: openEnum(["open", "closed"]) }),
+  batch: BatchRef,
   token: DefinitionOutput,
 });
 
@@ -52,6 +54,7 @@ export const DeclaredFigmaStatesOutput = z.looseObject({
       state: FigmaStateEnum,
       figmaVariables: FigmaVariables,
       declaredAt: z.iso.datetime(),
+      proposal: z.looseObject({ id: Uuid, batch: BatchRef }).nullable().optional(),
     }),
   ),
 });

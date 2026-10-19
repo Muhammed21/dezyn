@@ -14,7 +14,11 @@ import type {
   TokenUnitOfWork,
   TokenWriter,
 } from "../application/add-token.ts";
-import type { FigmaStateWriter } from "../application/declare-figma-states.ts";
+import type {
+  FigmaProposals,
+  FigmaStateWriter,
+  FigmaUnitOfWork,
+} from "../application/declare-figma-states.ts";
 import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
 
 const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue } = schema;
@@ -143,9 +147,9 @@ export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTok
       .orderBy(asc(token.name), asc(mode.position)),
 });
 
-export const postgresFigmaStateWriter = (db: PostgresDatabase): FigmaStateWriter => ({
+export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
   declare: async ({ states, declaredAt, userId, clientId }) => {
-    await db.orm
+    await tx
       .insert(tokenFigmaState)
       .values(
         states.map((declared) => ({
@@ -170,7 +174,7 @@ export const postgresFigmaStateWriter = (db: PostgresDatabase): FigmaStateWriter
   },
 });
 
-const FigmaState = z.enum(["synced", "missing_in_figma", "duplicate_in_figma"]);
+const FigmaState = z.enum(["synced", "missing_in_figma", "duplicate_in_figma", "diverged"]);
 
 const FigmaVariables = z.array(z.string()).nullable();
 
@@ -202,4 +206,17 @@ export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader
       };
     });
   },
+});
+
+export const postgresFigmaUnitOfWork = ({
+  db,
+  proposalWriterOn,
+}: {
+  readonly db: PostgresDatabase;
+  readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
+}): FigmaUnitOfWork => ({
+  run: (work) =>
+    db.orm.transaction((tx) =>
+      work({ figmaStates: postgresFigmaStateWriter(tx), proposals: proposalWriterOn(tx) }),
+    ),
 });

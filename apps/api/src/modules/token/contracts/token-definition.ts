@@ -199,6 +199,22 @@ export const TokenDefinitionInput = z
       context.addIssue({ code: "custom", path: [...path], message });
     });
   });
+export const parseTokenDefinition = (
+  candidate: Readonly<Record<string, unknown>>,
+):
+  | { readonly definition: TokenDefinition }
+  | { readonly issues: readonly { readonly path: string; readonly message: string }[] } => {
+  const parsed = TokenDefinitionInput.safeParse(candidate);
+  return parsed.success
+    ? { definition: parsed.data }
+    : {
+        issues: parsed.error.issues.map(({ path, message }) => ({
+          path: path.map(String).join("."),
+          message,
+        })),
+      };
+};
+
 export type { TokenDefinition } from "../domain/token.ts";
 export { type ComparedDefinition, sameDefinition } from "../domain/same-definition.ts";
 export { referencedNames } from "../domain/reference.ts";

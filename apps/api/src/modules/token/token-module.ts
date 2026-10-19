@@ -9,11 +9,12 @@ import type { Clock } from "#platform/clock.ts";
 import { addToken, type PendingProposals } from "./application/add-token.ts";
 import { checkTokens } from "./application/check-tokens.ts";
 import { validatedTokenWriter } from "./application/create-validated-token.ts";
-import { declareFigmaStates } from "./application/declare-figma-states.ts";
+import { declareFigmaStates, type FigmaProposals } from "./application/declare-figma-states.ts";
 import { readProjectTokens, readTokens } from "./application/read-tokens.ts";
+import { parseTokenDefinition } from "./contracts/token-definition.ts";
 import {
   postgresFigmaStateReader,
-  postgresFigmaStateWriter,
+  postgresFigmaUnitOfWork,
   postgresModeReader,
   postgresProjectTokenReader,
   postgresTokenUnitOfWork,
@@ -35,6 +36,7 @@ export const tokenModule = ({
   projects,
   historyWriterOn,
   proposalReplacerOn,
+  proposalWriterOn,
   clock,
 }: {
   readonly db: PostgresDatabase;
@@ -42,8 +44,13 @@ export const tokenModule = ({
   readonly projects: ProjectFinder;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
+  readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
   readonly clock: Clock;
 }) => {
+  const check = checkTokens({
+    modes: postgresModeReader(db.orm),
+    projectTokens: postgresProjectTokenReader(db.orm),
+  });
   const read = readTokens({
     modes: postgresModeReader(db.orm),
     tokens: postgresValidatedTokenReader(db),
@@ -64,17 +71,17 @@ export const tokenModule = ({
       newId: randomUUID,
       now: clock,
     }),
-    checkTokens: checkTokens({
-      modes: postgresModeReader(db.orm),
-      projectTokens: postgresProjectTokenReader(db.orm),
-    }),
+    checkTokens: check,
     readTokens: read,
     readProjectTokens: readProjectTokens({ projects, memberships, readTokens: read }),
     declareFigmaStates: declareFigmaStates({
       projects,
       memberships,
       projectTokens: postgresProjectTokenReader(db.orm),
-      figmaStates: postgresFigmaStateWriter(db),
+      validatedTokensOf: async (projectId) => (await read(projectId)).tokens,
+      parseFigmaValue: parseTokenDefinition,
+      checkTokens: check,
+      unitOfWork: postgresFigmaUnitOfWork({ db, proposalWriterOn }),
       now: clock,
     }),
   };

@@ -236,7 +236,7 @@ describe("un token lu porte son état Figma, s'il a été comparé (ADR 0024 §1
           properties: {
             state: {
               anyOf: [
-                { enum: ["synced", "missing_in_figma", "duplicate_in_figma"] },
+                { enum: ["synced", "missing_in_figma", "duplicate_in_figma", "diverged"] },
                 { type: "string" },
               ],
             },
@@ -293,5 +293,61 @@ describe("un doublon dans Figma se lit avec ses variables Figma", () => {
     expect(
       DeclaredFigmaStatesOutput.safeParse({ states: [makeDeclared({ figmaVariables })] }).success,
     ).toBe(false);
+  });
+});
+
+describe("la déclaration d'un token divergent rend la proposition née de la valeur Figma (ADR 0024 §4)", () => {
+  const PROPOSAL = {
+    id: "4f8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+    batch: { id: "5a8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "open" },
+  };
+
+  it.each([[PROPOSAL], [null]])("décode la proposition %j d'un token divergent", (proposal) => {
+    const declared = { states: [makeDeclared({ state: "diverged", proposal })] };
+
+    expect(DeclaredFigmaStatesOutput.parse(declared)).toEqual(declared);
+  });
+
+  it.each([["id"], ["batch"]])("refuse une proposition sans %s", (field) => {
+    expect(
+      DeclaredFigmaStatesOutput.safeParse({
+        states: [
+          makeDeclared({ state: "diverged", proposal: { ...PROPOSAL, [field]: undefined } }),
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("annonce à l'IA l'état divergent et les états de lot connus", () => {
+    expect(z.toJSONSchema(DeclaredFigmaStatesOutput)).toMatchObject({
+      properties: {
+        states: {
+          items: {
+            properties: {
+              state: {
+                anyOf: [
+                  { enum: ["synced", "missing_in_figma", "duplicate_in_figma", "diverged"] },
+                  { type: "string" },
+                ],
+              },
+              proposal: {
+                anyOf: [
+                  {
+                    properties: {
+                      batch: {
+                        properties: {
+                          state: { anyOf: [{ enum: ["open", "closed"] }, { type: "string" }] },
+                        },
+                      },
+                    },
+                  },
+                  { type: "null" },
+                ],
+              },
+            },
+          },
+        },
+      },
+    });
   });
 });

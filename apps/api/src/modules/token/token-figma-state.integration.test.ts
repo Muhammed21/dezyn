@@ -335,7 +335,7 @@ describe("declare_figma_states s'annonce à l'IA", () => {
             expect.objectContaining({
               name: "declare_figma_states",
               description:
-                "Déclare l'état Figma de tokens d'un projet, après comparaison avec Figma : synced si la variable Figma a la même valeur dans chaque mode, missing_in_figma si elle n'existe pas, duplicate_in_figma si plusieurs variables Figma correspondent au token, avec leurs noms dans figmaVariables (au moins deux). La déclaration s'applique sans relecture et remplace l'état précédent ; une entrée invalide refuse toute la déclaration.",
+                "Déclare l'état Figma de tokens d'un projet, après comparaison avec Figma : synced si la variable Figma a la même valeur dans chaque mode, missing_in_figma si elle n'existe pas, duplicate_in_figma si plusieurs variables Figma correspondent au token, avec leurs noms dans figmaVariables (au moins deux), diverged si la valeur Figma diffère dans au moins un mode, avec cette valeur dans figmaValue ($value ou modes) : elle devient une proposition dans le lot ouvert de l'IA, ou dans un lot automatique. La déclaration s'applique sans relecture et remplace l'état précédent ; une entrée invalide refuse toute la déclaration.",
               inputSchema: expect.objectContaining({
                 required: ["projectId"],
                 properties: expect.objectContaining({ states: expect.anything() }),
