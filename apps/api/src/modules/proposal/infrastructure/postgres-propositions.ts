@@ -31,6 +31,29 @@ const findOpenLot = async (
   return lot === undefined ? undefined : { ...lot, state: "open" };
 };
 
+export const postgresPropositionReplacer = (tx: PostgresTransaction) => ({
+  replace: async ({ projectId, name }: { readonly projectId: string; readonly name: string }) => {
+    const [replaced] = await tx
+      .update(proposition)
+      .set({ status: "replaced" })
+      .where(
+        and(
+          eq(proposition.tokenName, name),
+          eq(proposition.status, "proposed"),
+          inArray(
+            proposition.lotId,
+            tx
+              .select({ id: propositionLot.id })
+              .from(propositionLot)
+              .where(eq(propositionLot.projectId, projectId)),
+          ),
+        ),
+      )
+      .returning({ id: proposition.id, lotId: proposition.lotId });
+    return replaced ?? null;
+  },
+});
+
 export const postgresPropositionUnitOfWork = (db: PostgresDatabase): PropositionUnitOfWork => ({
   run: (work) =>
     db.orm.transaction((tx) =>

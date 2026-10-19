@@ -10,7 +10,13 @@ import {
   withIdentityApp,
 } from "../../testing/authorization-flow.ts";
 import { seedProject, seedProjectAsEditor } from "../../testing/project-fixtures.ts";
-import { addToken, historyOf, makeColorToken, PRIMARY_BLUE } from "../../testing/token-fixtures.ts";
+import {
+  addToken,
+  historyOf,
+  makeColorToken,
+  PRIMARY_BLUE,
+  seedValidatedToken,
+} from "../../testing/token-fixtures.ts";
 
 const REVIEW_CORRELATION_ID = "relecture-1";
 
@@ -243,7 +249,7 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
       expect(statuses).toEqual([404, 404, 404, 404]);
     }));
 
-  it("valider une création dont le nom a été pris entre-temps répond 409 sur name, sans rien valider", () =>
+  it("valider une proposition remplacée par l'ajout d'un membre répond 409, sans rien valider", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
       const { lot, propositions } = await proposeTokens(app, {
@@ -252,6 +258,33 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
         tokens: [makeColorToken()],
       });
       await addToken(app, { accessToken, projectId, token: makeColorToken() });
+
+      const response = await request(app, {
+        accessToken,
+        path: `/proposals/${propositions[0].id}/validate`,
+        method: "POST",
+      });
+      const batch = await (
+        await request(app, { accessToken, path: `/proposal-batches/${lot.id}` })
+      ).json();
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        type: "about:blank",
+        title: "Proposition déjà relue",
+      });
+      expect(batch.propositions).toMatchObject([{ status: "replaced" }]);
+    }));
+
+  it("valider une création dont le nom a été pris par un ajout concurrent répond 409 sur name, sans rien valider", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const { lot, propositions } = await proposeTokens(app, {
+        accessToken,
+        projectId,
+        tokens: [makeColorToken()],
+      });
+      await seedValidatedToken(db, { projectId, name: "couleur.fond.primaire" });
 
       const response = await request(app, {
         accessToken,

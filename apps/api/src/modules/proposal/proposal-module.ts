@@ -9,11 +9,14 @@ import { batchOf, listBatches, reviewProposition } from "./application/review-pr
 import { type ValidatedTokensOf, writeTokens } from "./application/write-tokens.ts";
 import {
   postgresPropositionReader,
+  postgresPropositionReplacer,
   postgresPropositionUnitOfWork,
   postgresReviewUnitOfWork,
 } from "./infrastructure/postgres-propositions.ts";
 
 const now = () => new Date();
+
+export const propositionReplacerOn = postgresPropositionReplacer;
 
 export const proposalModule = ({
   db,

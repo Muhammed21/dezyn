@@ -4,7 +4,7 @@ import type { PostgresDatabase, PostgresTransaction } from "../../platform/postg
 import type { HistoryWriter } from "../history/contracts/history-writer.ts";
 import type { ProjectFinder } from "../project/contracts/project.ts";
 import type { MembershipReader } from "../space/contracts/membership.ts";
-import { addToken } from "./application/add-token.ts";
+import { addToken, type PendingPropositions } from "./application/add-token.ts";
 import { checkTokens } from "./application/check-tokens.ts";
 import { validatedTokenWriter } from "./application/create-validated-token.ts";
 import { readTokens } from "./application/read-tokens.ts";
@@ -31,18 +31,25 @@ export const tokenModule = ({
   memberships,
   projects,
   historyWriterOn,
+  propositionReplacerOn,
 }: {
   readonly db: PostgresDatabase;
   readonly memberships: MembershipReader;
   readonly projects: ProjectFinder;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
+  readonly propositionReplacerOn: (tx: PostgresTransaction) => PendingPropositions;
 }) => ({
   addToken: addToken({
     projects,
     memberships,
     modes: postgresModeReader(db.orm),
     projectTokens: postgresProjectTokenReader(db.orm),
-    unitOfWork: postgresTokenUnitOfWork({ db, historyWriterOn, newId: randomUUID }),
+    unitOfWork: postgresTokenUnitOfWork({
+      db,
+      historyWriterOn,
+      propositionReplacerOn,
+      newId: randomUUID,
+    }),
     newId: randomUUID,
     now,
   }),

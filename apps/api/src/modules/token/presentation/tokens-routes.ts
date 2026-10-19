@@ -5,12 +5,12 @@ import { Uuid } from "@repo/contracts";
 import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
 import { type Problem, problemResponse } from "../../../platform/problem.ts";
 import { validate } from "../../../platform/validate.ts";
+import type { AddedToken } from "../application/add-token.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import { TokenDefinitionInput } from "../contracts/token-definition.ts";
 import { issuesOfCheck } from "../contracts/token-issues.ts";
-import type { Token } from "../domain/token.ts";
 
-const tokenOutputOf = ({ id, name, $type, $value, modes, $description, status }: Token) => ({
+const tokenOutputOf = ({
   id,
   name,
   $type,
@@ -18,6 +18,16 @@ const tokenOutputOf = ({ id, name, $type, $value, modes, $description, status }:
   modes,
   $description,
   status,
+  replaced,
+}: AddedToken) => ({
+  id,
+  name,
+  $type,
+  $value,
+  modes,
+  $description,
+  status,
+  replaced,
 });
 
 const invalidRequest = (errors: readonly { path: string; message: string }[]): Problem => ({

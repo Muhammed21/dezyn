@@ -37,11 +37,26 @@ export interface TokenWriter {
   ): Promise<void>;
 }
 
+export type ReplacedProposition = { readonly id: string; readonly lotId: string };
+
+export interface PendingPropositions {
+  replace(token: {
+    readonly projectId: string;
+    readonly name: string;
+  }): Promise<ReplacedProposition | null>;
+}
+
 export interface TokenUnitOfWork {
   run<T>(
-    work: (unit: { readonly tokens: TokenWriter; readonly history: HistoryWriter }) => Promise<T>,
+    work: (unit: {
+      readonly tokens: TokenWriter;
+      readonly history: HistoryWriter;
+      readonly propositions: PendingPropositions;
+    }) => Promise<T>,
   ): Promise<T>;
 }
+
+export type AddedToken = Token & { readonly replaced: ReplacedProposition | null };
 
 export type InvalidModes = {
   readonly code: "invalid_modes";
@@ -179,7 +194,7 @@ export const addToken =
     readonly userId: string;
     readonly token: TokenDefinition;
     readonly correlationId: string;
-  }): Promise<Result<Token, TokenAdditionFailure>> => {
+  }): Promise<Result<AddedToken, TokenAdditionFailure>> => {
     const project = await projects.find(projectId);
     if (project === undefined) {
       return err("not_found");
@@ -203,10 +218,11 @@ export const addToken =
       status: "validated",
       createdAt: now(),
     };
-    return unitOfWork.run(async ({ tokens, history }) => {
+    return unitOfWork.run(async ({ tokens, history, propositions }) => {
       if ((await tokens.create(added, values.map(modeValueOf))) === "name_taken") {
         return err("name_taken");
       }
+      const replaced = await propositions.replace({ projectId, name: token.name });
       await history.append({
         spaceId: project.spaceId,
         projectId,
@@ -214,10 +230,10 @@ export const addToken =
         userId,
         clientId: null,
         before: null,
-        after: token,
+        after: { ...token, replaced },
         correlationId,
         occurredAt: added.createdAt,
       });
-      return ok(added);
+      return ok({ ...added, replaced });
     });
   };
