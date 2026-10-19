@@ -1,13 +1,12 @@
 import { serve, type ServerType } from "@hono/node-server";
 
+import { composeModules } from "#compose-modules";
+import { createApp } from "#create-app";
+import { createPostgresDatabase } from "#db";
+import { createIdentityAuth } from "#modules/identity/infrastructure/better-auth.ts";
+import type { LogSink } from "#platform/logging.ts";
+import { createSmtpMailer } from "#platform/smtp-mailer.ts";
 import { assertSchemaVersion, type Migration } from "@repo/db";
-
-import { composeModules } from "./compose-modules.ts";
-import { createApp } from "./create-app.ts";
-import { createIdentityAuth } from "./modules/identity/infrastructure/better-auth.ts";
-import type { LogSink } from "./platform/logging.ts";
-import { createPostgresDatabase } from "./platform/postgres-database.ts";
-import { createSmtpMailer } from "./platform/smtp-mailer.ts";
 
 export type RunningApi = {
   readonly url: string;

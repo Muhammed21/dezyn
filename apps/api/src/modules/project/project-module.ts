@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import type { PostgresDatabase, PostgresTransaction } from "../../platform/postgres-database.ts";
-import type { HistoryWriter } from "../history/contracts/history-writer.ts";
-import type { MembershipReader } from "../space/contracts/membership.ts";
+import type { PostgresDatabase, PostgresTransaction } from "#db";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { MembershipReader } from "#modules/space/contracts/membership.ts";
+
 import { createProject } from "./application/create-project.ts";
 import {
   postgresProjectFinder,

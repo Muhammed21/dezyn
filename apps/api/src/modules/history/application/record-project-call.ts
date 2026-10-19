@@ -1,8 +1,8 @@
+import type { ProjectFinder, ProjectRef } from "#modules/project/contracts/project.ts";
+import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { RecordFailure } from "#platform/project-call.ts";
 import { err, type Result } from "@repo/result";
 
-import type { RecordFailure } from "../../../platform/project-call.ts";
-import type { ProjectFinder, ProjectRef } from "../../project/contracts/project.ts";
-import { can, type MembershipReader } from "../../space/contracts/membership.ts";
 import type { HistoryWriter } from "../domain/history-writer.ts";
 
 export const recordProjectCall =

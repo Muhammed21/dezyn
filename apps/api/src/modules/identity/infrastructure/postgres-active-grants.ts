@@ -1,9 +1,8 @@
 import { and, eq, gt } from "drizzle-orm";
 
+import type { PostgresDatabase } from "#db";
 import type { ActiveGrants } from "@repo/auth-verifier";
 import { schema } from "@repo/db";
-
-import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 
 const { identitySession: session, identityOAuthConsent: consent } = schema;
 

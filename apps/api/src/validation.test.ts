@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { validate } from "./platform/validate.ts";
-import { makeApp } from "./testing/make-app.ts";
+import { validate } from "#platform/validate.ts";
+import { makeApp } from "#testing/make-app.ts";
 
 const makeAppWithValidatedRoute = () => {
   const made = makeApp();

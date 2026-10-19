@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { makeApp, makeDatabase } from "./testing/make-app.ts";
+import { makeApp, makeDatabase } from "#testing/make-app.ts";
 
 const UNREACHABLE = { ping: () => Promise.reject(new Error("connection timeout")) };
 

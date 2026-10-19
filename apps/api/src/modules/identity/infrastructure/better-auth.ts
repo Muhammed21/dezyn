@@ -8,11 +8,11 @@ import { jwt } from "better-auth/plugins/jwt";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import type { PostgresDatabase } from "#db";
+import type { LogSink } from "#platform/logging.ts";
 import { createAccessTokenVerifier } from "@repo/auth-verifier";
 import { schema } from "@repo/db";
 
-import type { LogSink } from "../../../platform/logging.ts";
-import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { Auth } from "../application/auth.ts";
 import { defaultToNativeForLoopback } from "../domain/client-registration.ts";
 import { refreshGrantOutcome } from "../domain/refresh-grant.ts";

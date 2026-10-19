@@ -1,7 +1,8 @@
 import { type Context, Hono } from "hono";
 
-import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
-import { problemResponse } from "../../../platform/problem.ts";
+import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import { problemResponse } from "#platform/problem.ts";
+
 import type { SpaceUseCases } from "../application/spaces.ts";
 import type { AcceptanceRefusal } from "../domain/acceptance.ts";
 import { alreadyMemberProblem } from "./already-member-problem.ts";

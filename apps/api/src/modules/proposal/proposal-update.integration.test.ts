@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { type App, BASE_URL, callMcp, withIdentityApp } from "#testing/authorization-flow.ts";
+import { seedModes, seedProject } from "#testing/project-fixtures.ts";
+import { addToken, historyOf, makeColorToken, PRIMARY_BLUE } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
-
-import { type App, BASE_URL, callMcp, withIdentityApp } from "../../testing/authorization-flow.ts";
-import { seedModes, seedProject } from "../../testing/project-fixtures.ts";
-import { addToken, historyOf, makeColorToken, PRIMARY_BLUE } from "../../testing/token-fixtures.ts";
 
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
 

@@ -6,6 +6,7 @@ export type Action =
   | "member.invite"
   | "member.leave"
   | "token.create"
+  | "token.declareFigmaState"
   | "proposal.review";
 
 export type Membership = {
@@ -21,9 +22,16 @@ const PERMISSIONS: Readonly<Record<Role, ReadonlySet<Action>>> = {
     "member.invite",
     "member.leave",
     "token.create",
+    "token.declareFigmaState",
     "proposal.review",
   ]),
-  editor: new Set(["space.read", "member.leave", "token.create", "proposal.review"]),
+  editor: new Set([
+    "space.read",
+    "member.leave",
+    "token.create",
+    "token.declareFigmaState",
+    "proposal.review",
+  ]),
 };
 
 export const can = ({

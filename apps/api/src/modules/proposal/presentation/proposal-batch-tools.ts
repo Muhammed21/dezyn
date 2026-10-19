@@ -1,15 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { Uuid } from "@repo/contracts";
-import { err, ok, type Result } from "@repo/result";
-
-import type { McpCall } from "../../../platform/mcp.ts";
+import type { McpCall } from "#platform/mcp.ts";
 import {
   RECORD_FAILURE_TEXT,
   type RecordFailure,
   type RecordProjectCall,
-} from "../../../platform/project-call.ts";
+} from "#platform/project-call.ts";
+import { Uuid } from "@repo/contracts";
+import { err, ok, type Result } from "@repo/result";
+
 import type { ClosedBatch, OpenedBatch } from "../application/proposal-batches.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
 import { ClosedBatchOutput, OpenedBatchOutput } from "../contracts/proposal.ts";

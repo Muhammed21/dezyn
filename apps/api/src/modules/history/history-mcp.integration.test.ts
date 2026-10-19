@@ -1,9 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import type { PostgresDatabase } from "#db";
 import {
   ADA,
   type App,
@@ -12,8 +10,9 @@ import {
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { seedProject } from "../../testing/project-fixtures.ts";
+} from "#testing/authorization-flow.ts";
+import { seedProject } from "#testing/project-fixtures.ts";
+import { schema } from "@repo/db";
 
 const CORRELATION_ID = "lecture-par-l-ia-1";
 

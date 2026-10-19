@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
-import { type App, withIdentityApp } from "../../testing/authorization-flow.ts";
-import { seedModes, seedProject } from "../../testing/project-fixtures.ts";
+import type { PostgresDatabase } from "#db";
+import { type App, withIdentityApp } from "#testing/authorization-flow.ts";
+import { seedModes, seedProject } from "#testing/project-fixtures.ts";
 import {
   addToken,
   historyOf,
   makeColorToken,
   PRIMARY_BLUE,
   seedProposedToken,
-} from "../../testing/token-fixtures.ts";
+} from "#testing/token-fixtures.ts";
 
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
 

@@ -1,14 +1,13 @@
+import { createApp } from "#create-app";
+import type { HistoryUseCases } from "#modules/history/application/history-use-cases.ts";
+import type { Auth } from "#modules/identity/application/auth.ts";
+import type { ProjectUseCases } from "#modules/project/application/create-project.ts";
+import type { ProposalUseCases } from "#modules/proposal/application/proposal-use-cases.ts";
+import type { SpaceUseCases } from "#modules/space/application/spaces.ts";
+import type { TokenUseCases } from "#modules/token/application/token-use-cases.ts";
+import type { Database } from "#platform/database.ts";
+import type { LogRecord } from "#platform/logging.ts";
 import { err } from "@repo/result";
-
-import { createApp } from "../create-app.ts";
-import type { HistoryUseCases } from "../modules/history/application/history-use-cases.ts";
-import type { Auth } from "../modules/identity/application/auth.ts";
-import type { ProjectUseCases } from "../modules/project/application/create-project.ts";
-import type { ProposalUseCases } from "../modules/proposal/application/proposal-use-cases.ts";
-import type { SpaceUseCases } from "../modules/space/application/spaces.ts";
-import type { TokenUseCases } from "../modules/token/application/token-use-cases.ts";
-import type { Database } from "../platform/database.ts";
-import type { LogRecord } from "../platform/logging.ts";
 
 export const makeDatabase = (overrides: Partial<Database> = {}): Database => ({
   ping: () => Promise.resolve(),
@@ -45,6 +44,8 @@ export const makeTokens = (): TokenUseCases => ({
   addToken: () => Promise.resolve(err("not_found")),
   readTokens: () => Promise.resolve({ modes: [], tokens: [] }),
   checkTokens: () => Promise.resolve([]),
+  readProjectTokens: () => Promise.resolve(err("not_found")),
+  declareFigmaStates: () => Promise.resolve(err("not_found")),
 });
 
 export const makeProposals = (): ProposalUseCases => ({

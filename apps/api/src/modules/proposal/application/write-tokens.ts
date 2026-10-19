@@ -1,11 +1,11 @@
-import { err, ok, type Result } from "@repo/result";
-
 import {
   type ComparedDefinition,
   sameDefinition,
   type TokenDefinition,
-} from "../../token/contracts/token-definition.ts";
-import type { CheckTokens, TokenCheck } from "../../token/contracts/token-issues.ts";
+} from "#modules/token/contracts/token-definition.ts";
+import type { CheckTokens, TokenCheck } from "#modules/token/contracts/token-issues.ts";
+import { err, ok, type Result } from "@repo/result";
+
 import type { Proposal, ProposalBatch } from "../domain/proposal.ts";
 import { liveBatchOf } from "./proposal-batches.ts";
 
@@ -50,6 +50,74 @@ export type UncheckedTokens = {
   readonly checks: readonly TokenCheck[];
 };
 
+export type ProposedTokens = Writer & {
+  readonly tokens: readonly TokenDefinition[];
+  readonly validated: readonly ValidatedDefinition[];
+  readonly createdAt: Date;
+};
+
+export const proposeTokens = async (
+  store: ProposalStore,
+  {
+    tokens,
+    validated,
+    createdAt,
+    newId,
+    ...writer
+  }: ProposedTokens & { readonly newId: () => string },
+): Promise<Written> => {
+  const pending = await store.pendingOf(
+    writer.projectId,
+    tokens.map(({ name }) => name),
+  );
+  const written = tokens.map((token) => {
+    const current = validated.find(({ name }) => name === token.name);
+    const waiting = pending.find(({ name }) => name === token.name);
+    const sameAsWaiting = waiting !== undefined && sameDefinition(waiting.token, token);
+    const sameAsValidated = current !== undefined && sameDefinition(current, token);
+    return {
+      token,
+      current,
+      replaces: sameAsWaiting ? undefined : waiting,
+      unchanged: sameAsWaiting || sameAsValidated,
+    };
+  });
+  const replaced = written.flatMap(({ replaces }): readonly Replaced[] =>
+    replaces === undefined
+      ? []
+      : [{ id: replaces.id, name: replaces.name, batchId: replaces.batchId }],
+  );
+  await store.replace(replaced.map(({ id }) => id));
+  const unchanged = written.filter((entry) => entry.unchanged).map(({ token }) => token.name);
+  const changed = written.filter((entry) => !entry.unchanged);
+  const live = await liveBatchOf(store, { writer, now: createdAt });
+  if (changed.length === 0) {
+    return { batch: live ?? null, proposals: [], unchanged, replaced };
+  }
+  const batch =
+    live ??
+    (await store.openBatchOf({
+      id: newId(),
+      ...writer,
+      intent: null,
+      state: "open",
+      openedAt: createdAt,
+      lastWrittenAt: createdAt,
+    }));
+  await store.touchBatch(batch.id, createdAt);
+  const proposals = changed.map(({ token, current }): Proposal => ({
+    id: newId(),
+    batchId: batch.id,
+    name: token.name,
+    kind: current === undefined ? "create" : "update",
+    token,
+    status: "proposed",
+    createdAt,
+  }));
+  await store.propose(writer.projectId, proposals);
+  return { batch, proposals, unchanged, replaced };
+};
+
 export const writeTokens =
   ({
     checkTokens,
@@ -75,57 +143,7 @@ export const writeTokens =
       return err({ code: "unchecked_tokens", checks });
     }
     const validated = await validatedTokensOf(writer.projectId);
-    return unitOfWork.run(async (store) => {
-      const pending = await store.pendingOf(
-        writer.projectId,
-        tokens.map(({ name }) => name),
-      );
-      const written = tokens.map((token) => {
-        const current = validated.find(({ name }) => name === token.name);
-        const waiting = pending.find(({ name }) => name === token.name);
-        const sameAsWaiting = waiting !== undefined && sameDefinition(waiting.token, token);
-        const sameAsValidated = current !== undefined && sameDefinition(current, token);
-        return {
-          token,
-          current,
-          replaces: sameAsWaiting ? undefined : waiting,
-          unchanged: sameAsWaiting || sameAsValidated,
-        };
-      });
-      const replaced = written.flatMap(({ replaces }): readonly Replaced[] =>
-        replaces === undefined
-          ? []
-          : [{ id: replaces.id, name: replaces.name, batchId: replaces.batchId }],
-      );
-      await store.replace(replaced.map(({ id }) => id));
-      const unchanged = written.filter((entry) => entry.unchanged).map(({ token }) => token.name);
-      const changed = written.filter((entry) => !entry.unchanged);
-      const createdAt = now();
-      const live = await liveBatchOf(store, { writer, now: createdAt });
-      if (changed.length === 0) {
-        return ok({ batch: live ?? null, proposals: [], unchanged, replaced });
-      }
-      const batch =
-        live ??
-        (await store.openBatchOf({
-          id: newId(),
-          ...writer,
-          intent: null,
-          state: "open",
-          openedAt: createdAt,
-          lastWrittenAt: createdAt,
-        }));
-      await store.touchBatch(batch.id, createdAt);
-      const proposals = changed.map(({ token, current }): Proposal => ({
-        id: newId(),
-        batchId: batch.id,
-        name: token.name,
-        kind: current === undefined ? "create" : "update",
-        token,
-        status: "proposed",
-        createdAt,
-      }));
-      await store.propose(writer.projectId, proposals);
-      return ok({ batch, proposals, unchanged, replaced });
-    });
+    return unitOfWork.run(async (store) =>
+      ok(await proposeTokens(store, { ...writer, tokens, validated, createdAt: now(), newId })),
+    );
   };

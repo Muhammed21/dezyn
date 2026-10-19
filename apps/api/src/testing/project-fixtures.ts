@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
+import type { PostgresDatabase } from "#db";
 import { schema } from "@repo/db";
 
-import type { PostgresDatabase } from "../platform/postgres-database.ts";
 import { ADA, type App, BASE_URL, obtainAccessToken } from "./authorization-flow.ts";
 import { personalSpaceOf, seedTeamSpaceWith } from "./space-fixtures.ts";
 

@@ -1,15 +1,14 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
 
+import { composeModules } from "#compose-modules";
+import { createApp } from "#create-app";
+import { createPostgresDatabase, type PostgresDatabase } from "#db";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import { createIdentityAuth } from "#modules/identity/infrastructure/better-auth.ts";
+import type { Clock } from "#platform/clock.ts";
+import type { Mailer } from "#platform/mailer.ts";
 import { migrate } from "@repo/db";
 import { withThrowawayDatabase } from "@repo/db/testing";
-
-import { composeModules } from "../compose-modules.ts";
-import { createApp } from "../create-app.ts";
-import type { HistoryWriter } from "../modules/history/contracts/history-writer.ts";
-import { createIdentityAuth } from "../modules/identity/infrastructure/better-auth.ts";
-import type { Clock } from "../platform/clock.ts";
-import type { Mailer } from "../platform/mailer.ts";
-import { createPostgresDatabase, type PostgresDatabase } from "../platform/postgres-database.ts";
 
 export const BASE_URL = "http://127.0.0.1:3000";
 export const RESOURCE = `${BASE_URL}/v1`;

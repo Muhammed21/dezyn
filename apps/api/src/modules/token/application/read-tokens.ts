@@ -1,3 +1,9 @@
+import type { ProjectFinder } from "#modules/project/contracts/project.ts";
+import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import { err, ok, type Result } from "@repo/result";
+
+import { duplicatesOf } from "../domain/duplicates.ts";
+import type { FigmaState } from "../domain/figma-declaration.ts";
 import type { ModeReader } from "./add-token.ts";
 
 export type StoredValue = {
@@ -14,6 +20,19 @@ export interface ValidatedTokenReader {
   validatedValuesOf(projectId: string): Promise<readonly StoredValue[]>;
 }
 
+export type TokenFigmaState = {
+  readonly tokenId: string;
+  readonly state: FigmaState;
+  readonly figmaVariables?: readonly string[];
+  readonly declaredAt: Date;
+  readonly author: { readonly kind: "member"; readonly userId: string; readonly name: string };
+  readonly clientId: string;
+};
+
+export interface FigmaStateReader {
+  figmaStatesOf(projectId: string): Promise<readonly TokenFigmaState[]>;
+}
+
 export type ReadToken = {
   readonly id: string;
   readonly name: string;
@@ -22,6 +41,8 @@ export type ReadToken = {
   readonly modes?: Readonly<Record<string, unknown>>;
   readonly $description?: string;
   readonly status: "validated";
+  readonly duplicates?: readonly string[];
+  readonly figma?: Omit<TokenFigmaState, "tokenId">;
 };
 
 export type ProjectTokens = {
@@ -34,7 +55,19 @@ const renderedValue = ({ value, referencedName }: StoredValue): unknown =>
 
 type TokenValues = readonly [StoredValue, ...StoredValue[]];
 
-const tokenOf = (values: TokenValues): ReadToken => {
+const figmaOf = (
+  tokenId: string,
+  figmaStates: readonly TokenFigmaState[],
+): Pick<ReadToken, "figma"> => {
+  const found = figmaStates.find((figma) => figma.tokenId === tokenId);
+  if (found === undefined) {
+    return {};
+  }
+  const { tokenId: _, ...figma } = found;
+  return { figma };
+};
+
+const tokenOf = (values: TokenValues, figmaStates: readonly TokenFigmaState[]): ReadToken => {
   const { tokenId, name, $type, $description, mode } = values[0];
   return {
     id: tokenId,
@@ -45,6 +78,7 @@ const tokenOf = (values: TokenValues): ReadToken => {
       : { modes: Object.fromEntries(values.map((value) => [value.mode, renderedValue(value)])) }),
     ...($description === null ? {} : { $description }),
     status: "validated",
+    ...figmaOf(tokenId, figmaStates),
   };
 };
 
@@ -57,14 +91,55 @@ const byToken = (values: readonly StoredValue[]): readonly TokenValues[] =>
   }, []);
 
 export const readTokens =
-  ({ modes, tokens }: { readonly modes: ModeReader; readonly tokens: ValidatedTokenReader }) =>
+  ({
+    modes,
+    tokens,
+    figmaStates,
+  }: {
+    readonly modes: ModeReader;
+    readonly tokens: ValidatedTokenReader;
+    readonly figmaStates: FigmaStateReader;
+  }) =>
   async (projectId: string): Promise<ProjectTokens> => {
-    const [projectModes, values] = await Promise.all([
+    const [projectModes, values, figma] = await Promise.all([
       modes.modesOf(projectId),
       tokens.validatedValuesOf(projectId),
+      figmaStates.figmaStatesOf(projectId),
     ]);
+    const read = byToken(values).map((value) => tokenOf(value, figma));
     return {
       modes: projectModes.map(({ name }) => name),
-      tokens: byToken(values).map(tokenOf),
+      tokens: read.map((token) => {
+        const duplicates = duplicatesOf({ token, among: read });
+        return duplicates.length === 0 ? token : { ...token, duplicates };
+      }),
     };
+  };
+
+export const readProjectTokens =
+  ({
+    projects,
+    memberships,
+    readTokens: read,
+  }: {
+    readonly projects: ProjectFinder;
+    readonly memberships: MembershipReader;
+    readonly readTokens: (projectId: string) => Promise<ProjectTokens>;
+  }) =>
+  async ({
+    projectId,
+    userId,
+  }: {
+    readonly projectId: string;
+    readonly userId: string;
+  }): Promise<Result<ProjectTokens, "not_found">> => {
+    const project = await projects.find(projectId);
+    if (project === undefined) {
+      return err("not_found");
+    }
+    const membership = await memberships.activeMembership({ spaceId: project.spaceId, userId });
+    if (!can({ membership, action: "space.read" })) {
+      return err("not_found");
+    }
+    return ok(await read(projectId));
   };

@@ -15,6 +15,11 @@ const inModule = (module: string, path: string) => `${MODULES}/${module}/${path}
 tester.run("pure-domain", pureDomain, {
   valid: [
     {
+      name: "le domaine importe son propre domaine par alias",
+      filename: inModule("space", "domain/space.ts"),
+      code: 'import { SpaceId } from "#modules/space/domain/space-id.ts";',
+    },
+    {
       name: "le domaine importe son propre domaine",
       filename: inModule("space", "domain/space.ts"),
       code: 'import { SpaceId } from "./space-id.ts";',
@@ -136,6 +141,20 @@ tester.run("pure-domain", pureDomain, {
           data: { layer: "domain", source: "../../../platform/postgres-database.ts" },
         },
       ],
+    },
+    {
+      name: "le domaine sort des modules par l'alias de platform/",
+      filename: inModule("space", "domain/space.ts"),
+      code: 'import type { Clock } from "#platform/clock.ts";',
+      errors: [
+        { messageId: "outsideModules", data: { layer: "domain", source: "#platform/clock.ts" } },
+      ],
+    },
+    {
+      name: "le contrat sort des modules par l'alias #db",
+      filename: inModule("space", "contracts/schemas.ts"),
+      code: 'import type { PostgresDatabase } from "#db";',
+      errors: [{ messageId: "outsideModules", data: { layer: "contracts", source: "#db" } }],
     },
     {
       name: "le contrat sort des modules",

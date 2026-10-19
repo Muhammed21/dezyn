@@ -1,11 +1,11 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 
+import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import { problemResponse } from "#platform/problem.ts";
+import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
-import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
-import { problemResponse } from "../../../platform/problem.ts";
-import { validate } from "../../../platform/validate.ts";
 import type { InvitationFailure } from "../application/invite-member.ts";
 import type { DepartureFailure } from "../application/leave-space.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";

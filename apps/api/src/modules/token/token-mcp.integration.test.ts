@@ -7,15 +7,15 @@ import {
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { seedModes, seedProject } from "../../testing/project-fixtures.ts";
+} from "#testing/authorization-flow.ts";
+import { seedModes, seedProject } from "#testing/project-fixtures.ts";
 import {
   addToken,
   historyOf,
   makeColorToken,
   PRIMARY_BLUE,
   seedProposedToken,
-} from "../../testing/token-fixtures.ts";
+} from "#testing/token-fixtures.ts";
 
 const CORRELATION_ID = "lecture-des-tokens-1";
 
@@ -205,7 +205,7 @@ describe("l'IA lit les tokens validés d'un projet par le MCP (ADR 0012 §6)", (
             expect.objectContaining({
               name: "read_tokens",
               description:
-                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}. Avec includeProposals, rend aussi les propositions en attente, triées par nom, avec leur statut et leur lot.",
+                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}. Un token porte figma, son dernier état Figma déclaré, et duplicates, les noms des autres tokens validés de même type et de même valeur dans chaque mode. Avec includeProposals, rend aussi les propositions en attente, triées par nom, avec leur statut et leur lot.",
               inputSchema: expect.objectContaining({ required: ["projectId"] }),
               outputSchema: expect.objectContaining({
                 properties: expect.objectContaining({

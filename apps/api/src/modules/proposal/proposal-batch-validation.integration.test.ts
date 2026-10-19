@@ -8,15 +8,15 @@ import {
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { seedProject } from "../../testing/project-fixtures.ts";
+} from "#testing/authorization-flow.ts";
+import { seedProject } from "#testing/project-fixtures.ts";
 import {
   addToken,
   historyOf,
   makeColorToken,
   PRIMARY_BLUE,
   seedValidatedToken,
-} from "../../testing/token-fixtures.ts";
+} from "#testing/token-fixtures.ts";
 
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
 

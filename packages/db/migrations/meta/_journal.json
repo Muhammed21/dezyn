@@ -64,6 +64,13 @@
       "when": 1792427725302,
       "tag": "0008_proposal",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792441996611,
+      "tag": "0009_token_figma_state",
+      "breakpoints": true
     }
   ]
 }

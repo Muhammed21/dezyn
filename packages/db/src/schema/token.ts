@@ -11,7 +11,9 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { identityUser } from "./identity.ts";
 import { project } from "./project.ts";
+import { proposal } from "./proposal.ts";
 
 export const modifier = pgTable(
   "modifier",
@@ -73,3 +75,18 @@ export const tokenValue = pgTable(
     ),
   ],
 );
+
+export const tokenFigmaState = pgTable("token_figma_state", {
+  tokenId: uuid("token_id")
+    .primaryKey()
+    .references(() => token.id),
+  state: text("state").notNull(),
+  figmaVariables: jsonb("figma_variables"),
+  rejectedValue: jsonb("rejected_value"),
+  declaredAt: timestamp("declared_at", { withTimezone: true }).notNull(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => identityUser.id),
+  clientId: text("client_id").notNull(),
+  proposalId: uuid("proposal_id").references(() => proposal.id),
+});

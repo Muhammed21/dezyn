@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { API_IMPORTS } from "./rules/paths.ts";
 import { findArchitectureDisables } from "./scan.ts";
 
 const ROOT = new URL("../../../", import.meta.url).pathname;
@@ -21,5 +22,11 @@ describe("le dépôt", () => {
 
     expect(files.length).toBeGreaterThan(50);
     expect(findArchitectureDisables(files)).toEqual([]);
+  });
+
+  it("résout les mêmes alias que le champ imports de apps/api/package.json", () => {
+    const { imports } = JSON.parse(readFileSync(join(ROOT, "apps/api/package.json"), "utf8"));
+
+    expect(imports).toEqual(API_IMPORTS);
   });
 });

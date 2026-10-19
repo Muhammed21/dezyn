@@ -1,8 +1,8 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 
+import type { PostgresDatabase } from "#db";
 import { schema } from "@repo/db";
 
-import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { MemberDirectory } from "../application/invite-member.ts";
 
 const { identityUser, spaceMember } = schema;

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
 import {
   ADA,
   type App,
@@ -9,8 +7,9 @@ import {
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
-import { personalSpaceOf, seedTeamSpace, seedTeamSpaceWith } from "../../testing/space-fixtures.ts";
+} from "#testing/authorization-flow.ts";
+import { personalSpaceOf, seedTeamSpace, seedTeamSpaceWith } from "#testing/space-fixtures.ts";
+import { schema } from "@repo/db";
 
 const CORRELATION_ID = "creation-du-projet-1";
 

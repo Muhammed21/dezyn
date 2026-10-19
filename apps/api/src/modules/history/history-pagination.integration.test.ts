@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { PostgresDatabase } from "#db";
+import { type App, BASE_URL, withIdentityApp } from "#testing/authorization-flow.ts";
+import { seedProject } from "#testing/project-fixtures.ts";
 import { schema } from "@repo/db";
-
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
-import { type App, BASE_URL, withIdentityApp } from "../../testing/authorization-flow.ts";
-import { seedProject } from "../../testing/project-fixtures.ts";
 
 const SAME_INSTANT = new Date("2026-10-01T09:00:00.000Z");
 

@@ -1,12 +1,15 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
+import {
+  issuesOfCheck,
+  type ValidatedTokenFailure,
+} from "#modules/token/contracts/token-issues.ts";
+import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import { type Problem, problemResponse } from "#platform/problem.ts";
+import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
-import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
-import { type Problem, problemResponse } from "../../../platform/problem.ts";
-import { validate } from "../../../platform/validate.ts";
-import { issuesOfCheck, type ValidatedTokenFailure } from "../../token/contracts/token-issues.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
 import type { BatchValidationFailure, ReviewFailure } from "../application/review-proposals.ts";
 import type { ValidatedDefinition } from "../application/write-tokens.ts";

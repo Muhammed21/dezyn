@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import type { PostgresTransaction } from "#db";
 import { schema } from "@repo/db";
 
-import type { PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../domain/history-writer.ts";
 
 const { historyAuthor, historyEntry } = schema;

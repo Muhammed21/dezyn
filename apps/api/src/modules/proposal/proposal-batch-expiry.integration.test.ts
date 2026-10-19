@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { type App, BASE_URL, callMcp, withIdentityApp } from "../../testing/authorization-flow.ts";
-import { seedProject } from "../../testing/project-fixtures.ts";
-import { addToken, makeColorToken } from "../../testing/token-fixtures.ts";
+import { type App, BASE_URL, callMcp, withIdentityApp } from "#testing/authorization-flow.ts";
+import { seedProject } from "#testing/project-fixtures.ts";
+import { addToken, makeColorToken } from "#testing/token-fixtures.ts";
 
 const START = new Date("2026-10-19T09:00:00Z");
 

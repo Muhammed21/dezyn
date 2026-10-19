@@ -1,12 +1,13 @@
-import { err, ok, type Result } from "@repo/result";
-
-import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
-import type { ProjectFinder } from "../../project/contracts/project.ts";
-import { can, type MembershipReader } from "../../space/contracts/membership.ts";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectFinder } from "#modules/project/contracts/project.ts";
+import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { TokenDefinition } from "#modules/token/contracts/token-definition.ts";
 import type {
   ValidatedTokenFailure,
   ValidatedTokenWriter,
-} from "../../token/contracts/token-issues.ts";
+} from "#modules/token/contracts/token-issues.ts";
+import { err, ok, type Result } from "@repo/result";
+
 import { planBatchValidation } from "../domain/batch-validation.ts";
 import { batchStateAt } from "../domain/proposal-batch.ts";
 import {
@@ -48,6 +49,14 @@ export interface ProposalReader {
   ): Promise<{ readonly proposal: Proposal; readonly projectId: string } | undefined>;
 }
 
+export interface FigmaStateSynchronizer {
+  proposalValidated(proposalId: string): Promise<void>;
+  proposalRejected(rejected: {
+    readonly proposalId: string;
+    readonly token: TokenDefinition;
+  }): Promise<void>;
+}
+
 export type ReviewUnit = {
   readonly proposals: {
     lock(proposalId: string): Promise<ProposalStatus>;
@@ -57,6 +66,7 @@ export type ReviewUnit = {
     settle(proposalId: string, status: "validated" | "rejected"): Promise<void>;
   };
   readonly tokens: ValidatedTokenWriter;
+  readonly figmaStates: FigmaStateSynchronizer;
   readonly history: HistoryWriter;
 };
 
@@ -220,6 +230,9 @@ export const reviewProposal =
         if (failure !== undefined) {
           return err(failure);
         }
+        await unit.figmaStates.proposalValidated(proposalId);
+      } else {
+        await unit.figmaStates.proposalRejected({ proposalId, token: proposal.token });
       }
       await unit.proposals.settle(proposalId, reviewed.status);
       await unit.history.append({
@@ -346,6 +359,14 @@ export const validateBatch =
       await inSequence(decided, async ({ proposal, status }) => {
         const before = validatedOf(validated, proposal);
         await unit.proposals.settle(proposal.id, status);
+        if (status === "validated") {
+          await unit.figmaStates.proposalValidated(proposal.id);
+        } else {
+          await unit.figmaStates.proposalRejected({
+            proposalId: proposal.id,
+            token: proposal.token,
+          });
+        }
         await unit.history.append({
           spaceId,
           projectId,

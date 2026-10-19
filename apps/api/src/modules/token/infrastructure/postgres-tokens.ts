@@ -1,10 +1,11 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { z } from "zod";
 
+import type { PostgresDatabase, PostgresTransaction } from "#db";
+import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { schema } from "@repo/db";
 
-import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
-import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
 import type {
   ModeReader,
   ModeValue,
@@ -13,9 +14,16 @@ import type {
   TokenUnitOfWork,
   TokenWriter,
 } from "../application/add-token.ts";
-import type { ValidatedTokenReader } from "../application/read-tokens.ts";
+import type {
+  FigmaProposals,
+  FigmaStateWriter,
+  FigmaUnitOfWork,
+  RejectedValueReader,
+} from "../application/declare-figma-states.ts";
+import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
+import type { ComparedDefinition } from "../domain/same-definition.ts";
 
-const { mode, modifier, token, tokenValue } = schema;
+const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue } = schema;
 
 type Queryable = Pick<PostgresTransaction, "select" | "insert" | "update" | "delete">;
 
@@ -139,4 +147,122 @@ export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTok
       .leftJoin(referenced, eq(referenced.id, tokenValue.referencedTokenId))
       .where(and(eq(token.projectId, projectId), eq(token.status, "validated")))
       .orderBy(asc(token.name), asc(mode.position)),
+});
+
+export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
+  declare: async ({ states, declaredAt, userId, clientId }) => {
+    await tx
+      .insert(tokenFigmaState)
+      .values(
+        states.map((declared) => ({
+          tokenId: declared.tokenId,
+          state: declared.state,
+          figmaVariables: declared.state === "duplicate_in_figma" ? declared.figmaVariables : null,
+          proposalId: declared.proposalId,
+          declaredAt,
+          userId,
+          clientId,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: tokenFigmaState.tokenId,
+        set: {
+          state: sql`excluded.state`,
+          figmaVariables: sql`excluded.figma_variables`,
+          declaredAt: sql`excluded.declared_at`,
+          userId: sql`excluded.user_id`,
+          clientId: sql`excluded.client_id`,
+          proposalId: sql`case when excluded.state = 'diverged' then coalesce(excluded.proposal_id, ${tokenFigmaState.proposalId}) end`,
+        },
+      });
+  },
+});
+
+const FigmaState = z.enum(["synced", "missing_in_figma", "duplicate_in_figma", "diverged"]);
+
+const FigmaVariables = z.array(z.string()).nullable();
+
+export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader => ({
+  figmaStatesOf: async (projectId) => {
+    const rows = await db.orm
+      .select({
+        tokenId: tokenFigmaState.tokenId,
+        state: tokenFigmaState.state,
+        figmaVariables: tokenFigmaState.figmaVariables,
+        declaredAt: tokenFigmaState.declaredAt,
+        userId: tokenFigmaState.userId,
+        name: identityUser.name,
+        clientId: tokenFigmaState.clientId,
+      })
+      .from(tokenFigmaState)
+      .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+      .innerJoin(identityUser, eq(identityUser.id, tokenFigmaState.userId))
+      .where(eq(token.projectId, projectId));
+    return rows.map(({ tokenId, state, figmaVariables, declaredAt, userId, name, clientId }) => {
+      const variables = FigmaVariables.parse(figmaVariables);
+      return {
+        tokenId,
+        state: FigmaState.parse(state),
+        ...(variables === null ? {} : { figmaVariables: variables }),
+        declaredAt,
+        author: { kind: "member", userId, name },
+        clientId,
+      };
+    });
+  },
+});
+
+export const postgresFigmaUnitOfWork = ({
+  db,
+  proposalWriterOn,
+}: {
+  readonly db: PostgresDatabase;
+  readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
+}): FigmaUnitOfWork => ({
+  run: (work) =>
+    db.orm.transaction((tx) =>
+      work({ figmaStates: postgresFigmaStateWriter(tx), proposals: proposalWriterOn(tx) }),
+    ),
+});
+
+export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
+  proposalValidated: async (proposalId: string) => {
+    await tx
+      .update(tokenFigmaState)
+      .set({ state: "synced", proposalId: null })
+      .where(eq(tokenFigmaState.proposalId, proposalId));
+  },
+  proposalRejected: async ({
+    proposalId,
+    token: { $value, modes },
+  }: {
+    readonly proposalId: string;
+    readonly token: ComparedDefinition;
+  }) => {
+    await tx
+      .update(tokenFigmaState)
+      .set({ rejectedValue: { $value, modes }, proposalId: null })
+      .where(eq(tokenFigmaState.proposalId, proposalId));
+  },
+});
+
+const RejectedValue = z
+  .object({
+    $value: z.unknown().optional(),
+    modes: z.record(z.string(), z.unknown()).optional(),
+  })
+  .nullable();
+
+export const postgresRejectedValueReader = (db: PostgresDatabase): RejectedValueReader => ({
+  rejectedValuesOf: async (projectId) => {
+    const rows = await db.orm
+      .select({ tokenId: tokenFigmaState.tokenId, rejectedValue: tokenFigmaState.rejectedValue })
+      .from(tokenFigmaState)
+      .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+      .where(eq(token.projectId, projectId));
+    return rows.flatMap(({ tokenId, rejectedValue }) => {
+      const rejected = RejectedValue.parse(rejectedValue);
+      return rejected === null ? [] : [{ tokenId, rejected }];
+    });
+  },
 });

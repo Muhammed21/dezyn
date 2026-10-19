@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { makeApp, makeAuth } from "#testing/make-app.ts";
 import { err } from "@repo/result";
-
-import { makeApp, makeAuth } from "../testing/make-app.ts";
 
 const RESOURCE_METADATA = "http://127.0.0.1:3000/.well-known/oauth-protected-resource/v1";
 

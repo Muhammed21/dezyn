@@ -1,8 +1,8 @@
 import { and, eq, isNull } from "drizzle-orm";
 
+import type { PostgresDatabase } from "#db";
 import { schema } from "@repo/db";
 
-import type { PostgresDatabase } from "../../../platform/postgres-database.ts";
 import type { MembershipReader } from "../application/membership-reader.ts";
 import { StoredMembership } from "./stored-rows.ts";
 

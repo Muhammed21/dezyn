@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { createApp } from "./create-app.ts";
-import { createPostgresDatabase } from "./platform/postgres-database.ts";
+import { createApp } from "#create-app";
+import { createPostgresDatabase } from "#db";
 import {
   makeAuth,
   makeHistory,
@@ -9,7 +9,7 @@ import {
   makeSpaces,
   makeProposals,
   makeTokens,
-} from "./testing/make-app.ts";
+} from "#testing/make-app.ts";
 
 const reachableDatabase = createPostgresDatabase({ url: process.env.DATABASE_URL ?? "" });
 const unroutableDatabase = createPostgresDatabase({

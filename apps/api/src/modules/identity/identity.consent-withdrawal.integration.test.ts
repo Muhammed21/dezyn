@@ -8,7 +8,7 @@ import {
   obtainAccessToken,
   refreshTokens,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
 
 const Consents = z.array(z.object({ id: z.string(), clientId: z.string() }));
 

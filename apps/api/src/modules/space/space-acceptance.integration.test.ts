@@ -1,9 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@repo/db";
-
-import type { PostgresDatabase } from "../../platform/postgres-database.ts";
+import type { PostgresDatabase } from "#db";
 import {
   ADA,
   type App,
@@ -11,7 +9,7 @@ import {
   GRACE,
   obtainAccessToken,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
 import {
   hashOf,
   invite,
@@ -19,7 +17,8 @@ import {
   personalSpaceOf,
   switchToTeam,
   tokenOf,
-} from "../../testing/space-fixtures.ts";
+} from "#testing/space-fixtures.ts";
+import { schema } from "@repo/db";
 
 const PLAN_REQUIRED = "https://dezyn.app/problems/plan-required";
 

@@ -4,15 +4,14 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { schema } from "@repo/db";
-
 import {
   callMcp,
   decodeJwtPart,
   obtainAccessToken,
   refreshTokens,
   withIdentityApp,
-} from "../../testing/authorization-flow.ts";
+} from "#testing/authorization-flow.ts";
+import { schema } from "@repo/db";
 
 const DAY_MS = 86_400_000;
 

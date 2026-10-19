@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { TokenDefinition } from "../../token/contracts/token-definition.ts";
+import type { TokenDefinition } from "#modules/token/contracts/token-definition.ts";
+
 import { planBatchValidation } from "./batch-validation.ts";
 import type { Proposal } from "./proposal.ts";
 
