@@ -45,6 +45,8 @@ export const makeTokens = (): TokenUseCases => ({
   addToken: () => Promise.resolve(err("not_found")),
   readTokens: () => Promise.resolve({ modes: [], tokens: [] }),
   checkTokens: () => Promise.resolve([]),
+  readProjectTokens: () => Promise.resolve(err("not_found")),
+  declareFigmaStates: () => Promise.resolve(err("not_found")),
 });
 
 export const makeProposals = (): ProposalUseCases => ({

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { TokenOutput, TokensOutput } from "./token.ts";
+import { DeclaredFigmaStatesOutput, TokenOutput, TokensOutput } from "./token.ts";
 
 const makeTokenOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   id: "0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
@@ -189,5 +189,78 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
         },
       },
     });
+  });
+});
+
+const makeFigmaOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  state: "synced",
+  declaredAt: "2026-10-19T09:00:00.000Z",
+  author: { kind: "member", userId: "3e8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", name: "Ada Lovelace" },
+  clientId: "client-oauth-1",
+  ...overrides,
+});
+
+describe("un token lu porte son état Figma, s'il a été comparé (ADR 0024 §1, ADR 0023)", () => {
+  it("décode l'état Figma, sa date, son auteur et son client OAuth", () => {
+    const token = makeTokenOutput({ figma: makeFigmaOutput() });
+
+    expect(TokenOutput.parse(token)).toEqual(token);
+  });
+
+  it("un token jamais comparé n'a pas d'état Figma", () => {
+    expect(TokenOutput.parse(makeTokenOutput())).not.toHaveProperty("figma");
+  });
+
+  it.each([["state"], ["declaredAt"], ["author"], ["clientId"]])(
+    "refuse un état Figma sans %s",
+    (field) => {
+      expect(
+        TokenOutput.safeParse(makeTokenOutput({ figma: makeFigmaOutput({ [field]: undefined }) }))
+          .success,
+      ).toBe(false);
+    },
+  );
+
+  it("accepte un état Figma et une forme d'auteur ajoutés plus tard par le serveur", () => {
+    const token = makeTokenOutput({
+      figma: makeFigmaOutput({ state: "renamed_in_figma", author: { kind: "deleted_member" } }),
+    });
+
+    expect(TokenOutput.parse(token)).toEqual(token);
+  });
+
+  it("annonce à l'IA les états Figma connus", () => {
+    expect(z.toJSONSchema(TokenOutput)).toMatchObject({
+      properties: {
+        figma: {
+          properties: {
+            state: { anyOf: [{ enum: ["synced", "missing_in_figma"] }, { type: "string" }] },
+            author: { anyOf: [{ properties: { kind: { const: "member" } } }, {}] },
+          },
+        },
+      },
+    });
+  });
+});
+
+describe("la déclaration rend l'état Figma déclaré de chaque token (ADR 0023)", () => {
+  const makeDeclared = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+    name: "couleur.fond",
+    state: "synced",
+    declaredAt: "2026-10-19T09:00:00.000Z",
+    ...overrides,
+  });
+
+  it("décode les états déclarés, et accepte un état ajouté plus tard", () => {
+    const declared = { states: [makeDeclared(), makeDeclared({ state: "renamed_in_figma" })] };
+
+    expect(DeclaredFigmaStatesOutput.parse(declared)).toEqual(declared);
+  });
+
+  it.each([["name"], ["state"], ["declaredAt"]])("refuse un état déclaré sans %s", (field) => {
+    expect(
+      DeclaredFigmaStatesOutput.safeParse({ states: [makeDeclared({ [field]: undefined })] })
+        .success,
+    ).toBe(false);
   });
 });

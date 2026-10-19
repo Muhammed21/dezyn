@@ -10,6 +10,7 @@ import type { ProjectTokens } from "../application/read-tokens.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import type { TokenDefinition } from "../contracts/token-definition.ts";
 import { TokensOutput } from "../contracts/token.ts";
+import { tokensOutputOf } from "./tokens-output.ts";
 
 export type PendingProposal = {
   readonly id: string;
@@ -65,9 +66,10 @@ export const registerReadTokens =
             isError: true,
           };
         }
+        const output = tokensOutputOf(read.value);
         return {
-          content: [{ type: "text", text: JSON.stringify(read.value) }],
-          structuredContent: read.value,
+          content: [{ type: "text", text: JSON.stringify(output) }],
+          structuredContent: output,
         };
       },
     );

@@ -40,6 +40,7 @@ export const composeModules = ({
     projects: projects.finder,
     historyWriterOn: writerOn,
     proposalReplacerOn,
+    clock,
   });
   const proposals = proposalModule({
     db,

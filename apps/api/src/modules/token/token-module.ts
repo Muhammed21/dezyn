@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import type { Clock } from "../../platform/clock.ts";
 import type { PostgresDatabase, PostgresTransaction } from "../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../history/contracts/history-writer.ts";
 import type { ProjectFinder } from "../project/contracts/project.ts";
@@ -7,16 +8,17 @@ import type { MembershipReader } from "../space/contracts/membership.ts";
 import { addToken, type PendingProposals } from "./application/add-token.ts";
 import { checkTokens } from "./application/check-tokens.ts";
 import { validatedTokenWriter } from "./application/create-validated-token.ts";
-import { readTokens } from "./application/read-tokens.ts";
+import { declareFigmaStates } from "./application/declare-figma-states.ts";
+import { readProjectTokens, readTokens } from "./application/read-tokens.ts";
 import {
+  postgresFigmaStateReader,
+  postgresFigmaStateWriter,
   postgresModeReader,
   postgresProjectTokenReader,
   postgresTokenUnitOfWork,
   postgresTokenWriter,
   postgresValidatedTokenReader,
 } from "./infrastructure/postgres-tokens.ts";
-
-const now = () => new Date();
 
 export const validatedTokenWriterOn = (tx: PostgresTransaction) =>
   validatedTokenWriter({
@@ -32,33 +34,47 @@ export const tokenModule = ({
   projects,
   historyWriterOn,
   proposalReplacerOn,
+  clock,
 }: {
   readonly db: PostgresDatabase;
   readonly memberships: MembershipReader;
   readonly projects: ProjectFinder;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
-}) => ({
-  addToken: addToken({
-    projects,
-    memberships,
-    modes: postgresModeReader(db.orm),
-    projectTokens: postgresProjectTokenReader(db.orm),
-    unitOfWork: postgresTokenUnitOfWork({
-      db,
-      historyWriterOn,
-      proposalReplacerOn,
-      newId: randomUUID,
-    }),
-    newId: randomUUID,
-    now,
-  }),
-  checkTokens: checkTokens({
-    modes: postgresModeReader(db.orm),
-    projectTokens: postgresProjectTokenReader(db.orm),
-  }),
-  readTokens: readTokens({
+  readonly clock: Clock;
+}) => {
+  const read = readTokens({
     modes: postgresModeReader(db.orm),
     tokens: postgresValidatedTokenReader(db),
-  }),
-});
+    figmaStates: postgresFigmaStateReader(db),
+  });
+  return {
+    addToken: addToken({
+      projects,
+      memberships,
+      modes: postgresModeReader(db.orm),
+      projectTokens: postgresProjectTokenReader(db.orm),
+      unitOfWork: postgresTokenUnitOfWork({
+        db,
+        historyWriterOn,
+        proposalReplacerOn,
+        newId: randomUUID,
+      }),
+      newId: randomUUID,
+      now: clock,
+    }),
+    checkTokens: checkTokens({
+      modes: postgresModeReader(db.orm),
+      projectTokens: postgresProjectTokenReader(db.orm),
+    }),
+    readTokens: read,
+    readProjectTokens: readProjectTokens({ projects, memberships, readTokens: read }),
+    declareFigmaStates: declareFigmaStates({
+      projects,
+      memberships,
+      projectTokens: postgresProjectTokenReader(db.orm),
+      figmaStates: postgresFigmaStateWriter(db),
+      now: clock,
+    }),
+  };
+};

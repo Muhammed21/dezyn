@@ -20,6 +20,7 @@ import { invitationsRoutes } from "./modules/space/presentation/invitations-rout
 import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
 import { spacesRoutes } from "./modules/space/presentation/spaces-routes.ts";
 import type { TokenUseCases } from "./modules/token/application/token-use-cases.ts";
+import { registerDeclareFigmaStates } from "./modules/token/presentation/declare-figma-states-tool.ts";
 import { registerReadTokens } from "./modules/token/presentation/read-tokens-tool.ts";
 import { tokensRoutes } from "./modules/token/presentation/tokens-routes.ts";
 import { type AuthenticatedEnv, requireAccessToken } from "./platform/access-token.ts";
@@ -68,6 +69,10 @@ export const createApp = ({
     pendingProposalsOf: proposals.pendingProposalsOf,
     recordProjectCall: history.recordProjectCall,
   });
+  const registerFigmaTools = registerDeclareFigmaStates({
+    declareFigmaStates: tokens.declareFigmaStates,
+    recordProjectCall: history.recordProjectCall,
+  });
   const registerProposalTools = registerWriteTokens({
     writeTokens: proposals.writeTokens,
     recordProjectCall: history.recordProjectCall,
@@ -85,6 +90,7 @@ export const createApp = ({
         registerSpaceTools(server, call);
         registerHistoryTools(server, call);
         registerTokenTools(server, call);
+        registerFigmaTools(server, call);
         registerProposalTools(server, call);
         registerBatchTools(server, call);
       },

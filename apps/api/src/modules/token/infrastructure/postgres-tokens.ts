@@ -1,5 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { z } from "zod";
 
 import { schema } from "@repo/db";
 
@@ -13,9 +14,10 @@ import type {
   TokenUnitOfWork,
   TokenWriter,
 } from "../application/add-token.ts";
-import type { ValidatedTokenReader } from "../application/read-tokens.ts";
+import type { FigmaStateWriter } from "../application/declare-figma-states.ts";
+import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
 
-const { mode, modifier, token, tokenValue } = schema;
+const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue } = schema;
 
 type Queryable = Pick<PostgresTransaction, "select" | "insert" | "update" | "delete">;
 
@@ -139,4 +141,50 @@ export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTok
       .leftJoin(referenced, eq(referenced.id, tokenValue.referencedTokenId))
       .where(and(eq(token.projectId, projectId), eq(token.status, "validated")))
       .orderBy(asc(token.name), asc(mode.position)),
+});
+
+export const postgresFigmaStateWriter = (db: PostgresDatabase): FigmaStateWriter => ({
+  declare: async ({ states, declaredAt, userId, clientId }) => {
+    await db.orm
+      .insert(tokenFigmaState)
+      .values(
+        states.map(({ tokenId, state }) => ({ tokenId, state, declaredAt, userId, clientId })),
+      )
+      .onConflictDoUpdate({
+        target: tokenFigmaState.tokenId,
+        set: {
+          state: sql`excluded.state`,
+          declaredAt: sql`excluded.declared_at`,
+          userId: sql`excluded.user_id`,
+          clientId: sql`excluded.client_id`,
+        },
+      });
+  },
+});
+
+const FigmaState = z.enum(["synced", "missing_in_figma"]);
+
+export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader => ({
+  figmaStatesOf: async (projectId) => {
+    const rows = await db.orm
+      .select({
+        tokenId: tokenFigmaState.tokenId,
+        state: tokenFigmaState.state,
+        declaredAt: tokenFigmaState.declaredAt,
+        userId: tokenFigmaState.userId,
+        name: identityUser.name,
+        clientId: tokenFigmaState.clientId,
+      })
+      .from(tokenFigmaState)
+      .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+      .innerJoin(identityUser, eq(identityUser.id, tokenFigmaState.userId))
+      .where(eq(token.projectId, projectId));
+    return rows.map(({ tokenId, state, declaredAt, userId, name, clientId }) => ({
+      tokenId,
+      state: FigmaState.parse(state),
+      declaredAt,
+      author: { kind: "member", userId, name },
+      clientId,
+    }));
+  },
 });
