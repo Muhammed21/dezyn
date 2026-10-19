@@ -90,6 +90,12 @@ export const postgresPropositionUnitOfWork = (db: PostgresDatabase): Proposition
             .set({ state: "closed" })
             .where(eq(propositionLot.id, lotId));
         },
+        touchLot: async (lotId, lastWrittenAt) => {
+          await tx
+            .update(propositionLot)
+            .set({ lastWrittenAt })
+            .where(eq(propositionLot.id, lotId));
+        },
         propose: async (propositions) => {
           await tx.insert(proposition).values(
             propositions.map(({ id, lotId, name, kind, token, status, createdAt }) => ({
@@ -138,6 +144,7 @@ export const postgresPropositionReader = (db: PostgresDatabase): PropositionRead
         id: propositionLot.id,
         intention: propositionLot.intention,
         state: propositionLot.state,
+        lastWrittenAt: propositionLot.lastWrittenAt,
         toReview: count(proposition.id),
       })
       .from(propositionLot)

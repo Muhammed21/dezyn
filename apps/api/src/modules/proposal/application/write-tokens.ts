@@ -7,6 +7,7 @@ import {
 } from "../../token/contracts/token-definition.ts";
 import type { CheckTokens, TokenCheck } from "../../token/contracts/token-issues.ts";
 import type { Proposition, PropositionLot } from "../domain/proposition.ts";
+import { liveLotOf } from "./proposition-lots.ts";
 
 export type Writer = {
   readonly projectId: string;
@@ -29,6 +30,7 @@ export interface PropositionStore {
   findOpenLot(writer: Writer): Promise<PropositionLot | undefined>;
   openLotOf(candidate: PropositionLot): Promise<PropositionLot>;
   closeLot(lotId: string): Promise<void>;
+  touchLot(lotId: string, lastWrittenAt: Date): Promise<void>;
   propose(propositions: readonly Proposition[]): Promise<void>;
 }
 
@@ -98,22 +100,22 @@ export const writeTokens =
       await store.replace(replaced.map(({ id }) => id));
       const unchanged = written.filter((entry) => entry.unchanged).map(({ token }) => token.name);
       const changed = written.filter((entry) => !entry.unchanged);
-      if (changed.length === 0) {
-        return ok({
-          lot: (await store.findOpenLot(writer)) ?? null,
-          propositions: [],
-          unchanged,
-          replaced,
-        });
-      }
       const createdAt = now();
-      const lot = await store.openLotOf({
-        id: newId(),
-        ...writer,
-        intention: null,
-        state: "open",
-        openedAt: createdAt,
-      });
+      const live = await liveLotOf(store, { writer, now: createdAt });
+      if (changed.length === 0) {
+        return ok({ lot: live ?? null, propositions: [], unchanged, replaced });
+      }
+      const lot =
+        live ??
+        (await store.openLotOf({
+          id: newId(),
+          ...writer,
+          intention: null,
+          state: "open",
+          openedAt: createdAt,
+          lastWrittenAt: createdAt,
+        }));
+      await store.touchLot(lot.id, createdAt);
       const propositions = changed.map(({ token, current }): Proposition => ({
         id: newId(),
         lotId: lot.id,

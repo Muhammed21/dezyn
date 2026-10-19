@@ -18,6 +18,7 @@ export const propositionLot = pgTable(
     intention: text("intention"),
     state: text("state").notNull(),
     openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
+    lastWrittenAt: timestamp("last_written_at", { withTimezone: true }).notNull(),
   },
   (table) => [
     uniqueIndex("proposition_lot_open_key")

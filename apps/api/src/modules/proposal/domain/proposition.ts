@@ -10,6 +10,7 @@ export type PropositionLot = {
   readonly intention: string | null;
   readonly state: LotState;
   readonly openedAt: Date;
+  readonly lastWrittenAt: Date;
 };
 
 export type Proposition = {

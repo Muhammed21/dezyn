@@ -15,7 +15,8 @@ CREATE TABLE "proposition_lot" (
 	"client_id" text NOT NULL,
 	"intention" text,
 	"state" text NOT NULL,
-	"opened_at" timestamp with time zone NOT NULL
+	"opened_at" timestamp with time zone NOT NULL,
+	"last_written_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "proposition" ADD CONSTRAINT "proposition_lot_id_proposition_lot_id_fk" FOREIGN KEY ("lot_id") REFERENCES "public"."proposition_lot"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -27,8 +28,8 @@ GRANT SELECT, INSERT ON "proposition_lot", "proposition" TO app;
 --> statement-breakpoint
 GRANT UPDATE ("status") ON "proposition" TO app;
 --> statement-breakpoint
--- L'IA ferme ses lots de propositions.
-GRANT UPDATE ("state") ON "proposition_lot" TO app;
+-- Les lots de propositions se ferment et notent la date de leur dernière écriture.
+GRANT UPDATE ("state", "last_written_at") ON "proposition_lot" TO app;
 --> statement-breakpoint
 -- Valider une modification remplace la description du token et ses valeurs par mode.
 GRANT UPDATE ("description") ON "token" TO app;

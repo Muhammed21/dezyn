@@ -7,6 +7,7 @@ import type {
   ValidatedTokenFailure,
   ValidatedTokenWriter,
 } from "../../token/contracts/token-issues.ts";
+import { lotStateAt } from "../domain/proposition-lot.ts";
 import {
   type Decision,
   type Proposition,
@@ -20,6 +21,8 @@ export type BatchSummary = Pick<PropositionLot, "id" | "intention" | "state"> & 
   readonly toReview: number;
 };
 
+export type StoredBatchSummary = BatchSummary & Pick<PropositionLot, "lastWrittenAt">;
+
 export type StoredBatch = PropositionLot & { readonly propositions: readonly Proposition[] };
 
 export type Batch = PropositionLot & {
@@ -29,7 +32,7 @@ export type Batch = PropositionLot & {
 };
 
 export interface PropositionReader {
-  batchesOf(projectId: string): Promise<readonly BatchSummary[]>;
+  batchesOf(projectId: string): Promise<readonly StoredBatchSummary[]>;
   batch(batchId: string): Promise<StoredBatch | undefined>;
   pendingTokensOf(
     projectId: string,
@@ -59,6 +62,8 @@ type Access = {
   readonly memberships: MembershipReader;
 };
 
+type Clocked = { readonly now: () => Date };
+
 const spaceOf = async (
   { projects, memberships }: Access,
   {
@@ -80,7 +85,11 @@ const spaceOf = async (
 };
 
 export const listBatches =
-  ({ propositions, ...access }: Access & { readonly propositions: PropositionReader }) =>
+  ({
+    propositions,
+    now,
+    ...access
+  }: Access & Clocked & { readonly propositions: PropositionReader }) =>
   async ({
     projectId,
     userId,
@@ -91,7 +100,15 @@ export const listBatches =
     if ((await spaceOf(access, { projectId, userId, action: "space.read" })) === undefined) {
       return err("not_found");
     }
-    return ok(await propositions.batchesOf(projectId));
+    const at = now();
+    return ok(
+      (await propositions.batchesOf(projectId)).map(({ id, intention, toReview, ...lot }) => ({
+        id,
+        intention,
+        state: lotStateAt({ lot, now: at }),
+        toReview,
+      })),
+    );
   };
 
 const definitionOf = ({ name, $type, $value, modes, $description }: ValidatedDefinition) => ({
@@ -111,11 +128,13 @@ export const batchOf =
   ({
     propositions,
     validatedTokensOf,
+    now,
     ...access
-  }: Access & {
-    readonly propositions: PropositionReader;
-    readonly validatedTokensOf: ValidatedTokensOf;
-  }) =>
+  }: Access &
+    Clocked & {
+      readonly propositions: PropositionReader;
+      readonly validatedTokensOf: ValidatedTokensOf;
+    }) =>
   async ({
     batchId,
     userId,
@@ -134,6 +153,7 @@ export const batchOf =
     const validated = await validatedTokensOf(batch.projectId);
     return ok({
       ...batch,
+      state: lotStateAt({ lot: batch, now: now() }),
       propositions: batch.propositions.map((proposition) => ({
         ...proposition,
         validated: validatedOf(validated, proposition),

@@ -7,6 +7,7 @@ import { composeModules } from "../compose-modules.ts";
 import { createApp } from "../create-app.ts";
 import type { HistoryWriter } from "../modules/history/contracts/history-writer.ts";
 import { createIdentityAuth } from "../modules/identity/infrastructure/better-auth.ts";
+import type { Clock } from "../platform/clock.ts";
 import type { Mailer } from "../platform/mailer.ts";
 import { createPostgresDatabase, type PostgresDatabase } from "../platform/postgres-database.ts";
 
@@ -38,11 +39,13 @@ export const withIdentityApp = (
     wrapUserCreated = (created) => created,
     mailer = { send: () => Promise.resolve() },
     wrapHistoryWriter,
+    clock,
   }: {
     readonly baseURL?: string;
     readonly wrapUserCreated?: (created: UserCreated) => UserCreated;
     readonly mailer?: Mailer;
     readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
+    readonly clock?: Clock;
   } = {},
 ) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
@@ -54,6 +57,7 @@ export const withIdentityApp = (
         mailer,
         webUrl: WEB_URL,
         wrapHistoryWriter,
+        clock,
       });
       const auth = await createIdentityAuth({
         db,

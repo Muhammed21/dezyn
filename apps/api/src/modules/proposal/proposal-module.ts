@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import type { Clock } from "../../platform/clock.ts";
 import type { PostgresDatabase, PostgresTransaction } from "../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../history/contracts/history-writer.ts";
 import type { ProjectFinder } from "../project/contracts/project.ts";
@@ -15,8 +16,6 @@ import {
   postgresReviewUnitOfWork,
 } from "./infrastructure/postgres-propositions.ts";
 
-const now = () => new Date();
-
 export const propositionReplacerOn = postgresPropositionReplacer;
 
 export const proposalModule = ({
@@ -27,6 +26,7 @@ export const proposalModule = ({
   validatedTokensOf,
   historyWriterOn,
   validatedTokenWriterOn,
+  clock: now,
 }: {
   readonly db: PostgresDatabase;
   readonly memberships: MembershipReader;
@@ -35,12 +35,14 @@ export const proposalModule = ({
   readonly validatedTokensOf: ValidatedTokensOf;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
+  readonly clock: Clock;
 }) => {
   const access = {
     projects,
     memberships,
     validatedTokensOf,
     propositions: postgresPropositionReader(db),
+    now,
   };
   const unitOfWork = postgresPropositionUnitOfWork(db);
   return {
@@ -52,7 +54,7 @@ export const proposalModule = ({
       now,
     }),
     openBatch: openBatch({ unitOfWork, newId: randomUUID, now }),
-    closeBatch: closeBatch({ unitOfWork }),
+    closeBatch: closeBatch({ unitOfWork, now }),
     listBatches: listBatches(access),
     batchOf: batchOf(access),
     reviewProposition: reviewProposition({
