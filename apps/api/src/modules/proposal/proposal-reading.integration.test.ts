@@ -229,7 +229,7 @@ describe("le paramètre de lecture des propositions est strict et entre dans l'h
             expect.objectContaining({
               name: "read_tokens",
               description:
-                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}. Avec includeProposals, rend aussi les propositions en attente, triées par nom, avec leur statut et leur lot.",
+                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}. Un token porte figma, son dernier état Figma déclaré, et duplicates, les noms des autres tokens validés de même type et de même valeur dans chaque mode. Avec includeProposals, rend aussi les propositions en attente, triées par nom, avec leur statut et leur lot.",
               inputSchema: expect.objectContaining({
                 properties: expect.objectContaining({
                   includeProposals: expect.objectContaining({ type: "boolean" }),

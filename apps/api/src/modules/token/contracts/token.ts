@@ -29,6 +29,7 @@ const FigmaStateOutput = z.looseObject({
 export const TokenOutput = DefinitionOutput.extend({
   id: Uuid,
   status: openEnum(["validated"]),
+  duplicates: z.array(z.string()).optional(),
   figma: FigmaStateOutput.optional(),
 });
 

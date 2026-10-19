@@ -2,6 +2,7 @@ import type { ProjectFinder } from "#modules/project/contracts/project.ts";
 import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
+import { duplicatesOf } from "../domain/duplicates.ts";
 import type { FigmaState } from "../domain/figma-declaration.ts";
 import type { ModeReader } from "./add-token.ts";
 
@@ -40,6 +41,7 @@ export type ReadToken = {
   readonly modes?: Readonly<Record<string, unknown>>;
   readonly $description?: string;
   readonly status: "validated";
+  readonly duplicates?: readonly string[];
   readonly figma?: Omit<TokenFigmaState, "tokenId">;
 };
 
@@ -104,9 +106,13 @@ export const readTokens =
       tokens.validatedValuesOf(projectId),
       figmaStates.figmaStatesOf(projectId),
     ]);
+    const read = byToken(values).map((value) => tokenOf(value, figma));
     return {
       modes: projectModes.map(({ name }) => name),
-      tokens: byToken(values).map((value) => tokenOf(value, figma)),
+      tokens: read.map((token) => {
+        const duplicates = duplicatesOf({ token, among: read });
+        return duplicates.length === 0 ? token : { ...token, duplicates };
+      }),
     };
   };
 
