@@ -102,7 +102,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR. Pas de code de produ
 
 **Valeur** : un membre écrit sans aller rejeter d'abord la proposition de l'IA, et il sait ce qu'il a remplacé (ADR 0026 §4).
 **Chemin** : use-case `addToken` → proposition Proposée sur le même nom → statut Remplacée dans son lot, dans la même transaction que le token → réponse qui désigne la proposition.
-**Origine** : tranche 6 du plan « Ajout manuel de tokens », reportée ici (issue #40).
+**Issue** : #40.
 **Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`.
 **Critères d'acceptation** :
 
