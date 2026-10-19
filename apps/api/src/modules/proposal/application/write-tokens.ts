@@ -1,6 +1,7 @@
-import { ok, type Result } from "@repo/result";
+import { err, ok, type Result } from "@repo/result";
 
 import type { TokenDefinition } from "../../token/contracts/token-definition.ts";
+import type { CheckTokens, TokenCheck } from "../../token/contracts/token-issues.ts";
 import type { Proposition, PropositionLot } from "../domain/proposition.ts";
 
 export type Writer = {
@@ -23,21 +24,34 @@ export type Written = {
   readonly propositions: readonly Proposition[];
 };
 
+export type UncheckedTokens = {
+  readonly code: "unchecked_tokens";
+  readonly checks: readonly TokenCheck[];
+};
+
 export const writeTokens =
   ({
+    checkTokens,
     unitOfWork,
     newId,
     now,
   }: {
+    readonly checkTokens: CheckTokens;
     readonly unitOfWork: PropositionUnitOfWork;
     readonly newId: () => string;
     readonly now: () => Date;
   }) =>
-  ({
+  async ({
     tokens,
     ...writer
-  }: Writer & { readonly tokens: readonly TokenDefinition[] }): Promise<Result<Written, never>> =>
-    unitOfWork.run(async (store) => {
+  }: Writer & { readonly tokens: readonly TokenDefinition[] }): Promise<
+    Result<Written, UncheckedTokens>
+  > => {
+    const checks = await checkTokens({ projectId: writer.projectId, tokens });
+    if (checks.length > 0) {
+      return err({ code: "unchecked_tokens", checks });
+    }
+    return unitOfWork.run(async (store) => {
       const createdAt = now();
       const lot = await store.openLotOf({
         id: newId(),
@@ -58,3 +72,4 @@ export const writeTokens =
       await store.propose(propositions);
       return ok({ lot, propositions });
     });
+  };

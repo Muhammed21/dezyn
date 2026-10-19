@@ -37,6 +37,6 @@ export const composeModules = ({
     projects: projects.finder,
     historyWriterOn: writerOn,
   });
-  const proposals = proposalModule({ db });
+  const proposals = proposalModule({ db, checkTokens: tokens.checkTokens });
   return { spaces, projects, history, tokens, proposals };
 };

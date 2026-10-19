@@ -76,3 +76,41 @@ describe("une référence vise un token validé du même type, dans le même pro
     ).toEqual({ refusal: "type_mismatch" });
   });
 });
+
+describe("une référence peut viser un token de la même écriture de l'IA", () => {
+  it("résout la référence vers un token écrit avec elle, sans token validé", () => {
+    expect(
+      resolveReference({
+        name: "couleur.bleu.500",
+        $type: "color",
+        tokens: [],
+        written: [{ name: "couleur.bleu.500", $type: "color" }],
+      }),
+    ).toEqual({ written: "couleur.bleu.500" });
+  });
+
+  it("refuse un token écrit avec elle d'un autre type", () => {
+    expect(
+      resolveReference({
+        name: "espacement.moyen",
+        $type: "color",
+        tokens: [],
+        written: [{ name: "espacement.moyen", $type: "dimension" }],
+      }),
+    ).toEqual({ refusal: "type_mismatch" });
+  });
+
+  it("cherche parmi les tokens écrits celui qui porte le nom", () => {
+    expect(
+      resolveReference({
+        name: "couleur.bleu.500",
+        $type: "color",
+        tokens: [makeProjectToken({ name: "couleur.bleu.500", status: "proposed" })],
+        written: [
+          { name: "couleur.bleu.700", $type: "color" },
+          { name: "couleur.bleu.500", $type: "color" },
+        ],
+      }),
+    ).toEqual({ written: "couleur.bleu.500" });
+  });
+});

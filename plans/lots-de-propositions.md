@@ -41,6 +41,24 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR. Pas de code de produ
 **REFACTOR** : si utile.
 **Terminé quand** : critères remplis, rapport de mutation relu, commit approuvé.
 
+### Tranche 1 bis : l'IA reçoit les refus de modes et de références dès sa proposition
+
+**Valeur** : l'éditeur ne relit que des propositions valables, et l'IA corrige pendant sa session (ADR 0010 §4).
+**Chemin** : outil `write_tokens` → contrôles du module `token` exposés par `contracts/` (complétude des modes, résolution des références) → refus de tout l'appel, token par token.
+**Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`.
+**Critères d'acceptation** :
+
+- Sur un projet à modes, un token sans valeur pour un mode, ou avec un mode inconnu, refuse l'appel en nommant le token et le mode, sans lot.
+- Une référence vers un token inexistant, non validé ou d'un autre type refuse l'appel en nommant le token, sans lot.
+- Une référence vers un token de la même écriture, du même type, est acceptée : un appel propose un primitif et le sémantique qui le référence.
+
+**RED** : tests d'intégration par le transport MCP, test unitaire de la résolution avec les tokens de l'écriture. Mutants attendus : la recherche parmi les tokens de l'écriture, le contrôle du type.
+**GREEN** : contrôles de `addToken` partagés par `token/contracts/`, appelés par `write_tokens`.
+**MUTATE** : skill `mutation-testing`, rapport.
+**KILL MUTANTS** : renforcer les tests sur les survivants, demander en cas de doute.
+**REFACTOR** : si utile.
+**Terminé quand** : critères remplis, rapport de mutation relu, commit approuvé.
+
 ### Tranche 2 : l'éditeur valide ou rejette une proposition
 
 **Valeur** : l'éditeur fait entrer une écriture de l'IA dans le design system, ou l'écarte.

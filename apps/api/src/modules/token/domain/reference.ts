@@ -16,15 +16,28 @@ export const aliasName = (value: string): string | undefined => {
   return name === undefined || tokenNameRefusal(name) !== undefined ? undefined : name;
 };
 
+export type WrittenToken = { readonly name: string; readonly $type: string };
+
+export type Resolution =
+  | { readonly tokenId: string }
+  | { readonly written: string }
+  | { readonly refusal: ReferenceRefusal };
+
 export const resolveReference = ({
   name,
   $type,
   tokens,
+  written = [],
 }: {
   readonly name: string;
   readonly $type: string;
   readonly tokens: readonly ProjectToken[];
-}): { readonly tokenId: string } | { readonly refusal: ReferenceRefusal } => {
+  readonly written?: readonly WrittenToken[];
+}): Resolution => {
+  const sibling = written.find((token) => token.name === name);
+  if (sibling !== undefined) {
+    return sibling.$type === $type ? { written: name } : { refusal: "type_mismatch" };
+  }
   const target = tokens.find((token) => token.name === name);
   if (target === undefined) {
     return { refusal: "unknown_reference" };

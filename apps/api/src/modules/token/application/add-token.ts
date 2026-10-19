@@ -9,6 +9,7 @@ import {
   type ProjectToken,
   type ReferenceRefusal,
   resolveReference,
+  type WrittenToken,
 } from "../domain/reference.ts";
 import type { Token, TokenDefinition } from "../domain/token.ts";
 
@@ -66,13 +67,21 @@ type Resolved = PlacedValue & {
 
 const resolved = (
   placed: readonly PlacedValue[],
-  { $type, tokens }: { readonly $type: string; readonly tokens: readonly ProjectToken[] },
+  {
+    $type,
+    tokens,
+    written,
+  }: {
+    readonly $type: string;
+    readonly tokens: readonly ProjectToken[];
+    readonly written: readonly WrittenToken[];
+  },
 ): readonly Resolved[] =>
   placed.map((value) => ({
     ...value,
     resolution:
       typeof value.value === "string"
-        ? resolveReference({ name: aliasName(value.value) ?? "", $type, tokens })
+        ? resolveReference({ name: aliasName(value.value) ?? "", $type, tokens, written })
         : undefined,
   }));
 
@@ -91,6 +100,40 @@ const modeValueOf = ({ mode, value, resolution }: Resolved): ModeValue => {
     value: referencedTokenId === null ? value : null,
     referencedTokenId,
   };
+};
+
+export const checkedValues = (
+  token: TokenDefinition,
+  {
+    projectModes,
+    tokens,
+    written,
+  }: {
+    readonly projectModes: readonly ProjectMode[];
+    readonly tokens: readonly ProjectToken[];
+    readonly written: readonly WrittenToken[];
+  },
+): Result<readonly Resolved[], InvalidModes | InvalidReferences> => {
+  const refusals = modeRefusals({
+    projectModes: projectModes.map(({ name }) => name),
+    sent: {
+      value: token.$value !== undefined,
+      modes: token.modes === undefined ? undefined : Object.keys(token.modes),
+    },
+  });
+  if (refusals.length > 0) {
+    return err({ code: "invalid_modes", refusals });
+  }
+  const values = resolved(placedValuesOf(token, projectModes), {
+    $type: token.$type,
+    tokens,
+    written,
+  });
+  const referenceRefusals = referenceRefusalsOf(values);
+  if (referenceRefusals.length > 0) {
+    return err({ code: "invalid_references", refusals: referenceRefusals });
+  }
+  return ok(values);
 };
 
 export const addToken =
@@ -130,25 +173,15 @@ export const addToken =
     if (!can({ membership, action: "token.create" })) {
       return err("not_found");
     }
-    const projectModes = await modes.modesOf(projectId);
-    const refusals = modeRefusals({
-      projectModes: projectModes.map(({ name }) => name),
-      sent: {
-        value: token.$value !== undefined,
-        modes: token.modes === undefined ? undefined : Object.keys(token.modes),
-      },
-    });
-    if (refusals.length > 0) {
-      return err({ code: "invalid_modes", refusals });
-    }
-    const values = resolved(placedValuesOf(token, projectModes), {
-      $type: token.$type,
+    const checked = checkedValues(token, {
+      projectModes: await modes.modesOf(projectId),
       tokens: await projectTokens.tokensOf(projectId),
+      written: [],
     });
-    const referenceRefusals = referenceRefusalsOf(values);
-    if (referenceRefusals.length > 0) {
-      return err({ code: "invalid_references", refusals: referenceRefusals });
+    if (!checked.ok) {
+      return checked;
     }
+    const values = checked.value;
     const added: Token = {
       ...token,
       id: newId(),

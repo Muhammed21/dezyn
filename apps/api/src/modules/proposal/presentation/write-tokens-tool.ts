@@ -6,13 +6,14 @@ import { err, type Result } from "@repo/result";
 
 import type { McpCall } from "../../../platform/mcp.ts";
 import { TokenDefinitionInput } from "../../token/contracts/token-definition.ts";
+import { issuesOfCheck } from "../../token/contracts/token-issues.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
-import type { Written } from "../application/write-tokens.ts";
+import type { UncheckedTokens, Written } from "../application/write-tokens.ts";
 import { WrittenTokensOutput } from "../contracts/proposition.ts";
 
 type InvalidTokens = { readonly code: "invalid_tokens"; readonly issues: readonly string[] };
 
-type WriteFailure = "not_found" | "history_unavailable" | InvalidTokens;
+type WriteFailure = "not_found" | "history_unavailable" | InvalidTokens | UncheckedTokens;
 
 export type RecordProjectCall = (call: {
   readonly tool: string;
@@ -21,7 +22,7 @@ export type RecordProjectCall = (call: {
   readonly clientId: string;
   readonly correlationId: string;
   readonly input: Readonly<Record<string, unknown>>;
-  readonly run: () => Promise<Result<Written, InvalidTokens>>;
+  readonly run: () => Promise<Result<Written, InvalidTokens | UncheckedTokens>>;
 }) => Promise<Result<Written, WriteFailure>>;
 
 const ERROR_TEXT: Readonly<Record<"not_found" | "history_unavailable", string>> = {
@@ -39,8 +40,15 @@ const pathOf = (path: readonly PropertyKey[]): string =>
     return `${joined}.${String(key)}`;
   }, "tokens");
 
+const issuesOf = (failure: InvalidTokens | UncheckedTokens): readonly string[] =>
+  failure.code === "invalid_tokens"
+    ? failure.issues
+    : failure.checks.flatMap(({ index, failure: check }) =>
+        issuesOfCheck(check).map(({ path, message }) => `tokens[${index}].${path} : ${message}`),
+      );
+
 const errorTextOf = (failure: WriteFailure): string =>
-  typeof failure === "string" ? ERROR_TEXT[failure] : failure.issues.join("\n");
+  typeof failure === "string" ? ERROR_TEXT[failure] : issuesOf(failure).join("\n");
 
 const writtenOutputOf = ({ lot, propositions }: Written) => ({
   lot: { id: lot.id, state: lot.state },

@@ -10,8 +10,8 @@ import {
   obtainAccessToken,
   withIdentityApp,
 } from "../../testing/authorization-flow.ts";
-import { seedProject } from "../../testing/project-fixtures.ts";
-import { historyOf, makeColorToken } from "../../testing/token-fixtures.ts";
+import { seedModes, seedProject } from "../../testing/project-fixtures.ts";
+import { addToken, historyOf, makeColorToken, PRIMARY_BLUE } from "../../testing/token-fixtures.ts";
 
 const CORRELATION_ID = "proposition-de-tokens-1";
 
@@ -247,6 +247,103 @@ describe("write_tokens s'annonce à l'IA", () => {
             }),
           ]),
         },
+      });
+    }));
+});
+
+describe("write_tokens refuse dès la proposition ce que l'ajout d'un membre refuserait (ADR 0010 §4)", () => {
+  it("sur un projet clair et sombre, un token sans valeur sombre refuse l'appel, sans lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["clair", "sombre"] });
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [{ name: "couleur.fond", $type: "color", modes: { clair: PRIMARY_BLUE } }],
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [{ type: "text", text: "tokens[0].modes.sombre : Valeur manquante pour ce mode" }],
+      });
+      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+    }));
+
+  it("une référence vers un token inexistant refuse l'appel en nommant le token, sans lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [makeColorToken({ $value: "{couleur.inconnue}" })],
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [{ type: "text", text: "tokens[0].$value : Référence vers un token inexistant" }],
+      });
+      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+    }));
+
+  it("une référence vers un token validé du projet est acceptée", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await addToken(app, {
+        accessToken,
+        projectId,
+        token: makeColorToken({ name: "couleur.bleu.500" }),
+      });
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [makeColorToken({ $value: "{couleur.bleu.500}" })],
+      });
+
+      expect(result.structuredContent.propositions).toMatchObject([
+        { name: "couleur.fond.primaire", status: "proposed" },
+      ]);
+    }));
+
+  it("un appel propose un primitif et le sémantique qui le référence", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [
+          makeColorToken({ name: "couleur.fond.primaire", $value: "{couleur.bleu.500}" }),
+          makeColorToken({ name: "couleur.bleu.500" }),
+        ],
+      });
+
+      expect(result.structuredContent.propositions).toMatchObject([
+        { name: "couleur.fond.primaire", status: "proposed" },
+        { name: "couleur.bleu.500", status: "proposed" },
+      ]);
+    }));
+
+  it("une référence vers un token de la même écriture d'un autre type refuse l'appel", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: [
+          { name: "espacement.moyen", $type: "dimension", $value: { value: 16, unit: "px" } },
+          makeColorToken({ $value: "{espacement.moyen}" }),
+        ],
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [
+          { type: "text", text: "tokens[1].$value : Référence vers un token d'un autre type" },
+        ],
       });
     }));
 });
