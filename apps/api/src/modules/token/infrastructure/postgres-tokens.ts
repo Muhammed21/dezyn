@@ -1,10 +1,12 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { schema } from "@repo/db";
 
 import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
 import type { ModeReader, ProjectTokenReader, TokenUnitOfWork } from "../application/add-token.ts";
+import type { ValidatedTokenReader } from "../application/read-tokens.ts";
 
 const { mode, modifier, token, tokenValue } = schema;
 
@@ -71,4 +73,26 @@ export const postgresTokenUnitOfWork = ({
         history: historyWriterOn(tx),
       }),
     ),
+});
+
+const referenced = alias(token, "referenced");
+
+export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTokenReader => ({
+  validatedValuesOf: (projectId) =>
+    db.orm
+      .select({
+        tokenId: token.id,
+        name: token.name,
+        $type: token.type,
+        $description: token.description,
+        mode: mode.name,
+        value: tokenValue.value,
+        referencedName: referenced.name,
+      })
+      .from(token)
+      .innerJoin(tokenValue, eq(tokenValue.tokenId, token.id))
+      .leftJoin(mode, eq(mode.id, tokenValue.modeId))
+      .leftJoin(referenced, eq(referenced.id, tokenValue.referencedTokenId))
+      .where(and(eq(token.projectId, projectId), eq(token.status, "validated")))
+      .orderBy(asc(token.name), asc(mode.position)),
 });

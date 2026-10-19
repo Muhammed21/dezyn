@@ -6,7 +6,7 @@ import { Uuid } from "@repo/contracts";
 import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
 import { type Problem, problemResponse } from "../../../platform/problem.ts";
 import { validate } from "../../../platform/validate.ts";
-import type { TokenUseCases } from "../application/add-token.ts";
+import type { TokenUseCases } from "../application/token-use-cases.ts";
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
 import type { ModeRefusal } from "../domain/mode-completeness.ts";
 import { aliasName, type ReferenceRefusal } from "../domain/reference.ts";

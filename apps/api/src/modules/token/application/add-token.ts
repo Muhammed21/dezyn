@@ -174,7 +174,3 @@ export const addToken =
       return ok(added);
     });
   };
-
-export type TokenUseCases = {
-  readonly addToken: ReturnType<typeof addToken>;
-};

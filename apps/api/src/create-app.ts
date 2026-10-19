@@ -12,7 +12,8 @@ import type { SpaceUseCases } from "./modules/space/application/spaces.ts";
 import { invitationsRoutes } from "./modules/space/presentation/invitations-routes.ts";
 import { registerListSpaces } from "./modules/space/presentation/list-spaces-tool.ts";
 import { spacesRoutes } from "./modules/space/presentation/spaces-routes.ts";
-import type { TokenUseCases } from "./modules/token/application/add-token.ts";
+import type { TokenUseCases } from "./modules/token/application/token-use-cases.ts";
+import { registerReadTokens } from "./modules/token/presentation/read-tokens-tool.ts";
 import { tokensRoutes } from "./modules/token/presentation/tokens-routes.ts";
 import { type AuthenticatedEnv, requireAccessToken } from "./platform/access-token.ts";
 import type { Database } from "./platform/database.ts";
@@ -53,6 +54,10 @@ export const createApp = ({
   );
   const registerSpaceTools = registerListSpaces(spaces);
   const registerHistoryTools = registerReadHistory(history);
+  const registerTokenTools = registerReadTokens({
+    readTokens: tokens.readTokens,
+    recordProjectCall: history.recordProjectCall,
+  });
   v1.post(
     "/mcp",
     mcpEndpoint({
@@ -60,6 +65,7 @@ export const createApp = ({
         registerWhoami(server, call);
         registerSpaceTools(server, call);
         registerHistoryTools(server, call);
+        registerTokenTools(server, call);
       },
     }),
   );
