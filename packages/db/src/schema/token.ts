@@ -1,4 +1,15 @@
-import { integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  type AnyPgColumn,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { project } from "./project.ts";
 
@@ -51,9 +62,14 @@ export const tokenValue = pgTable(
       .notNull()
       .references(() => token.id),
     modeId: uuid("mode_id").references(() => mode.id),
-    value: jsonb("value").notNull(),
+    value: jsonb("value"),
+    referencedTokenId: uuid("referenced_token_id").references((): AnyPgColumn => token.id),
   },
   (table) => [
     unique("token_value_token_id_mode_id_key").on(table.tokenId, table.modeId).nullsNotDistinct(),
+    check(
+      "token_value_value_or_reference_check",
+      sql`(${table.value} IS NULL) <> (${table.referencedTokenId} IS NULL)`,
+    ),
   ],
 );

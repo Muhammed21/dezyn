@@ -5,7 +5,11 @@ import type { HistoryWriter } from "../history/contracts/history-writer.ts";
 import type { ProjectFinder } from "../project/contracts/project.ts";
 import type { MembershipReader } from "../space/contracts/membership.ts";
 import { addToken } from "./application/add-token.ts";
-import { postgresModeReader, postgresTokenUnitOfWork } from "./infrastructure/postgres-tokens.ts";
+import {
+  postgresModeReader,
+  postgresProjectTokenReader,
+  postgresTokenUnitOfWork,
+} from "./infrastructure/postgres-tokens.ts";
 
 const now = () => new Date();
 
@@ -24,6 +28,7 @@ export const tokenModule = ({
     projects,
     memberships,
     modes: postgresModeReader(db),
+    projectTokens: postgresProjectTokenReader(db),
     unitOfWork: postgresTokenUnitOfWork({ db, historyWriterOn, newId: randomUUID }),
     newId: randomUUID,
     now,

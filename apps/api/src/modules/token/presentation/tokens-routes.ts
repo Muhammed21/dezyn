@@ -9,6 +9,7 @@ import { validate } from "../../../platform/validate.ts";
 import type { TokenUseCases } from "../application/add-token.ts";
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
 import type { ModeRefusal } from "../domain/mode-completeness.ts";
+import { aliasName, type ReferenceRefusal } from "../domain/reference.ts";
 import { type Shadow, type ShadowRefusal, shadowRefusals } from "../domain/shadow.ts";
 import { type TokenNameRefusal, tokenNameRefusal } from "../domain/token-name.ts";
 import type { Token, TokenDefinition } from "../domain/token.ts";
@@ -92,19 +93,25 @@ const sentValues = <Value>({
   $value,
   modes = {},
 }: {
-  readonly $value?: Value;
-  readonly modes?: Readonly<Record<string, Value>>;
-}): readonly { readonly prefix: readonly string[]; readonly value: Value }[] => [
+  readonly $value?: Value | string;
+  readonly modes?: Readonly<Record<string, Value | string>>;
+}): readonly { readonly prefix: readonly string[]; readonly value: Value | string }[] => [
   ...($value === undefined ? [] : [{ prefix: ["$value"], value: $value }]),
   ...Object.entries(modes).map(([mode, value]) => ({ prefix: ["modes", mode], value })),
 ];
 
 const issuesIn = <Value>(
-  token: { readonly $value?: Value; readonly modes?: Readonly<Record<string, Value>> },
+  token: {
+    readonly $value?: Value | string;
+    readonly modes?: Readonly<Record<string, Value | string>>;
+  },
   issuesOfValue: (value: Value) => readonly ValueIssue[],
 ): readonly ValueIssue[] =>
   sentValues(token).flatMap(({ prefix, value }) =>
-    issuesOfValue(value).map(({ path, message }) => ({ path: [...prefix, ...path], message })),
+    (typeof value === "string" ? [] : issuesOfValue(value)).map(({ path, message }) => ({
+      path: [...prefix, ...path],
+      message,
+    })),
   );
 
 const valueIssues = (token: TokenDefinition): readonly ValueIssue[] => {
@@ -174,12 +181,31 @@ const oneOrMany = <Item extends z.ZodType>(item: Item) => {
 
 const ShadowRequest = oneOrMany(ShadowLayerRequest);
 
+const ALIAS_FORMAT = "Référence attendue au format {nom.du.token}";
+
+const aliasOr = <Item extends z.ZodType>(item: Item) =>
+  z.unknown().transform((value, context): z.output<Item> | string => {
+    if (typeof value === "string") {
+      if (aliasName(value) === undefined) {
+        context.addIssue({ code: "custom", message: ALIAS_FORMAT });
+        return z.NEVER;
+      }
+      return value;
+    }
+    const parsed = item.safeParse(value);
+    if (!parsed.success) {
+      parsed.error.issues.forEach((issue) => context.addIssue({ ...issue }));
+      return z.NEVER;
+    }
+    return parsed.data;
+  });
+
 const typed = <Type extends string, Value extends z.ZodType>(type: Type, value: Value) =>
   z.strictObject({
     name: z.string(),
     $type: z.literal(type),
-    $value: value.optional(),
-    modes: z.record(z.string(), value).optional(),
+    $value: aliasOr(value).optional(),
+    modes: z.record(z.string(), aliasOr(value)).optional(),
     $description: z.string().optional(),
   });
 
@@ -199,6 +225,23 @@ const TokenRequest = z
       context.addIssue({ code: "custom", path: [...path], message });
     });
   });
+
+const REFERENCE_MESSAGES: Readonly<Record<ReferenceRefusal, string>> = {
+  unknown_reference: "Référence vers un token inexistant",
+  unvalidated_reference: "Référence vers un token non validé",
+  type_mismatch: "Référence vers un token d'un autre type",
+};
+
+const referenceIssueOf = ({
+  mode,
+  refusal,
+}: {
+  readonly mode?: string;
+  readonly refusal: ReferenceRefusal;
+}) => ({
+  path: mode === undefined ? "$value" : `modes.${mode}`,
+  message: REFERENCE_MESSAGES[refusal],
+});
 
 const tokenOutputOf = ({ id, name, $type, $value, modes, $description, status }: Token) => ({
   id,
@@ -243,6 +286,9 @@ export const tokensRoutes = ({ addToken }: TokenUseCases) =>
           c,
           invalidRequest([{ path: "name", message: "Nom déjà pris dans le projet" }]),
         );
+      }
+      if (added.error.code === "invalid_references") {
+        return problemResponse(c, invalidRequest(added.error.refusals.map(referenceIssueOf)));
       }
       return problemResponse(c, invalidRequest(added.error.refusals.map(modeIssueOf)));
     },

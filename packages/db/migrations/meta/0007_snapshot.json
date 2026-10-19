@@ -1,5 +1,5 @@
 {
-  "id": "eef9ddac-d61a-4d2f-8ad4-6b01bfb340a9",
+  "id": "8eea578c-c4bc-425d-8a3e-c001f29aa20c",
   "prevId": "90792b70-e318-4e15-8c54-24cee40fc682",
   "version": "7",
   "dialect": "postgresql",
@@ -2156,7 +2156,13 @@
           "name": "value",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "referenced_token_id": {
+          "name": "referenced_token_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -2178,6 +2184,15 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "token_value_referenced_token_id_token_id_fk": {
+          "name": "token_value_referenced_token_id_token_id_fk",
+          "tableFrom": "token_value",
+          "tableTo": "token",
+          "columnsFrom": ["referenced_token_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2189,7 +2204,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "token_value_value_or_reference_check": {
+          "name": "token_value_value_or_reference_check",
+          "value": "(\"token_value\".\"value\" IS NULL) <> (\"token_value\".\"referenced_token_id\" IS NULL)"
+        }
+      },
       "isRLSEnabled": false
     }
   },

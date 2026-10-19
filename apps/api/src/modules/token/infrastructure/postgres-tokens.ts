@@ -4,9 +4,17 @@ import { schema } from "@repo/db";
 
 import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
-import type { ModeReader, TokenUnitOfWork } from "../application/add-token.ts";
+import type { ModeReader, ProjectTokenReader, TokenUnitOfWork } from "../application/add-token.ts";
 
 const { mode, modifier, token, tokenValue } = schema;
+
+export const postgresProjectTokenReader = (db: PostgresDatabase): ProjectTokenReader => ({
+  tokensOf: (projectId) =>
+    db.orm
+      .select({ id: token.id, name: token.name, $type: token.type, status: token.status })
+      .from(token)
+      .where(eq(token.projectId, projectId)),
+});
 
 export const postgresModeReader = (db: PostgresDatabase): ModeReader => ({
   modesOf: (projectId) =>
@@ -49,11 +57,12 @@ export const postgresTokenUnitOfWork = ({
               return "name_taken";
             }
             await tx.insert(tokenValue).values(
-              values.map(({ modeId, value }) => ({
+              values.map(({ modeId, value, referencedTokenId }) => ({
                 id: newId(),
                 tokenId: added.id,
                 modeId,
                 value,
+                referencedTokenId,
               })),
             );
             return "created";

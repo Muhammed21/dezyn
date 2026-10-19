@@ -1,3 +1,8 @@
+import { randomUUID } from "node:crypto";
+
+import { schema } from "@repo/db";
+
+import type { PostgresDatabase } from "../platform/postgres-database.ts";
 import { type App, BASE_URL } from "./authorization-flow.ts";
 
 export const ADDITION_CORRELATION_ID = "ajout-du-token-1";
@@ -44,3 +49,17 @@ export const historyOf = async (
   const { entries } = await response.json();
   return entries;
 };
+
+export const seedProposedToken = (
+  db: PostgresDatabase,
+  { projectId, name }: { readonly projectId: string; readonly name: string },
+) =>
+  db.orm.insert(schema.token).values({
+    id: randomUUID(),
+    projectId,
+    name,
+    type: "color",
+    description: null,
+    status: "proposed",
+    createdAt: new Date(),
+  });
