@@ -14,6 +14,7 @@ Toute écriture de l'IA sur un token est une proposition, rangée dans un lot de
 - [ ] Une écriture identique à la valeur validée ne crée rien ; une nouvelle écriture ou le retour à la valeur validée remplace la proposition en attente (ADR 0013 §5, §6, §8).
 - [ ] L'IA ouvre et ferme un lot avec son intention ; sans lot ouvert, un lot s'ouvre automatiquement ; un lot se ferme après 30 minutes sans écriture.
 - [ ] Un éditeur valide ou rejette une proposition, et valide en entier un lot fermé, en rejetant certaines propositions.
+- [ ] L'ajout d'un membre fait passer à Remplacée la proposition en attente sur le même nom, et la réponse la désigne (ADR 0026 §4).
 - [ ] Chaque écriture de l'IA, ouverture, fermeture, validation et rejet entre dans l'historique du projet.
 
 ## Tranches
@@ -92,6 +93,25 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR. Pas de code de produ
 
 **RED** : tests d'intégration du remplacement entre deux lots et du retour à la valeur validée. Mutants attendus : le filtre « encore Proposée », la création après remplacement.
 **GREEN** : remplacement dans le use-case d'écriture, exposé au module `token` pour l'ajout manuel (ADR 0026 §4).
+**MUTATE** : skill `mutation-testing`, rapport.
+**KILL MUTANTS** : renforcer les tests sur les survivants, demander en cas de doute.
+**REFACTOR** : si utile.
+**Terminé quand** : critères remplis, rapport de mutation relu, commit approuvé.
+
+### Tranche 4 bis : l'ajout d'un membre remplace la proposition en attente sur le même nom
+
+**Valeur** : un membre écrit sans aller rejeter d'abord la proposition de l'IA, et il sait ce qu'il a remplacé (ADR 0026 §4).
+**Chemin** : use-case `addToken` → proposition Proposée sur le même nom → statut Remplacée dans son lot, dans la même transaction que le token → réponse qui désigne la proposition.
+**Origine** : tranche 6 du plan « Ajout manuel de tokens », reportée ici (issue #40).
+**Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`.
+**Critères d'acceptation** :
+
+- Avec une proposition en attente sur le même nom, l'ajout réussit, la proposition passe à Remplacée et la réponse la désigne.
+- La proposition remplacée reste visible dans son lot et dans l'historique.
+- Sans proposition en attente, la réponse ne désigne rien.
+
+**RED** : test d'intégration avec une proposition préparée par l'outil MCP d'écriture des tokens. Mutants attendus : le filtre sur le statut Proposée, la présence de la proposition dans la réponse.
+**GREEN** : appel au module des propositions depuis `addToken`, dans l'unité de travail.
 **MUTATE** : skill `mutation-testing`, rapport.
 **KILL MUTANTS** : renforcer les tests sur les survivants, demander en cas de doute.
 **REFACTOR** : si utile.
