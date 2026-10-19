@@ -5,26 +5,20 @@ import { Uuid } from "@repo/contracts";
 import { err, ok, type Result } from "@repo/result";
 
 import type { McpCall } from "../../../platform/mcp.ts";
+import {
+  RECORD_FAILURE_TEXT,
+  type RecordFailure,
+  type RecordProjectCall,
+} from "../../../platform/project-call.ts";
 import type { ClosedBatch, OpenedBatch } from "../application/proposal-batches.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
 import { ClosedBatchOutput, OpenedBatchOutput } from "../contracts/proposal.ts";
 import type { ProposalBatch } from "../domain/proposal.ts";
 
-type BatchFailure = "not_found" | "history_unavailable" | "invalid_intent";
-
-type RecordProjectCall = <T, E>(call: {
-  readonly tool: string;
-  readonly projectId: string;
-  readonly userId: string;
-  readonly clientId: string;
-  readonly correlationId: string;
-  readonly input: Readonly<Record<string, unknown>>;
-  readonly run: () => Promise<Result<T, E>>;
-}) => Promise<Result<T, E | "not_found" | "history_unavailable">>;
+type BatchFailure = RecordFailure | "invalid_intent";
 
 const ERROR_TEXT: Readonly<Record<BatchFailure, string>> = {
-  not_found: "Projet introuvable",
-  history_unavailable: "Historique indisponible",
+  ...RECORD_FAILURE_TEXT,
   invalid_intent: "intent : Intention requise",
 };
 

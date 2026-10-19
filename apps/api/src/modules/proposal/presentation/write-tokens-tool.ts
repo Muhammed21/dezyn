@@ -5,6 +5,11 @@ import { Uuid } from "@repo/contracts";
 import { err, type Result } from "@repo/result";
 
 import type { McpCall } from "../../../platform/mcp.ts";
+import {
+  RECORD_FAILURE_TEXT,
+  type RecordFailure,
+  type RecordProjectCall,
+} from "../../../platform/project-call.ts";
 import { TokenDefinitionInput } from "../../token/contracts/token-definition.ts";
 import { issuesOfCheck } from "../../token/contracts/token-issues.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
@@ -13,22 +18,7 @@ import { WrittenTokensOutput } from "../contracts/proposal.ts";
 
 type InvalidTokens = { readonly code: "invalid_tokens"; readonly issues: readonly string[] };
 
-type WriteFailure = "not_found" | "history_unavailable" | InvalidTokens | UncheckedTokens;
-
-export type RecordProjectCall = (call: {
-  readonly tool: string;
-  readonly projectId: string;
-  readonly userId: string;
-  readonly clientId: string;
-  readonly correlationId: string;
-  readonly input: Readonly<Record<string, unknown>>;
-  readonly run: () => Promise<Result<Written, InvalidTokens | UncheckedTokens>>;
-}) => Promise<Result<Written, WriteFailure>>;
-
-const ERROR_TEXT: Readonly<Record<"not_found" | "history_unavailable", string>> = {
-  not_found: "Projet introuvable",
-  history_unavailable: "Historique indisponible",
-};
+type WriteFailure = RecordFailure | InvalidTokens | UncheckedTokens;
 
 const TokensInput = z.array(TokenDefinitionInput).min(1);
 
@@ -48,7 +38,7 @@ const issuesOf = (failure: InvalidTokens | UncheckedTokens): readonly string[] =
       );
 
 const errorTextOf = (failure: WriteFailure): string =>
-  typeof failure === "string" ? ERROR_TEXT[failure] : issuesOf(failure).join("\n");
+  typeof failure === "string" ? RECORD_FAILURE_TEXT[failure] : issuesOf(failure).join("\n");
 
 const writtenOutputOf = ({ batch, proposals, unchanged, replaced }: Written) => ({
   batch: batch === null ? null : { id: batch.id, state: batch.state },
@@ -79,7 +69,7 @@ export const registerWriteTokens =
           clientId: identity.clientId,
           correlationId,
           input: { tokens },
-          run: async () => {
+          run: async (): Promise<Result<Written, InvalidTokens | UncheckedTokens>> => {
             const parsed = TokensInput.safeParse(tokens);
             if (!parsed.success) {
               return err({

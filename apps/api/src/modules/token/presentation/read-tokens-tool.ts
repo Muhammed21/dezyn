@@ -5,12 +5,11 @@ import { Uuid } from "@repo/contracts";
 import { ok, type Result } from "@repo/result";
 
 import type { McpCall } from "../../../platform/mcp.ts";
+import { RECORD_FAILURE_TEXT, type RecordProjectCall } from "../../../platform/project-call.ts";
 import type { ProjectTokens } from "../application/read-tokens.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import type { TokenDefinition } from "../contracts/token-definition.ts";
 import { TokensOutput } from "../contracts/token.ts";
-
-type ReadFailure = "not_found" | "history_unavailable";
 
 export type PendingProposal = {
   readonly id: string;
@@ -24,21 +23,6 @@ export type PendingProposal = {
 export type PendingProposalsOf = (projectId: string) => Promise<readonly PendingProposal[]>;
 
 type ReadTokens = ProjectTokens & { readonly proposals?: readonly PendingProposal[] };
-
-export type RecordProjectCall = (call: {
-  readonly tool: string;
-  readonly projectId: string;
-  readonly userId: string;
-  readonly clientId: string;
-  readonly correlationId: string;
-  readonly input: Readonly<Record<string, unknown>>;
-  readonly run: () => Promise<Result<ReadTokens, never>>;
-}) => Promise<Result<ReadTokens, ReadFailure>>;
-
-const ERROR_TEXT: Readonly<Record<ReadFailure, string>> = {
-  not_found: "Projet introuvable",
-  history_unavailable: "Historique indisponible",
-};
 
 export const registerReadTokens =
   ({
@@ -66,7 +50,7 @@ export const registerReadTokens =
           clientId: identity.clientId,
           correlationId,
           input: { includeProposals },
-          run: async () => {
+          run: async (): Promise<Result<ReadTokens, never>> => {
             const tokens = await readTokens(projectId);
             return ok(
               includeProposals === true
@@ -76,7 +60,10 @@ export const registerReadTokens =
           },
         });
         if (!read.ok) {
-          return { content: [{ type: "text", text: ERROR_TEXT[read.error] }], isError: true };
+          return {
+            content: [{ type: "text", text: RECORD_FAILURE_TEXT[read.error] }],
+            isError: true,
+          };
         }
         return {
           content: [{ type: "text", text: JSON.stringify(read.value) }],
