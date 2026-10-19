@@ -150,6 +150,33 @@ describe("rejeter la valeur Figma garde le token divergent, et la même valeur n
       expect(tokens[1]).toMatchObject({ name: "couleur.fond", figma: { state: "diverged" } });
     }));
 
+  it("une nouvelle description validée après le rejet ne fait pas revenir la valeur rejetée", () =>
+    withClock(async (app, db, clock) => {
+      const { accessToken, projectId, fond } = await seedDivergence(app, db, clock);
+      await request(app, { accessToken, path: `/proposals/${fond.id}/reject`, body: {} });
+      const described = await callTool(app, {
+        token: accessToken,
+        name: "write_tokens",
+        args: {
+          projectId,
+          tokens: [makeColorToken({ name: "couleur.fond", $description: "Fond des pages" })],
+        },
+      });
+      await request(app, {
+        accessToken,
+        path: `/proposals/${described.structuredContent.proposals[0].id}/validate`,
+        body: {},
+      });
+
+      const redeclared = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: [{ name: "couleur.fond", state: "diverged", figmaValue: { $value: NIGHT_BLUE } }],
+      });
+
+      expect(redeclared.states).toMatchObject([{ name: "couleur.fond", proposal: null }]);
+    }));
+
   it("un token rejeté dans un lot ne repropose pas sa valeur rejetée", () =>
     withClock(async (app, db, clock) => {
       const { accessToken, projectId, fond, bord } = await seedDivergence(app, db, clock);

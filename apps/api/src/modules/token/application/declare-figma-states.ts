@@ -44,10 +44,12 @@ export interface FigmaProposals {
   }>;
 }
 
+export type RejectedValue = Omit<ComparedDefinition, "$description">;
+
 export interface RejectedValueReader {
   rejectedValuesOf(
     projectId: string,
-  ): Promise<readonly { readonly tokenId: string; readonly rejected: ComparedDefinition }[]>;
+  ): Promise<readonly { readonly tokenId: string; readonly rejected: RejectedValue }[]>;
 }
 
 export interface FigmaUnitOfWork {
@@ -230,7 +232,10 @@ export const declareFigmaStates =
     const rejected = await rejectedValues.rejectedValuesOf(projectId);
     const proposable = parsedDivergences.filter(({ tokenId, definition }) => {
       const last = rejected.find((candidate) => candidate.tokenId === tokenId);
-      return last === undefined || !sameDefinition(last.rejected, definition);
+      return (
+        last === undefined ||
+        !sameDefinition(last.rejected, { $value: definition.$value, modes: definition.modes })
+      );
     });
     const declaredAt = now();
     const proposed = await unitOfWork.run(async ({ figmaStates, proposals }) => {

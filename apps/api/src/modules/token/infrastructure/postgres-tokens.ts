@@ -234,14 +234,14 @@ export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
   },
   proposalRejected: async ({
     proposalId,
-    token: { $value, modes, $description },
+    token: { $value, modes },
   }: {
     readonly proposalId: string;
     readonly token: ComparedDefinition;
   }) => {
     await tx
       .update(tokenFigmaState)
-      .set({ rejectedValue: { $value, modes, $description }, proposalId: null })
+      .set({ rejectedValue: { $value, modes }, proposalId: null })
       .where(eq(tokenFigmaState.proposalId, proposalId));
   },
 });
@@ -250,7 +250,6 @@ const RejectedValue = z
   .object({
     $value: z.unknown().optional(),
     modes: z.record(z.string(), z.unknown()).optional(),
-    $description: z.string().optional(),
   })
   .nullable();
 
