@@ -1,5 +1,5 @@
 {
-  "id": "8eea578c-c4bc-425d-8a3e-c001f29aa20c",
+  "id": "e5368d0e-2b1c-498d-aae7-dc43a694bbc8",
   "prevId": "90792b70-e318-4e15-8c54-24cee40fc682",
   "version": "7",
   "dialect": "postgresql",
@@ -1734,10 +1734,10 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "modifier_project_id_name_key": {
-          "name": "modifier_project_id_name_key",
+        "modifier_project_id_key": {
+          "name": "modifier_project_id_key",
           "nullsNotDistinct": false,
-          "columns": ["project_id", "name"]
+          "columns": ["project_id"]
         }
       },
       "policies": {},

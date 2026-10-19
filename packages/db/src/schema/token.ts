@@ -22,7 +22,7 @@ export const modifier = pgTable(
       .references(() => project.id),
     name: text("name").notNull(),
   },
-  (table) => [unique("modifier_project_id_name_key").on(table.projectId, table.name)],
+  (table) => [unique("modifier_project_id_key").on(table.projectId)],
 );
 
 export const mode = pgTable(

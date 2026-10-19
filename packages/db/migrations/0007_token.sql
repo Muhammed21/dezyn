@@ -10,7 +10,7 @@ CREATE TABLE "modifier" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"project_id" uuid NOT NULL,
 	"name" text NOT NULL,
-	CONSTRAINT "modifier_project_id_name_key" UNIQUE("project_id","name")
+	CONSTRAINT "modifier_project_id_key" UNIQUE("project_id")
 );
 --> statement-breakpoint
 CREATE TABLE "token" (

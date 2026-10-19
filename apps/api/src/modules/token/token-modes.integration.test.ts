@@ -1,4 +1,8 @@
+import { randomUUID } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
+
+import { schema } from "@repo/db";
 
 import type { PostgresDatabase } from "../../platform/postgres-database.ts";
 import { type App, withIdentityApp } from "../../testing/authorization-flow.ts";
@@ -128,5 +132,19 @@ describe("un projet sans modificateur accepte une seule valeur", () => {
       expect(await response.json()).toMatchObject({
         errors: [{ path: "$value", message: "Valeur manquante" }],
       });
+    }));
+});
+
+describe("un projet a un seul modificateur, tant que les modes ne disent pas le leur", () => {
+  it("la base refuse un second modificateur dans le même projet", () =>
+    withIdentityApp(async (app, db) => {
+      const { projectId } = await seedLightAndDarkProject(app, db);
+
+      await expect(
+        db.orm.insert(schema.modifier).values({ id: randomUUID(), projectId, name: "contraste" }),
+      ).rejects.toMatchObject({ cause: { constraint: "modifier_project_id_key" } });
+      expect(await db.orm.select({ name: schema.modifier.name }).from(schema.modifier)).toEqual([
+        { name: "apparence" },
+      ]);
     }));
 });
