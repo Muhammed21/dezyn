@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { WrittenTokensOutput } from "./proposition.ts";
+import { ClosedBatchOutput, OpenedBatchOutput, WrittenTokensOutput } from "./proposition.ts";
 
 const makeWrittenTokens = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   lot: { id: "0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "open" },
@@ -100,6 +100,52 @@ describe("le contrat de sortie d'une écriture de l'IA reste ouvert (ADR 0023)",
           },
         },
       },
+    });
+  });
+});
+
+const LOT_ID = "0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
+
+const makeLotOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  id: LOT_ID,
+  state: "open",
+  intention: "Import du Figma Healthcare",
+  ...overrides,
+});
+
+describe("le contrat de sortie de l'ouverture et de la fermeture d'un lot reste ouvert (ADR 0023)", () => {
+  it("décode un lot ouvert et le lot qu'il a fermé", () => {
+    const opened = { lot: makeLotOutput(), closed: { id: "1c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b" } };
+
+    expect(OpenedBatchOutput.parse(opened)).toEqual(opened);
+  });
+
+  it("décode un lot fermé sans intention, et une fermeture sans lot", () => {
+    const closed = { lot: makeLotOutput({ state: "closed", intention: null }) };
+
+    expect(ClosedBatchOutput.parse(closed)).toEqual(closed);
+    expect(ClosedBatchOutput.parse({ lot: null })).toEqual({ lot: null });
+  });
+
+  it.each([["id"], ["state"], ["intention"]])("refuse un lot sans %s", (field) => {
+    expect(
+      OpenedBatchOutput.safeParse({ lot: makeLotOutput({ [field]: undefined }), closed: null })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuse un lot fermé implicitement sans identifiant", () => {
+    expect(OpenedBatchOutput.safeParse({ lot: makeLotOutput(), closed: {} }).success).toBe(false);
+  });
+
+  it("annonce à l'IA les états de lot connus", () => {
+    const state = { anyOf: [{ enum: ["open", "closed"] }, { type: "string" }] };
+
+    expect(z.toJSONSchema(OpenedBatchOutput)).toMatchObject({
+      properties: { lot: { properties: { state } } },
+    });
+    expect(z.toJSONSchema(ClosedBatchOutput)).toMatchObject({
+      properties: { lot: { anyOf: [{ properties: { state } }, { type: "null" }] } },
     });
   });
 });

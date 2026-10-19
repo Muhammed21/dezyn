@@ -84,6 +84,12 @@ export const postgresPropositionUnitOfWork = (db: PostgresDatabase): Proposition
           await tx.insert(propositionLot).values(candidate).onConflictDoNothing();
           return (await findOpenLot(tx, candidate)) ?? candidate;
         },
+        closeLot: async (lotId) => {
+          await tx
+            .update(propositionLot)
+            .set({ state: "closed" })
+            .where(eq(propositionLot.id, lotId));
+        },
         propose: async (propositions) => {
           await tx.insert(proposition).values(
             propositions.map(({ id, lotId, name, kind, token, status, createdAt }) => ({
@@ -100,6 +106,8 @@ export const postgresPropositionUnitOfWork = (db: PostgresDatabase): Proposition
       }),
     ),
 });
+
+const LotState = z.enum(["open", "closed"]);
 
 const PropositionStatus = z.enum(["proposed", "validated", "rejected", "replaced"]);
 
@@ -120,7 +128,7 @@ const propositionOf = (row: unknown): Proposition => {
 
 const lotOf = ({ state, ...lot }: typeof propositionLot.$inferSelect): PropositionLot => ({
   ...lot,
-  state: z.literal("open").parse(state),
+  state: LotState.parse(state),
 });
 
 export const postgresPropositionReader = (db: PostgresDatabase): PropositionReader => ({
@@ -140,7 +148,7 @@ export const postgresPropositionReader = (db: PostgresDatabase): PropositionRead
       .where(eq(propositionLot.projectId, projectId))
       .groupBy(propositionLot.id)
       .orderBy(desc(propositionLot.openedAt), desc(propositionLot.id));
-    return rows.map(({ state, ...row }) => ({ ...row, state: z.literal("open").parse(state) }));
+    return rows.map(({ state, ...row }) => ({ ...row, state: LotState.parse(state) }));
   },
   batch: async (batchId) => {
     const [lot] = await db.orm.select().from(propositionLot).where(eq(propositionLot.id, batchId));

@@ -27,6 +27,9 @@ GRANT SELECT, INSERT ON "proposition_lot", "proposition" TO app;
 --> statement-breakpoint
 GRANT UPDATE ("status") ON "proposition" TO app;
 --> statement-breakpoint
+-- L'IA ferme ses lots de propositions.
+GRANT UPDATE ("state") ON "proposition_lot" TO app;
+--> statement-breakpoint
 -- Valider une modification remplace la description du token et ses valeurs par mode.
 GRANT UPDATE ("description") ON "token" TO app;
 --> statement-breakpoint

@@ -9,6 +9,7 @@ import { registerWhoami } from "./modules/identity/presentation/whoami-tool.ts";
 import type { ProjectUseCases } from "./modules/project/application/create-project.ts";
 import { projectsRoutes } from "./modules/project/presentation/projects-routes.ts";
 import type { ProposalUseCases } from "./modules/proposal/application/proposal-use-cases.ts";
+import { registerProposalBatchTools } from "./modules/proposal/presentation/proposal-batch-tools.ts";
 import {
   projectBatchesRoutes,
   reviewRoutes,
@@ -70,6 +71,11 @@ export const createApp = ({
     writeTokens: proposals.writeTokens,
     recordProjectCall: history.recordProjectCall,
   });
+  const registerBatchTools = registerProposalBatchTools({
+    openBatch: proposals.openBatch,
+    closeBatch: proposals.closeBatch,
+    recordProjectCall: history.recordProjectCall,
+  });
   v1.post(
     "/mcp",
     mcpEndpoint({
@@ -79,6 +85,7 @@ export const createApp = ({
         registerHistoryTools(server, call);
         registerTokenTools(server, call);
         registerProposalTools(server, call);
+        registerBatchTools(server, call);
       },
     }),
   );

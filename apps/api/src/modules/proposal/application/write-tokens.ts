@@ -28,6 +28,7 @@ export interface PropositionStore {
   replace(propositionIds: readonly string[]): Promise<void>;
   findOpenLot(writer: Writer): Promise<PropositionLot | undefined>;
   openLotOf(candidate: PropositionLot): Promise<PropositionLot>;
+  closeLot(lotId: string): Promise<void>;
   propose(propositions: readonly Proposition[]): Promise<void>;
 }
 

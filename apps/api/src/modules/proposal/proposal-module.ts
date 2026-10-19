@@ -5,6 +5,7 @@ import type { HistoryWriter } from "../history/contracts/history-writer.ts";
 import type { ProjectFinder } from "../project/contracts/project.ts";
 import type { MembershipReader } from "../space/contracts/membership.ts";
 import type { CheckTokens, ValidatedTokenWriter } from "../token/contracts/token-issues.ts";
+import { closeBatch, openBatch } from "./application/proposition-lots.ts";
 import { batchOf, listBatches, reviewProposition } from "./application/review-propositions.ts";
 import { type ValidatedTokensOf, writeTokens } from "./application/write-tokens.ts";
 import {
@@ -41,14 +42,17 @@ export const proposalModule = ({
     validatedTokensOf,
     propositions: postgresPropositionReader(db),
   };
+  const unitOfWork = postgresPropositionUnitOfWork(db);
   return {
     writeTokens: writeTokens({
       checkTokens,
       validatedTokensOf,
-      unitOfWork: postgresPropositionUnitOfWork(db),
+      unitOfWork,
       newId: randomUUID,
       now,
     }),
+    openBatch: openBatch({ unitOfWork, newId: randomUUID, now }),
+    closeBatch: closeBatch({ unitOfWork }),
     listBatches: listBatches(access),
     batchOf: batchOf(access),
     reviewProposition: reviewProposition({
