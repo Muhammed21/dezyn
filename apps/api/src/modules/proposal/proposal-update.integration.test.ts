@@ -65,6 +65,7 @@ describe("l'IA propose la modification d'un token validé (ADR 0012 §3)", () =>
           },
         ],
         unchanged: [],
+        replaced: [],
       });
       expect((await readTokens(app, { accessToken, projectId })).tokens).toMatchObject([
         { name: "couleur.fond.primaire", $value: PRIMARY_BLUE },
@@ -162,6 +163,7 @@ describe("une écriture identique à la valeur validée ne crée rien (ADR 0013 
         lot: null,
         propositions: [],
         unchanged: ["couleur.fond.primaire"],
+        replaced: [],
       });
       expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
       expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
@@ -190,6 +192,7 @@ describe("une écriture identique à la valeur validée ne crée rien (ADR 0013 
         lot: opened.structuredContent.lot,
         propositions: [],
         unchanged: ["couleur.fond.primaire"],
+        replaced: [],
       });
     }));
 
@@ -227,6 +230,7 @@ describe("une écriture identique à la valeur validée ne crée rien (ADR 0013 
       expect(changed.structuredContent).toMatchObject({
         propositions: [{ name: "couleur.fond", kind: "update" }],
         unchanged: [],
+        replaced: [],
       });
     }));
 });

@@ -14,6 +14,7 @@ const makeWrittenTokens = (overrides: Readonly<Record<string, unknown>> = {}) =>
     },
   ],
   unchanged: [],
+  replaced: [],
   ...overrides,
 });
 
@@ -34,11 +35,36 @@ describe("le contrat de sortie d'une écriture de l'IA reste ouvert (ADR 0023)",
     expect(WrittenTokensOutput.parse(written)).toEqual(written);
   });
 
-  it.each([["lot"], ["propositions"], ["unchanged"]])("refuse une écriture sans %s", (field) => {
-    expect(WrittenTokensOutput.safeParse(makeWrittenTokens({ [field]: undefined })).success).toBe(
-      false,
-    );
+  it("décode les propositions remplacées, avec leur lot", () => {
+    const written = makeWrittenTokens({
+      replaced: [
+        {
+          id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+          name: "couleur.bleu.500",
+          lotId: "3e8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+        },
+      ],
+    });
+
+    expect(WrittenTokensOutput.parse(written)).toEqual(written);
   });
+
+  it("refuse une proposition remplacée sans lot", () => {
+    const written = makeWrittenTokens({
+      replaced: [{ id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", name: "couleur.bleu.500" }],
+    });
+
+    expect(WrittenTokensOutput.safeParse(written).success).toBe(false);
+  });
+
+  it.each([["lot"], ["propositions"], ["unchanged"], ["replaced"]])(
+    "refuse une écriture sans %s",
+    (field) => {
+      expect(WrittenTokensOutput.safeParse(makeWrittenTokens({ [field]: undefined })).success).toBe(
+        false,
+      );
+    },
+  );
 
   it("accepte un état de lot, une nature et un statut ajoutés plus tard par le serveur", () => {
     const written = makeWrittenTokens({

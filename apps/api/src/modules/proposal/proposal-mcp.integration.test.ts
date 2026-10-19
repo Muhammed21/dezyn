@@ -52,6 +52,7 @@ describe("une écriture de l'IA est une proposition, rangée dans un lot (ADR 00
           { id: expect.any(String), name: "couleur.bleu.700", kind: "create", status: "proposed" },
         ],
         unchanged: [],
+        replaced: [],
       });
       expect(result.content).toEqual([
         { type: "text", text: JSON.stringify(result.structuredContent) },

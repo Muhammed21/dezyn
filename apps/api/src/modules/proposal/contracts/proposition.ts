@@ -13,4 +13,5 @@ export const WrittenTokensOutput = z.looseObject({
     }),
   ),
   unchanged: z.array(z.string()),
+  replaced: z.array(z.looseObject({ id: Uuid, name: z.string(), lotId: Uuid })),
 });

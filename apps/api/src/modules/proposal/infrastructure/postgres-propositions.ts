@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { schema } from "@repo/db";
@@ -35,6 +35,27 @@ export const postgresPropositionUnitOfWork = (db: PostgresDatabase): Proposition
   run: (work) =>
     db.orm.transaction((tx) =>
       work({
+        pendingOf: async (projectId, names) => {
+          const rows = await tx
+            .select({ proposition })
+            .from(proposition)
+            .innerJoin(propositionLot, eq(propositionLot.id, proposition.lotId))
+            .where(
+              and(
+                eq(propositionLot.projectId, projectId),
+                eq(proposition.status, "proposed"),
+                inArray(proposition.tokenName, [...names]),
+              ),
+            )
+            .for("update", { of: proposition });
+          return rows.map((row) => propositionOf(row.proposition));
+        },
+        replace: async (propositionIds) => {
+          await tx
+            .update(proposition)
+            .set({ status: "replaced" })
+            .where(inArray(proposition.id, [...propositionIds]));
+        },
         findOpenLot: (writer) => findOpenLot(tx, writer),
         openLotOf: async (candidate) => {
           await tx.insert(propositionLot).values(candidate).onConflictDoNothing();
