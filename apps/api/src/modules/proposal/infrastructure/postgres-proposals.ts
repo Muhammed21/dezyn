@@ -9,6 +9,7 @@ import { schema } from "@repo/db";
 import type { Err, Result } from "@repo/result";
 
 import type {
+  FigmaStateSynchronizer,
   ProposalReader,
   ReviewUnit,
   ReviewUnitOfWork,
@@ -225,10 +226,12 @@ export const postgresReviewUnitOfWork = ({
   db,
   historyWriterOn,
   validatedTokenWriterOn,
+  figmaStateOn,
 }: {
   readonly db: PostgresDatabase;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
+  readonly figmaStateOn: (tx: PostgresTransaction) => FigmaStateSynchronizer;
 }): ReviewUnitOfWork => ({
   async run<T, E>(work: (unit: ReviewUnit) => Promise<Result<T, E>>): Promise<Result<T, E>> {
     class RolledBack extends Error {
@@ -267,6 +270,7 @@ export const postgresReviewUnitOfWork = ({
             },
           },
           tokens: validatedTokenWriterOn(tx),
+          figmaStates: figmaStateOn(tx),
           history: historyWriterOn(tx),
         });
         if (!outcome.ok) {

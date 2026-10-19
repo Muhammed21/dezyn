@@ -15,7 +15,7 @@ import type { ProjectTokenReader } from "./add-token.ts";
 import type { ReadToken } from "./read-tokens.ts";
 
 export type FigmaDeclaration = {
-  readonly states: readonly DeclaredState[];
+  readonly states: readonly (DeclaredState & { readonly proposalId: string | null })[];
   readonly declaredAt: Date;
   readonly userId: string;
   readonly clientId: string;
@@ -220,17 +220,27 @@ export const declareFigmaStates =
     }
     const declaredAt = now();
     const proposed = await unitOfWork.run(async ({ figmaStates, proposals }) => {
-      await figmaStates.declare({ states: checked.states, declaredAt, userId, clientId });
-      return parsedDivergences.length === 0
-        ? { batch: null, proposals: [] }
-        : proposals.propose({
-            projectId,
-            userId,
-            clientId,
-            tokens: parsedDivergences.map(({ definition }) => definition),
-            validated,
-            createdAt: declaredAt,
-          });
+      const written =
+        parsedDivergences.length === 0
+          ? { batch: null, proposals: [] }
+          : await proposals.propose({
+              projectId,
+              userId,
+              clientId,
+              tokens: parsedDivergences.map(({ definition }) => definition),
+              validated,
+              createdAt: declaredAt,
+            });
+      await figmaStates.declare({
+        states: checked.states.map((declared) => ({
+          ...declared,
+          proposalId: written.proposals.find(({ name }) => name === declared.name)?.id ?? null,
+        })),
+        declaredAt,
+        userId,
+        clientId,
+      });
+      return written;
     });
     const proposalOf = (name: string): FigmaProposal | null => {
       const found = proposed.proposals.find((proposal) => proposal.name === name);

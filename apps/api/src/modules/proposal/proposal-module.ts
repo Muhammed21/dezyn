@@ -10,6 +10,7 @@ import type { Clock } from "#platform/clock.ts";
 import { closeBatch, openBatch } from "./application/proposal-batches.ts";
 import {
   batchOf,
+  type FigmaStateSynchronizer,
   listBatches,
   pendingProposalsOf,
   reviewProposal,
@@ -44,6 +45,7 @@ export const proposalModule = ({
   validatedTokensOf,
   historyWriterOn,
   validatedTokenWriterOn,
+  figmaStateOn,
   clock: now,
 }: {
   readonly db: PostgresDatabase;
@@ -53,6 +55,7 @@ export const proposalModule = ({
   readonly validatedTokensOf: ValidatedTokensOf;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
+  readonly figmaStateOn: (tx: PostgresTransaction) => FigmaStateSynchronizer;
   readonly clock: Clock;
 }) => {
   const access = {
@@ -67,6 +70,7 @@ export const proposalModule = ({
     db,
     historyWriterOn,
     validatedTokenWriterOn,
+    figmaStateOn,
   });
   return {
     writeTokens: writeTokens({

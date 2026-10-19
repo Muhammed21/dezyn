@@ -1,5 +1,5 @@
 {
-  "id": "f79468f7-8da3-4998-9ac7-26e310e54f01",
+  "id": "e433360c-6bc3-43cf-8bd1-1ef3412016f5",
   "prevId": "7acfc577-9e25-4760-86e5-76216cc14c3d",
   "version": "7",
   "dialect": "postgresql",
@@ -2381,6 +2381,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "proposal_id": {
+          "name": "proposal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -2399,6 +2405,15 @@
           "tableFrom": "token_figma_state",
           "tableTo": "identity_user",
           "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "token_figma_state_proposal_id_proposal_id_fk": {
+          "name": "token_figma_state_proposal_id_proposal_id_fk",
+          "tableFrom": "token_figma_state",
+          "tableTo": "proposal",
+          "columnsFrom": ["proposal_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

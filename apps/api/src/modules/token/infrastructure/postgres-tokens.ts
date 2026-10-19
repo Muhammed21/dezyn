@@ -156,6 +156,7 @@ export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
           tokenId: declared.tokenId,
           state: declared.state,
           figmaVariables: declared.state === "duplicate_in_figma" ? declared.figmaVariables : null,
+          proposalId: declared.proposalId,
           declaredAt,
           userId,
           clientId,
@@ -169,6 +170,7 @@ export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
           declaredAt: sql`excluded.declared_at`,
           userId: sql`excluded.user_id`,
           clientId: sql`excluded.client_id`,
+          proposalId: sql`case when excluded.state = 'diverged' then coalesce(excluded.proposal_id, ${tokenFigmaState.proposalId}) end`,
         },
       });
   },
@@ -219,4 +221,13 @@ export const postgresFigmaUnitOfWork = ({
     db.orm.transaction((tx) =>
       work({ figmaStates: postgresFigmaStateWriter(tx), proposals: proposalWriterOn(tx) }),
     ),
+});
+
+export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
+  proposalValidated: async (proposalId: string) => {
+    await tx
+      .update(tokenFigmaState)
+      .set({ state: "synced", proposalId: null })
+      .where(eq(tokenFigmaState.proposalId, proposalId));
+  },
 });

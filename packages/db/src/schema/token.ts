@@ -13,6 +13,7 @@ import {
 
 import { identityUser } from "./identity.ts";
 import { project } from "./project.ts";
+import { proposal } from "./proposal.ts";
 
 export const modifier = pgTable(
   "modifier",
@@ -86,4 +87,5 @@ export const tokenFigmaState = pgTable("token_figma_state", {
     .notNull()
     .references(() => identityUser.id),
   clientId: text("client_id").notNull(),
+  proposalId: uuid("proposal_id").references(() => proposal.id),
 });

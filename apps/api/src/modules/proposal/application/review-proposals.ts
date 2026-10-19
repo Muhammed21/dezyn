@@ -48,6 +48,10 @@ export interface ProposalReader {
   ): Promise<{ readonly proposal: Proposal; readonly projectId: string } | undefined>;
 }
 
+export interface FigmaStateSynchronizer {
+  proposalValidated(proposalId: string): Promise<void>;
+}
+
 export type ReviewUnit = {
   readonly proposals: {
     lock(proposalId: string): Promise<ProposalStatus>;
@@ -57,6 +61,7 @@ export type ReviewUnit = {
     settle(proposalId: string, status: "validated" | "rejected"): Promise<void>;
   };
   readonly tokens: ValidatedTokenWriter;
+  readonly figmaStates: FigmaStateSynchronizer;
   readonly history: HistoryWriter;
 };
 
@@ -220,6 +225,7 @@ export const reviewProposal =
         if (failure !== undefined) {
           return err(failure);
         }
+        await unit.figmaStates.proposalValidated(proposalId);
       }
       await unit.proposals.settle(proposalId, reviewed.status);
       await unit.history.append({
@@ -346,6 +352,9 @@ export const validateBatch =
       await inSequence(decided, async ({ proposal, status }) => {
         const before = validatedOf(validated, proposal);
         await unit.proposals.settle(proposal.id, status);
+        if (status === "validated") {
+          await unit.figmaStates.proposalValidated(proposal.id);
+        }
         await unit.history.append({
           spaceId,
           projectId,

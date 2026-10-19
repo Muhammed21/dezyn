@@ -14,6 +14,7 @@ import { readProjectTokens, readTokens } from "./application/read-tokens.ts";
 import { parseTokenDefinition } from "./contracts/token-definition.ts";
 import {
   postgresFigmaStateReader,
+  postgresFigmaStateSynchronizer,
   postgresFigmaUnitOfWork,
   postgresModeReader,
   postgresProjectTokenReader,
@@ -21,6 +22,8 @@ import {
   postgresTokenWriter,
   postgresValidatedTokenReader,
 } from "./infrastructure/postgres-tokens.ts";
+
+export const figmaStateOn = postgresFigmaStateSynchronizer;
 
 export const validatedTokenWriterOn = (tx: PostgresTransaction) =>
   validatedTokenWriter({
