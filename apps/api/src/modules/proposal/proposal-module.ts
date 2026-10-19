@@ -6,23 +6,23 @@ import type { HistoryWriter } from "../history/contracts/history-writer.ts";
 import type { ProjectFinder } from "../project/contracts/project.ts";
 import type { MembershipReader } from "../space/contracts/membership.ts";
 import type { CheckTokens, ValidatedTokenWriter } from "../token/contracts/token-issues.ts";
-import { closeBatch, openBatch } from "./application/proposition-lots.ts";
+import { closeBatch, openBatch } from "./application/proposal-batches.ts";
 import {
   batchOf,
   listBatches,
-  pendingPropositionsOf,
-  reviewProposition,
+  pendingProposalsOf,
+  reviewProposal,
   validateBatch,
-} from "./application/review-propositions.ts";
+} from "./application/review-proposals.ts";
 import { type ValidatedTokensOf, writeTokens } from "./application/write-tokens.ts";
 import {
-  postgresPropositionReader,
-  postgresPropositionReplacer,
-  postgresPropositionUnitOfWork,
+  postgresProposalReader,
+  postgresProposalReplacer,
+  postgresProposalUnitOfWork,
   postgresReviewUnitOfWork,
-} from "./infrastructure/postgres-propositions.ts";
+} from "./infrastructure/postgres-proposals.ts";
 
-export const propositionReplacerOn = postgresPropositionReplacer;
+export const proposalReplacerOn = postgresProposalReplacer;
 
 export const proposalModule = ({
   db,
@@ -47,10 +47,10 @@ export const proposalModule = ({
     projects,
     memberships,
     validatedTokensOf,
-    propositions: postgresPropositionReader(db),
+    proposals: postgresProposalReader(db),
     now,
   };
-  const unitOfWork = postgresPropositionUnitOfWork(db);
+  const unitOfWork = postgresProposalUnitOfWork(db);
   const reviewUnitOfWork = postgresReviewUnitOfWork({
     db,
     historyWriterOn,
@@ -68,8 +68,8 @@ export const proposalModule = ({
     closeBatch: closeBatch({ unitOfWork, now }),
     listBatches: listBatches(access),
     batchOf: batchOf(access),
-    reviewProposition: reviewProposition({ ...access, unitOfWork: reviewUnitOfWork }),
+    reviewProposal: reviewProposal({ ...access, unitOfWork: reviewUnitOfWork }),
     validateBatch: validateBatch({ ...access, unitOfWork: reviewUnitOfWork }),
-    pendingPropositionsOf: pendingPropositionsOf(access),
+    pendingProposalsOf: pendingProposalsOf(access),
   };
 };

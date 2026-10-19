@@ -65,7 +65,7 @@ export const createApp = ({
   const registerHistoryTools = registerReadHistory(history);
   const registerTokenTools = registerReadTokens({
     readTokens: tokens.readTokens,
-    pendingPropositionsOf: proposals.pendingPropositionsOf,
+    pendingProposalsOf: proposals.pendingProposalsOf,
     recordProjectCall: history.recordProjectCall,
   });
   const registerProposalTools = registerWriteTokens({

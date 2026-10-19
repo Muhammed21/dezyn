@@ -65,7 +65,7 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
   it("la liste des lots d'un projet donne l'intention, l'état et le nombre de propositions à relire", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot } = await proposeTokens(app, {
+      const { batch } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [
@@ -81,30 +81,30 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-        batches: [{ id: lot.id, intention: null, state: "open", toReview: 2 }],
+        batches: [{ id: batch.id, intent: null, state: "open", toReview: 2 }],
       });
     }));
 
   it("un lot montre chaque proposition avec sa valeur proposée, sans valeur validée pour une création", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await proposeTokens(app, {
+      const { batch, proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken({ $description: "Fond des boutons" })],
       });
 
-      const response = await request(app, { accessToken, path: `/proposal-batches/${lot.id}` });
+      const response = await request(app, { accessToken, path: `/proposal-batches/${batch.id}` });
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-        id: lot.id,
+        id: batch.id,
         projectId,
-        intention: null,
+        intent: null,
         state: "open",
-        propositions: [
+        proposals: [
           {
-            id: propositions[0].id,
+            id: proposals[0].id,
             name: "couleur.fond.primaire",
             kind: "create",
             status: "proposed",
@@ -118,7 +118,7 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
   it("valider une proposition de création fait du token une donnée validée, lue par read_tokens", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { propositions } = await proposeTokens(app, {
+      const { proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -126,13 +126,13 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/validate`,
+        path: `/proposals/${proposals[0].id}/validate`,
         method: "POST",
       });
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-        id: propositions[0].id,
+        id: proposals[0].id,
         name: "couleur.fond.primaire",
         kind: "create",
         status: "validated",
@@ -151,7 +151,7 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
   it("rejeter une proposition laisse le projet sans le token, et le lot la montre Rejetée", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await proposeTokens(app, {
+      const { batch, proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -159,15 +159,15 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/reject`,
+        path: `/proposals/${proposals[0].id}/reject`,
         method: "POST",
       });
-      const batch = await (
-        await request(app, { accessToken, path: `/proposal-batches/${lot.id}` })
+      const reviewed = await (
+        await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
       ).json();
 
       expect(await response.json()).toMatchObject({ status: "rejected" });
-      expect(batch.propositions).toMatchObject([{ status: "rejected" }]);
+      expect(reviewed.proposals).toMatchObject([{ status: "rejected" }]);
       expect((await readTokens(app, { accessToken, projectId })).tokens).toEqual([]);
     }));
 });
@@ -176,7 +176,7 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
   it("un éditeur valide une proposition", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProjectAsEditor(app, db);
-      const { propositions } = await proposeTokens(app, {
+      const { proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -184,7 +184,7 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/validate`,
+        path: `/proposals/${proposals[0].id}/validate`,
         method: "POST",
       });
 
@@ -194,7 +194,7 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
   it("un non-membre reçoit 404 sur les lots, le lot et la relecture, sans rien relire", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await proposeTokens(app, {
+      const { batch, proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -204,19 +204,19 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
       const statuses = await Promise.all(
         [
           { path: `/projects/${projectId}/proposal-batches` },
-          { path: `/proposal-batches/${lot.id}` },
-          { path: `/proposals/${propositions[0].id}/validate`, method: "POST" },
-          { path: `/proposals/${propositions[0].id}/reject`, method: "POST" },
+          { path: `/proposal-batches/${batch.id}` },
+          { path: `/proposals/${proposals[0].id}/validate`, method: "POST" },
+          { path: `/proposals/${proposals[0].id}/reject`, method: "POST" },
         ].map(
           async (call) => (await request(app, { accessToken: grace.accessToken, ...call })).status,
         ),
       );
-      const batch = await (
-        await request(app, { accessToken, path: `/proposal-batches/${lot.id}` })
+      const reviewed = await (
+        await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
       ).json();
 
       expect(statuses).toEqual([404, 404, 404, 404]);
-      expect(batch.propositions).toMatchObject([{ status: "proposed" }]);
+      expect(reviewed.proposals).toMatchObject([{ status: "proposed" }]);
     }));
 
   it("un projet ou un lot inconnu répond 404", () =>
@@ -252,7 +252,7 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
   it("valider une proposition remplacée par l'ajout d'un membre répond 409, sans rien valider", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await proposeTokens(app, {
+      const { batch, proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -261,11 +261,11 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/validate`,
+        path: `/proposals/${proposals[0].id}/validate`,
         method: "POST",
       });
-      const batch = await (
-        await request(app, { accessToken, path: `/proposal-batches/${lot.id}` })
+      const reviewed = await (
+        await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
       ).json();
 
       expect(response.status).toBe(409);
@@ -273,13 +273,13 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
         type: "about:blank",
         title: "Proposition déjà relue",
       });
-      expect(batch.propositions).toMatchObject([{ status: "replaced" }]);
+      expect(reviewed.proposals).toMatchObject([{ status: "replaced" }]);
     }));
 
   it("valider une création dont le nom a été pris par un ajout concurrent répond 409 sur name, sans rien valider", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await proposeTokens(app, {
+      const { batch, proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -288,11 +288,11 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/validate`,
+        path: `/proposals/${proposals[0].id}/validate`,
         method: "POST",
       });
-      const batch = await (
-        await request(app, { accessToken, path: `/proposal-batches/${lot.id}` })
+      const reviewed = await (
+        await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
       ).json();
 
       expect(response.status).toBe(409);
@@ -301,7 +301,7 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
         title: "Proposition invalide",
         errors: [{ path: "name", message: "Nom déjà pris dans le projet" }],
       });
-      expect(batch.propositions).toMatchObject([{ status: "proposed" }]);
+      expect(reviewed.proposals).toMatchObject([{ status: "proposed" }]);
     }));
 
   it("une proposition inconnue répond 404", () =>
@@ -324,12 +324,12 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
   ])("après %s, %s répond 409 problem+json", (first, second) =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { propositions } = await proposeTokens(app, {
+      const { proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
       });
-      const path = (decision: string) => `/proposals/${propositions[0].id}/${decision}`;
+      const path = (decision: string) => `/proposals/${proposals[0].id}/${decision}`;
       await request(app, { accessToken, path: path(first), method: "POST" });
 
       const response = await request(app, { accessToken, path: path(second), method: "POST" });
@@ -347,7 +347,7 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
   it("valider un sémantique dont le primitif attend encore répond 409, puis passe une fois le primitif validé", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { propositions } = await proposeTokens(app, {
+      const { proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [
@@ -358,9 +358,9 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
       const validate = (id: string) =>
         request(app, { accessToken, path: `/proposals/${id}/validate`, method: "POST" });
 
-      const early = await validate(propositions[1].id);
-      await validate(propositions[0].id);
-      const late = await validate(propositions[1].id);
+      const early = await validate(proposals[1].id);
+      await validate(proposals[0].id);
+      const late = await validate(proposals[1].id);
 
       expect(early.status).toBe(409);
       expect(await early.json()).toMatchObject({
@@ -381,7 +381,7 @@ describe("chaque relecture entre dans l'historique avec l'éditeur (ADR 0012 §7
     withIdentityApp(async (app, db) => {
       const { accessToken, userId, spaceId, projectId } = await seedProject(app, db);
       const token = makeColorToken();
-      const { propositions } = await proposeTokens(app, {
+      const { proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [token],
@@ -389,19 +389,19 @@ describe("chaque relecture entre dans l'historique avec l'éditeur (ADR 0012 §7
 
       await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/validate`,
+        path: `/proposals/${proposals[0].id}/validate`,
         method: "POST",
       });
 
       expect((await historyOf(app, { accessToken, projectId }))[0]).toEqual({
         id: expect.any(String),
-        action: "proposition.validated",
+        action: "proposal.validated",
         spaceId,
         projectId,
         author: { kind: "member", userId, name: ADA.name },
         clientId: null,
         before: null,
-        after: { propositionId: propositions[0].id, token },
+        after: { proposalId: proposals[0].id, token },
         occurredAt: expect.any(String),
         correlationId: REVIEW_CORRELATION_ID,
       });
@@ -411,7 +411,7 @@ describe("chaque relecture entre dans l'historique avec l'éditeur (ADR 0012 §7
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
       const token = makeColorToken();
-      const { propositions } = await proposeTokens(app, {
+      const { proposals } = await proposeTokens(app, {
         accessToken,
         projectId,
         tokens: [token],
@@ -419,13 +419,13 @@ describe("chaque relecture entre dans l'historique avec l'éditeur (ADR 0012 §7
 
       await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/reject`,
+        path: `/proposals/${proposals[0].id}/reject`,
         method: "POST",
       });
 
       expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
-        action: "proposition.rejected",
-        after: { propositionId: propositions[0].id, token },
+        action: "proposal.rejected",
+        after: { proposalId: proposals[0].id, token },
       });
     }));
 
@@ -433,7 +433,7 @@ describe("chaque relecture entre dans l'historique avec l'éditeur (ADR 0012 §7
     withIdentityApp(
       async (app, db) => {
         const { accessToken, projectId } = await seedProject(app, db);
-        const { lot, propositions } = await proposeTokens(app, {
+        const { batch, proposals } = await proposeTokens(app, {
           accessToken,
           projectId,
           tokens: [makeColorToken()],
@@ -441,21 +441,21 @@ describe("chaque relecture entre dans l'historique avec l'éditeur (ADR 0012 §7
 
         const response = await request(app, {
           accessToken,
-          path: `/proposals/${propositions[0].id}/validate`,
+          path: `/proposals/${proposals[0].id}/validate`,
           method: "POST",
         });
-        const batch = await (
-          await request(app, { accessToken, path: `/proposal-batches/${lot.id}` })
+        const reviewed = await (
+          await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
         ).json();
 
         expect(response.status).toBe(500);
-        expect(batch.propositions).toMatchObject([{ status: "proposed" }]);
+        expect(reviewed.proposals).toMatchObject([{ status: "proposed" }]);
         expect((await readTokens(app, { accessToken, projectId })).tokens).toEqual([]);
       },
       {
         wrapHistoryWriter: (writer) => ({
           append: (entry) =>
-            entry.action.startsWith("proposition.")
+            entry.action.startsWith("proposal.")
               ? Promise.reject(new Error("historique indisponible"))
               : writer.append(entry),
         }),

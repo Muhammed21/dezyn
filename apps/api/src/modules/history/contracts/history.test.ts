@@ -65,8 +65,8 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
                     enum: [
                       "project.created",
                       "token.created",
-                      "proposition.validated",
-                      "proposition.rejected",
+                      "proposal.validated",
+                      "proposal.rejected",
                       "mcp.read_history",
                       "mcp.read_tokens",
                       "mcp.write_tokens",

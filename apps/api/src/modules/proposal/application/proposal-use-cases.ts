@@ -1,11 +1,11 @@
-import type { closeBatch, openBatch } from "./proposition-lots.ts";
+import type { closeBatch, openBatch } from "./proposal-batches.ts";
 import type {
   batchOf,
   listBatches,
-  pendingPropositionsOf,
-  reviewProposition,
+  pendingProposalsOf,
+  reviewProposal,
   validateBatch,
-} from "./review-propositions.ts";
+} from "./review-proposals.ts";
 import type { writeTokens } from "./write-tokens.ts";
 
 export type ProposalUseCases = {
@@ -14,7 +14,7 @@ export type ProposalUseCases = {
   readonly closeBatch: ReturnType<typeof closeBatch>;
   readonly listBatches: ReturnType<typeof listBatches>;
   readonly batchOf: ReturnType<typeof batchOf>;
-  readonly reviewProposition: ReturnType<typeof reviewProposition>;
+  readonly reviewProposal: ReturnType<typeof reviewProposal>;
   readonly validateBatch: ReturnType<typeof validateBatch>;
-  readonly pendingPropositionsOf: ReturnType<typeof pendingPropositionsOf>;
+  readonly pendingProposalsOf: ReturnType<typeof pendingProposalsOf>;
 };

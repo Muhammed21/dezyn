@@ -5,12 +5,12 @@ import { Uuid } from "@repo/contracts";
 import { err, ok, type Result } from "@repo/result";
 
 import type { McpCall } from "../../../platform/mcp.ts";
+import type { ClosedBatch, OpenedBatch } from "../application/proposal-batches.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
-import type { ClosedBatch, OpenedBatch } from "../application/proposition-lots.ts";
-import { ClosedBatchOutput, OpenedBatchOutput } from "../contracts/proposition.ts";
-import type { PropositionLot } from "../domain/proposition.ts";
+import { ClosedBatchOutput, OpenedBatchOutput } from "../contracts/proposal.ts";
+import type { ProposalBatch } from "../domain/proposal.ts";
 
-type BatchFailure = "not_found" | "history_unavailable" | "invalid_intention";
+type BatchFailure = "not_found" | "history_unavailable" | "invalid_intent";
 
 type RecordProjectCall = <T, E>(call: {
   readonly tool: string;
@@ -25,10 +25,10 @@ type RecordProjectCall = <T, E>(call: {
 const ERROR_TEXT: Readonly<Record<BatchFailure, string>> = {
   not_found: "Projet introuvable",
   history_unavailable: "Historique indisponible",
-  invalid_intention: "intention : Intention requise",
+  invalid_intent: "intent : Intention requise",
 };
 
-const Intention = z.string().trim().min(1);
+const Intent = z.string().trim().min(1);
 
 type TextContent = { readonly type: "text"; readonly text: string };
 
@@ -44,7 +44,7 @@ const structured = <T extends Record<string, unknown>>(
   structuredContent: output,
 });
 
-const lotOutputOf = ({ id, state, intention }: PropositionLot) => ({ id, state, intention });
+const batchOutputOf = ({ id, state, intent }: ProposalBatch) => ({ id, state, intent });
 
 export const registerProposalBatchTools =
   ({
@@ -61,26 +61,26 @@ export const registerProposalBatchTools =
       {
         description:
           "Ouvre un lot de propositions dans un projet en déclarant l'intention de l'IA, par exemple « Import du Figma Healthcare » ; les écritures suivantes y vont, et le lot ouvert précédent de l'IA dans ce projet se ferme.",
-        inputSchema: { projectId: Uuid, intention: z.string().optional() },
+        inputSchema: { projectId: Uuid, intent: z.string().optional() },
         outputSchema: OpenedBatchOutput,
       },
-      async ({ projectId, intention }) => {
+      async ({ projectId, intent }) => {
         const opened = await recordProjectCall({
           ...writer,
           tool: "open_proposal_batch",
           projectId,
-          input: { intention },
-          run: async (): Promise<Result<OpenedBatch, "invalid_intention">> => {
-            const parsed = Intention.safeParse(intention);
+          input: { intent },
+          run: async (): Promise<Result<OpenedBatch, "invalid_intent">> => {
+            const parsed = Intent.safeParse(intent);
             if (!parsed.success) {
-              return err("invalid_intention");
+              return err("invalid_intent");
             }
             return ok(
               await openBatch({
                 projectId,
                 userId: identity.userId,
                 clientId: identity.clientId,
-                intention: parsed.data,
+                intent: parsed.data,
               }),
             );
           },
@@ -88,9 +88,9 @@ export const registerProposalBatchTools =
         if (!opened.ok) {
           return errorOf(opened.error);
         }
-        const { lot, closed } = opened.value;
+        const { batch, closed } = opened.value;
         return structured({
-          lot: lotOutputOf(lot),
+          batch: batchOutputOf(batch),
           closed: closed === null ? null : { id: closed.id },
         });
       },
@@ -121,8 +121,8 @@ export const registerProposalBatchTools =
         if (!closed.ok) {
           return errorOf(closed.error);
         }
-        const { lot } = closed.value;
-        return structured({ lot: lot === null ? null : lotOutputOf(lot) });
+        const { batch } = closed.value;
+        return structured({ batch: batch === null ? null : batchOutputOf(batch) });
       },
     );
   };

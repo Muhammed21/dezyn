@@ -1,47 +1,45 @@
 import { referencedNames } from "../../token/contracts/token-definition.ts";
-import type { LotState, Proposition } from "./proposition.ts";
+import type { BatchState, Proposal } from "./proposal.ts";
 
 export type BatchPlan =
   | { readonly refusal: "batch_open" }
   | { readonly refusal: "unknown_propositions"; readonly ids: readonly string[] }
-  | { readonly toValidate: readonly Proposition[]; readonly toReject: readonly Proposition[] };
+  | { readonly toValidate: readonly Proposal[]; readonly toReject: readonly Proposal[] };
 
 const targetsFirst = (
-  remaining: readonly Proposition[],
-  placed: readonly Proposition[] = [],
-): readonly Proposition[] => {
+  remaining: readonly Proposal[],
+  placed: readonly Proposal[] = [],
+): readonly Proposal[] => {
   const waiting = new Set(remaining.map(({ name }) => name));
-  const ready = remaining.find((proposition) =>
-    referencedNames(proposition.token).every((name) => !waiting.has(name)),
+  const ready = remaining.find((proposal) =>
+    referencedNames(proposal.token).every((name) => !waiting.has(name)),
   );
   if (ready === undefined) {
     return [...placed, ...remaining];
   }
   return targetsFirst(
-    remaining.filter((proposition) => proposition !== ready),
+    remaining.filter((proposal) => proposal !== ready),
     [...placed, ready],
   );
 };
 
 export const planBatchValidation = ({
-  lotState,
-  propositions,
+  batchState,
+  proposals,
   rejected,
 }: {
-  readonly lotState: LotState;
-  readonly propositions: readonly Proposition[];
+  readonly batchState: BatchState;
+  readonly proposals: readonly Proposal[];
   readonly rejected: readonly string[];
 }): BatchPlan => {
-  if (lotState === "open") {
+  if (batchState === "open") {
     return { refusal: "batch_open" };
   }
-  const unknown = rejected.filter(
-    (id) => !propositions.some((proposition) => proposition.id === id),
-  );
+  const unknown = rejected.filter((id) => !proposals.some((proposal) => proposal.id === id));
   if (unknown.length > 0) {
     return { refusal: "unknown_propositions", ids: unknown };
   }
-  const proposed = propositions.filter(({ status }) => status === "proposed");
+  const proposed = proposals.filter(({ status }) => status === "proposed");
   return {
     toValidate: targetsFirst(proposed.filter(({ id }) => !rejected.includes(id))),
     toReject: proposed.filter(({ id }) => rejected.includes(id)),

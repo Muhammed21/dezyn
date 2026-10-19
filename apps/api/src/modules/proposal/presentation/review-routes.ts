@@ -8,11 +8,11 @@ import { type Problem, problemResponse } from "../../../platform/problem.ts";
 import { validate } from "../../../platform/validate.ts";
 import { issuesOfCheck, type ValidatedTokenFailure } from "../../token/contracts/token-issues.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
-import type { BatchValidationFailure, ReviewFailure } from "../application/review-propositions.ts";
+import type { BatchValidationFailure, ReviewFailure } from "../application/review-proposals.ts";
 import type { ValidatedDefinition } from "../application/write-tokens.ts";
-import type { Decision, Proposition } from "../domain/proposition.ts";
+import type { Decision, Proposal } from "../domain/proposal.ts";
 
-const proposedOf = ({ token: { $type, $value, modes, $description } }: Proposition) => ({
+const proposedOf = ({ token: { $type, $value, modes, $description } }: Proposal) => ({
   $type,
   $value,
   modes,
@@ -26,15 +26,15 @@ const validatedOutputOf = ({ $type, $value, modes, $description }: ValidatedDefi
   $description,
 });
 
-const propositionOutputOf = (
-  proposition: Proposition & { readonly validated: ValidatedDefinition | null },
+const proposalOutputOf = (
+  proposal: Proposal & { readonly validated: ValidatedDefinition | null },
 ) => ({
-  id: proposition.id,
-  name: proposition.name,
-  kind: proposition.kind,
-  status: proposition.status,
-  validated: proposition.validated === null ? null : validatedOutputOf(proposition.validated),
-  proposed: proposedOf(proposition),
+  id: proposal.id,
+  name: proposal.name,
+  kind: proposal.kind,
+  status: proposal.status,
+  validated: proposal.validated === null ? null : validatedOutputOf(proposal.validated),
+  proposed: proposedOf(proposal),
 });
 
 const issuesOfFailure = (failure: ValidatedTokenFailure) =>
@@ -78,7 +78,7 @@ const batchProblemOf = (
     title: "Lot invalide",
     status: 409,
     errors: issuesOfFailure(failure.failure).map(({ path, message }) => ({
-      path: `propositions.${failure.propositionId}.${path}`,
+      path: `proposals.${failure.proposalId}.${path}`,
       message,
     })),
   };
@@ -94,15 +94,15 @@ export const projectBatchesRoutes = ({ listBatches }: ProposalUseCases) =>
     return batches.ok ? c.json({ batches: batches.value }) : c.notFound();
   });
 
-export const reviewRoutes = ({ batchOf, reviewProposition, validateBatch }: ProposalUseCases) => {
+export const reviewRoutes = ({ batchOf, reviewProposal, validateBatch }: ProposalUseCases) => {
   const reviewed = (decision: Decision) =>
-    new Hono<AuthenticatedEnv>().post("/:propositionId/" + decision, async (c) => {
-      const propositionId = Uuid.safeParse(c.req.param("propositionId")).data;
-      if (propositionId === undefined) {
+    new Hono<AuthenticatedEnv>().post("/:proposalId/" + decision, async (c) => {
+      const proposalId = Uuid.safeParse(c.req.param("proposalId")).data;
+      if (proposalId === undefined) {
         return c.notFound();
       }
-      const outcome = await reviewProposition({
-        propositionId,
+      const outcome = await reviewProposal({
+        proposalId,
         userId: c.get("identity").userId,
         decision,
         correlationId: c.get("correlationId"),
@@ -125,13 +125,13 @@ export const reviewRoutes = ({ batchOf, reviewProposition, validateBatch }: Prop
       if (!batch.ok) {
         return c.notFound();
       }
-      const { id, projectId, intention, state, propositions } = batch.value;
+      const { id, projectId, intent, state, proposals } = batch.value;
       return c.json({
         id,
         projectId,
-        intention,
+        intent,
         state,
-        propositions: propositions.map(propositionOutputOf),
+        proposals: proposals.map(proposalOutputOf),
       });
     })
     .post(

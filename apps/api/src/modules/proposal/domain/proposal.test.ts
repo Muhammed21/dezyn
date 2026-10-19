@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type PropositionStatus, review } from "./proposition.ts";
+import { type ProposalStatus, review } from "./proposal.ts";
 
 describe("seule une proposition Proposée se relit (ADR 0013 §9)", () => {
   it("valider une proposition Proposée la rend Validée", () => {
@@ -11,7 +11,7 @@ describe("seule une proposition Proposée se relit (ADR 0013 §9)", () => {
     expect(review({ status: "proposed", decision: "reject" })).toEqual({ status: "rejected" });
   });
 
-  const reviewed: readonly PropositionStatus[] = ["validated", "rejected", "replaced"];
+  const reviewed: readonly ProposalStatus[] = ["validated", "rejected", "replaced"];
 
   it.each(reviewed)("une proposition %s ne se valide plus", (status) => {
     expect(review({ status, decision: "validate" })).toEqual({ refusal: "already_reviewed" });

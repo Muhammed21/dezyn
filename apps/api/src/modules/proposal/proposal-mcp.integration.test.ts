@@ -46,8 +46,8 @@ describe("une écriture de l'IA est une proposition, rangée dans un lot (ADR 00
       const result = await writeTokens(app, { token: accessToken, projectId, tokens });
 
       expect(result.structuredContent).toEqual({
-        lot: { id: expect.any(String), state: "open" },
-        propositions: [
+        batch: { id: expect.any(String), state: "open" },
+        proposals: [
           { id: expect.any(String), name: "couleur.bleu.500", kind: "create", status: "proposed" },
           { id: expect.any(String), name: "couleur.bleu.700", kind: "create", status: "proposed" },
         ],
@@ -74,7 +74,7 @@ describe("une écriture de l'IA est une proposition, rangée dans un lot (ADR 00
         tokens: [makeColorToken({ name: "couleur.bleu.700" })],
       });
 
-      expect(second.structuredContent.lot).toEqual(first.structuredContent.lot);
+      expect(second.structuredContent.batch).toEqual(first.structuredContent.batch);
     }));
 });
 
@@ -131,7 +131,7 @@ describe("write_tokens entre dans l'historique et refuse ce qui ne lui revient p
         isError: true,
         content: [{ type: "text", text: "Projet introuvable" }],
       });
-      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+      expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
     }));
 
   it("une définition invalide refuse tout l'appel, en nommant le token et le champ, sans lot", () =>
@@ -157,7 +157,7 @@ describe("write_tokens entre dans l'historique et refuse ce qui ne lui revient p
           },
         ],
       });
-      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+      expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
       expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
         action: "mcp.write_tokens",
         after: { outcome: "error" },
@@ -242,8 +242,8 @@ describe("write_tokens s'annonce à l'IA", () => {
               }),
               outputSchema: expect.objectContaining({
                 properties: expect.objectContaining({
-                  lot: expect.anything(),
-                  propositions: expect.anything(),
+                  batch: expect.anything(),
+                  proposals: expect.anything(),
                 }),
               }),
             }),
@@ -269,7 +269,7 @@ describe("write_tokens refuse dès la proposition ce que l'ajout d'un membre ref
         isError: true,
         content: [{ type: "text", text: "tokens[0].modes.sombre : Valeur manquante pour ce mode" }],
       });
-      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+      expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
     }));
 
   it("une référence vers un token inexistant refuse l'appel en nommant le token, sans lot", () =>
@@ -286,7 +286,7 @@ describe("write_tokens refuse dès la proposition ce que l'ajout d'un membre ref
         isError: true,
         content: [{ type: "text", text: "tokens[0].$value : Référence vers un token inexistant" }],
       });
-      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+      expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
     }));
 
   it("une référence vers un token validé du projet est acceptée", () =>
@@ -304,7 +304,7 @@ describe("write_tokens refuse dès la proposition ce que l'ajout d'un membre ref
         tokens: [makeColorToken({ $value: "{couleur.bleu.500}" })],
       });
 
-      expect(result.structuredContent.propositions).toMatchObject([
+      expect(result.structuredContent.proposals).toMatchObject([
         { name: "couleur.fond.primaire", status: "proposed" },
       ]);
     }));
@@ -322,7 +322,7 @@ describe("write_tokens refuse dès la proposition ce que l'ajout d'un membre ref
         ],
       });
 
-      expect(result.structuredContent.propositions).toMatchObject([
+      expect(result.structuredContent.proposals).toMatchObject([
         { name: "couleur.fond.primaire", status: "proposed" },
         { name: "couleur.bleu.500", status: "proposed" },
       ]);

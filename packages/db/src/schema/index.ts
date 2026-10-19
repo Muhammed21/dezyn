@@ -18,4 +18,4 @@ export { space, spaceInvitation, spaceMember } from "./space.ts";
 export { historyAuthor, historyEntry } from "./history.ts";
 export { project } from "./project.ts";
 export { mode, modifier, token, tokenValue } from "./token.ts";
-export { proposition, propositionLot } from "./proposal.ts";
+export { proposal, proposalBatch } from "./proposal.ts";

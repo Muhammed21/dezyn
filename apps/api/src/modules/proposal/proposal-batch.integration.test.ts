@@ -30,8 +30,8 @@ const callTool = async (
 
 const openBatch = (
   app: App,
-  { token, projectId, intention }: { token: string; projectId: string; intention?: string },
-) => callTool(app, { token, name: "open_proposal_batch", args: { projectId, intention } });
+  { token, projectId, intent }: { token: string; projectId: string; intent?: string },
+) => callTool(app, { token, name: "open_proposal_batch", args: { projectId, intent } });
 
 const closeBatch = (app: App, { token, projectId }: { token: string; projectId: string }) =>
   callTool(app, { token, name: "close_proposal_batch", args: { projectId } });
@@ -55,8 +55,10 @@ const writeTokens = async (
 const request = (app: App, { accessToken, path }: { accessToken: string; path: string }) =>
   app.request(`${BASE_URL}/v1${path}`, { headers: { authorization: `Bearer ${accessToken}` } });
 
-const batchOf = async (app: App, { accessToken, lotId }: { accessToken: string; lotId: string }) =>
-  (await request(app, { accessToken, path: `/proposal-batches/${lotId}` })).json();
+const batchOf = async (
+  app: App,
+  { accessToken, batchId }: { accessToken: string; batchId: string },
+) => (await request(app, { accessToken, path: `/proposal-batches/${batchId}` })).json();
 
 const batchesOf = async (
   app: App,
@@ -86,41 +88,41 @@ describe("l'IA ouvre et ferme un lot avec son intention (ADR 0013 §1)", () => {
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
 
-      const opened = await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      const opened = await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
       const written = await writeTokens(app, { token: accessToken, projectId });
       const closed = await closeBatch(app, { token: accessToken, projectId });
 
       expect(opened.structuredContent).toEqual({
-        lot: { id: expect.any(String), state: "open", intention: INTENTION },
+        batch: { id: expect.any(String), state: "open", intent: INTENTION },
         closed: null,
       });
       expect(opened.content).toEqual([
         { type: "text", text: JSON.stringify(opened.structuredContent) },
       ]);
-      const lotId = opened.structuredContent.lot.id;
-      expect(written.lot.id).toBe(lotId);
+      const batchId = opened.structuredContent.batch.id;
+      expect(written.batch.id).toBe(batchId);
       expect(closed.structuredContent).toEqual({
-        lot: { id: lotId, state: "closed", intention: INTENTION },
+        batch: { id: batchId, state: "closed", intent: INTENTION },
       });
-      expect(await batchOf(app, { accessToken, lotId })).toMatchObject({
-        id: lotId,
-        intention: INTENTION,
+      expect(await batchOf(app, { accessToken, batchId })).toMatchObject({
+        id: batchId,
+        intent: INTENTION,
         state: "closed",
-        propositions: [{ name: "couleur.fond.primaire", status: "proposed" }],
+        proposals: [{ name: "couleur.fond.primaire", status: "proposed" }],
       });
     }));
 
   it("après la fermeture, une écriture va dans un nouveau lot automatique, sans intention", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const opened = await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      const opened = await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
       await closeBatch(app, { token: accessToken, projectId });
 
       const written = await writeTokens(app, { token: accessToken, projectId });
 
-      expect(written.lot.id).not.toBe(opened.structuredContent.lot.id);
-      expect(await batchOf(app, { accessToken, lotId: written.lot.id })).toMatchObject({
-        intention: null,
+      expect(written.batch.id).not.toBe(opened.structuredContent.batch.id);
+      expect(await batchOf(app, { accessToken, batchId: written.batch.id })).toMatchObject({
+        intent: null,
         state: "open",
       });
     }));
@@ -130,29 +132,29 @@ describe("l'IA ouvre et ferme un lot avec son intention (ADR 0013 §1)", () => {
       const { accessToken, projectId } = await seedProject(app, db);
       const automatic = await writeTokens(app, { token: accessToken, projectId });
 
-      const opened = await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      const opened = await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
 
-      expect(opened.structuredContent.closed).toEqual({ id: automatic.lot.id });
+      expect(opened.structuredContent.closed).toEqual({ id: automatic.batch.id });
       expect(await batchesOf(app, { accessToken, projectId })).toMatchObject([
-        { id: opened.structuredContent.lot.id, intention: INTENTION, state: "open" },
-        { id: automatic.lot.id, intention: null, state: "closed" },
+        { id: opened.structuredContent.batch.id, intent: INTENTION, state: "open" },
+        { id: automatic.batch.id, intent: null, state: "closed" },
       ]);
     }));
 
   it("ouvrir un second lot déclaré ferme le premier, et les écritures vont dans le second", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const first = await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      const first = await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
 
       const second = await openBatch(app, {
         token: accessToken,
         projectId,
-        intention: "Couleurs de la marque",
+        intent: "Couleurs de la marque",
       });
       const written = await writeTokens(app, { token: accessToken, projectId });
 
-      expect(second.structuredContent.closed).toEqual({ id: first.structuredContent.lot.id });
-      expect(written.lot.id).toBe(second.structuredContent.lot.id);
+      expect(second.structuredContent.closed).toEqual({ id: first.structuredContent.batch.id });
+      expect(written.batch.id).toBe(second.structuredContent.batch.id);
     }));
 
   it("fermer sans lot ouvert ne ferme rien", () =>
@@ -161,7 +163,7 @@ describe("l'IA ouvre et ferme un lot avec son intention (ADR 0013 §1)", () => {
 
       const closed = await closeBatch(app, { token: accessToken, projectId });
 
-      expect(closed.structuredContent).toEqual({ lot: null });
+      expect(closed.structuredContent).toEqual({ batch: null });
     }));
 
   it("fermer un lot automatique le ferme aussi", () =>
@@ -172,7 +174,7 @@ describe("l'IA ouvre et ferme un lot avec son intention (ADR 0013 §1)", () => {
       const closed = await closeBatch(app, { token: accessToken, projectId });
 
       expect(closed.structuredContent).toEqual({
-        lot: { id: automatic.lot.id, state: "closed", intention: null },
+        batch: { id: automatic.batch.id, state: "closed", intent: null },
       });
     }));
 });
@@ -181,28 +183,28 @@ describe("un lot appartient à l'IA d'un membre dans un seul projet (ADR 0013 §
   it("le lot continue après une reconnexion de la même IA", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, clientId, refreshToken, projectId } = await seedProject(app, db);
-      const opened = await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      const opened = await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
       const { access_token: reconnected } = await (
         await refreshTokens(app, { clientId, refreshToken })
       ).json();
 
       const written = await writeTokens(app, { token: String(reconnected), projectId });
 
-      expect(written.lot.id).toBe(opened.structuredContent.lot.id);
+      expect(written.batch.id).toBe(opened.structuredContent.batch.id);
     }));
 
   it("des écritures dans deux projets produisent deux lots", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, spaceId, projectId } = await seedProject(app, db);
       const otherProjectId = await createProject(app, { accessToken, spaceId });
-      await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
 
       const here = await writeTokens(app, { token: accessToken, projectId });
       const there = await writeTokens(app, { token: accessToken, projectId: otherProjectId });
 
-      expect(there.lot.id).not.toBe(here.lot.id);
+      expect(there.batch.id).not.toBe(here.batch.id);
       expect(await batchesOf(app, { accessToken, projectId: otherProjectId })).toMatchObject([
-        { id: there.lot.id, intention: null, state: "open" },
+        { id: there.batch.id, intent: null, state: "open" },
       ]);
     }));
 
@@ -212,11 +214,11 @@ describe("un lot appartient à l'IA d'un membre dans un seul projet (ADR 0013 §
       const otherProjectId = await createProject(app, { accessToken, spaceId });
       const elsewhere = await writeTokens(app, { token: accessToken, projectId: otherProjectId });
 
-      const opened = await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      const opened = await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
       await closeBatch(app, { token: accessToken, projectId });
 
       expect(opened.structuredContent.closed).toBeNull();
-      expect(await batchOf(app, { accessToken, lotId: elsewhere.lot.id })).toMatchObject({
+      expect(await batchOf(app, { accessToken, batchId: elsewhere.batch.id })).toMatchObject({
         state: "open",
       });
     }));
@@ -227,11 +229,11 @@ describe("un lot appartient à l'IA d'un membre dans un seul projet (ADR 0013 §
       const other = await authorizeAnotherAi(app, { browser, clientName: "Cursor" });
       const others = await writeTokens(app, { token: other.accessToken, projectId });
 
-      const opened = await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      const opened = await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
       await closeBatch(app, { token: accessToken, projectId });
 
       expect(opened.structuredContent.closed).toBeNull();
-      expect(await batchOf(app, { accessToken, lotId: others.lot.id })).toMatchObject({
+      expect(await batchOf(app, { accessToken, batchId: others.batch.id })).toMatchObject({
         state: "open",
       });
     }));
@@ -242,19 +244,19 @@ describe("l'ouverture et la fermeture d'un lot entrent dans l'historique (ADR 00
     withIdentityApp(async (app, db) => {
       const { accessToken, clientId, projectId } = await seedProject(app, db);
 
-      await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
 
       expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
         action: "mcp.open_proposal_batch",
         clientId,
-        after: { outcome: "success", input: { intention: INTENTION } },
+        after: { outcome: "success", input: { intent: INTENTION } },
       });
     }));
 
   it("close_proposal_batch laisse une entrée mcp.close_proposal_batch", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, clientId, projectId } = await seedProject(app, db);
-      await openBatch(app, { token: accessToken, projectId, intention: INTENTION });
+      await openBatch(app, { token: accessToken, projectId, intent: INTENTION });
 
       await closeBatch(app, { token: accessToken, projectId });
 
@@ -268,7 +270,7 @@ describe("l'ouverture et la fermeture d'un lot entrent dans l'historique (ADR 00
 
 describe("ouvrir ou fermer un lot refuse ce qui ne revient pas à l'IA (ADR 0021)", () => {
   const calls: readonly (readonly [string, object])[] = [
-    ["open_proposal_batch", { intention: INTENTION }],
+    ["open_proposal_batch", { intent: INTENTION }],
     ["close_proposal_batch", {}],
   ];
 
@@ -326,15 +328,15 @@ describe("open_proposal_batch exige une intention", () => {
   it.each([
     ["sans intention", undefined],
     ["avec une intention vide", "   "],
-  ])("%s, l'appel est refusé, sans lot", (_, intention) =>
+  ])("%s, l'appel est refusé, sans lot", (_, intent) =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
 
-      const result = await openBatch(app, { token: accessToken, projectId, intention });
+      const result = await openBatch(app, { token: accessToken, projectId, intent });
 
       expect(result).toMatchObject({
         isError: true,
-        content: [{ type: "text", text: "intention : Intention requise" }],
+        content: [{ type: "text", text: "intent : Intention requise" }],
       });
       expect(await batchesOf(app, { accessToken, projectId })).toEqual([]);
     }),
@@ -357,11 +359,11 @@ describe("open_proposal_batch et close_proposal_batch s'annoncent à l'IA", () =
                 "Ouvre un lot de propositions dans un projet en déclarant l'intention de l'IA, par exemple « Import du Figma Healthcare » ; les écritures suivantes y vont, et le lot ouvert précédent de l'IA dans ce projet se ferme.",
               inputSchema: expect.objectContaining({
                 required: ["projectId"],
-                properties: expect.objectContaining({ intention: expect.anything() }),
+                properties: expect.objectContaining({ intent: expect.anything() }),
               }),
               outputSchema: expect.objectContaining({
                 properties: expect.objectContaining({
-                  lot: expect.anything(),
+                  batch: expect.anything(),
                   closed: expect.anything(),
                 }),
               }),
@@ -372,7 +374,7 @@ describe("open_proposal_batch et close_proposal_batch s'annoncent à l'IA", () =
                 "Ferme le lot de propositions ouvert de l'IA dans un projet ; l'éditeur peut alors le valider en entier.",
               inputSchema: expect.objectContaining({ required: ["projectId"] }),
               outputSchema: expect.objectContaining({
-                properties: expect.objectContaining({ lot: expect.anything() }),
+                properties: expect.objectContaining({ batch: expect.anything() }),
               }),
             }),
           ]),

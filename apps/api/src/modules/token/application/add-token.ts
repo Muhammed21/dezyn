@@ -37,13 +37,13 @@ export interface TokenWriter {
   ): Promise<void>;
 }
 
-export type ReplacedProposition = { readonly id: string; readonly lotId: string };
+export type ReplacedProposal = { readonly id: string; readonly batchId: string };
 
-export interface PendingPropositions {
+export interface PendingProposals {
   replace(token: {
     readonly projectId: string;
     readonly name: string;
-  }): Promise<ReplacedProposition | null>;
+  }): Promise<ReplacedProposal | null>;
 }
 
 export interface TokenUnitOfWork {
@@ -51,12 +51,12 @@ export interface TokenUnitOfWork {
     work: (unit: {
       readonly tokens: TokenWriter;
       readonly history: HistoryWriter;
-      readonly propositions: PendingPropositions;
+      readonly proposals: PendingProposals;
     }) => Promise<T>,
   ): Promise<T>;
 }
 
-export type AddedToken = Token & { readonly replaced: ReplacedProposition | null };
+export type AddedToken = Token & { readonly replaced: ReplacedProposal | null };
 
 export type InvalidModes = {
   readonly code: "invalid_modes";
@@ -218,11 +218,11 @@ export const addToken =
       status: "validated",
       createdAt: now(),
     };
-    return unitOfWork.run(async ({ tokens, history, propositions }) => {
+    return unitOfWork.run(async ({ tokens, history, proposals }) => {
       if ((await tokens.create(added, values.map(modeValueOf))) === "name_taken") {
         return err("name_taken");
       }
-      const replaced = await propositions.replace({ projectId, name: token.name });
+      const replaced = await proposals.replace({ projectId, name: token.name });
       await history.append({
         spaceId: project.spaceId,
         projectId,

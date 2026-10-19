@@ -6,8 +6,8 @@ import {
   type TokenDefinition,
 } from "../../token/contracts/token-definition.ts";
 import type { CheckTokens, TokenCheck } from "../../token/contracts/token-issues.ts";
-import type { Proposition, PropositionLot } from "../domain/proposition.ts";
-import { liveLotOf } from "./proposition-lots.ts";
+import type { Proposal, ProposalBatch } from "../domain/proposal.ts";
+import { liveBatchOf } from "./proposal-batches.ts";
 
 export type Writer = {
   readonly projectId: string;
@@ -22,25 +22,25 @@ export type ValidatedDefinition = ComparedDefinition & {
 
 export type ValidatedTokensOf = (projectId: string) => Promise<readonly ValidatedDefinition[]>;
 
-export type Replaced = { readonly id: string; readonly name: string; readonly lotId: string };
+export type Replaced = { readonly id: string; readonly name: string; readonly batchId: string };
 
-export interface PropositionStore {
-  pendingOf(projectId: string, names: readonly string[]): Promise<readonly Proposition[]>;
-  replace(propositionIds: readonly string[]): Promise<void>;
-  findOpenLot(writer: Writer): Promise<PropositionLot | undefined>;
-  openLotOf(candidate: PropositionLot): Promise<PropositionLot>;
-  closeLot(lotId: string): Promise<void>;
-  touchLot(lotId: string, lastWrittenAt: Date): Promise<void>;
-  propose(propositions: readonly Proposition[]): Promise<void>;
+export interface ProposalStore {
+  pendingOf(projectId: string, names: readonly string[]): Promise<readonly Proposal[]>;
+  replace(proposalIds: readonly string[]): Promise<void>;
+  findOpenBatch(writer: Writer): Promise<ProposalBatch | undefined>;
+  openBatchOf(candidate: ProposalBatch): Promise<ProposalBatch>;
+  closeBatch(batchId: string): Promise<void>;
+  touchBatch(batchId: string, lastWrittenAt: Date): Promise<void>;
+  propose(proposals: readonly Proposal[]): Promise<void>;
 }
 
-export interface PropositionUnitOfWork {
-  run<T>(work: (store: PropositionStore) => Promise<T>): Promise<T>;
+export interface ProposalUnitOfWork {
+  run<T>(work: (store: ProposalStore) => Promise<T>): Promise<T>;
 }
 
 export type Written = {
-  readonly lot: PropositionLot | null;
-  readonly propositions: readonly Proposition[];
+  readonly batch: ProposalBatch | null;
+  readonly proposals: readonly Proposal[];
   readonly unchanged: readonly string[];
   readonly replaced: readonly Replaced[];
 };
@@ -60,7 +60,7 @@ export const writeTokens =
   }: {
     readonly checkTokens: CheckTokens;
     readonly validatedTokensOf: ValidatedTokensOf;
-    readonly unitOfWork: PropositionUnitOfWork;
+    readonly unitOfWork: ProposalUnitOfWork;
     readonly newId: () => string;
     readonly now: () => Date;
   }) =>
@@ -95,37 +95,37 @@ export const writeTokens =
       const replaced = written.flatMap(({ replaces }): readonly Replaced[] =>
         replaces === undefined
           ? []
-          : [{ id: replaces.id, name: replaces.name, lotId: replaces.lotId }],
+          : [{ id: replaces.id, name: replaces.name, batchId: replaces.batchId }],
       );
       await store.replace(replaced.map(({ id }) => id));
       const unchanged = written.filter((entry) => entry.unchanged).map(({ token }) => token.name);
       const changed = written.filter((entry) => !entry.unchanged);
       const createdAt = now();
-      const live = await liveLotOf(store, { writer, now: createdAt });
+      const live = await liveBatchOf(store, { writer, now: createdAt });
       if (changed.length === 0) {
-        return ok({ lot: live ?? null, propositions: [], unchanged, replaced });
+        return ok({ batch: live ?? null, proposals: [], unchanged, replaced });
       }
-      const lot =
+      const batch =
         live ??
-        (await store.openLotOf({
+        (await store.openBatchOf({
           id: newId(),
           ...writer,
-          intention: null,
+          intent: null,
           state: "open",
           openedAt: createdAt,
           lastWrittenAt: createdAt,
         }));
-      await store.touchLot(lot.id, createdAt);
-      const propositions = changed.map(({ token, current }): Proposition => ({
+      await store.touchBatch(batch.id, createdAt);
+      const proposals = changed.map(({ token, current }): Proposal => ({
         id: newId(),
-        lotId: lot.id,
+        batchId: batch.id,
         name: token.name,
         kind: current === undefined ? "create" : "update",
         token,
         status: "proposed",
         createdAt,
       }));
-      await store.propose(propositions);
-      return ok({ lot, propositions, unchanged, replaced });
+      await store.propose(proposals);
+      return ok({ batch, proposals, unchanged, replaced });
     });
   };

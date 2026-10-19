@@ -8,7 +8,7 @@ import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
 import type {
   ModeReader,
   ModeValue,
-  PendingPropositions,
+  PendingProposals,
   ProjectTokenReader,
   TokenUnitOfWork,
   TokenWriter,
@@ -101,12 +101,12 @@ export const postgresTokenWriter = (
 export const postgresTokenUnitOfWork = ({
   db,
   historyWriterOn,
-  propositionReplacerOn,
+  proposalReplacerOn,
   newId,
 }: {
   readonly db: PostgresDatabase;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
-  readonly propositionReplacerOn: (tx: PostgresTransaction) => PendingPropositions;
+  readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
   readonly newId: () => string;
 }): TokenUnitOfWork => ({
   run: (work) =>
@@ -114,7 +114,7 @@ export const postgresTokenUnitOfWork = ({
       work({
         tokens: postgresTokenWriter(tx, { newId }),
         history: historyWriterOn(tx),
-        propositions: propositionReplacerOn(tx),
+        proposals: proposalReplacerOn(tx),
       }),
     ),
 });

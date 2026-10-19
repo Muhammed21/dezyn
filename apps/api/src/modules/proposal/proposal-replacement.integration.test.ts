@@ -38,8 +38,10 @@ const request = (
     headers: { authorization: `Bearer ${accessToken}` },
   });
 
-const batchOf = async (app: App, { accessToken, lotId }: { accessToken: string; lotId: string }) =>
-  (await request(app, { accessToken, path: `/proposal-batches/${lotId}` })).json();
+const batchOf = async (
+  app: App,
+  { accessToken, batchId }: { accessToken: string; batchId: string },
+) => (await request(app, { accessToken, path: `/proposal-batches/${batchId}` })).json();
 
 describe("une nouvelle écriture remplace la proposition en attente sur le même token (ADR 0013 §6)", () => {
   it("la proposition d'une autre IA, dans un autre lot, passe à Remplacée, et la nouvelle est Proposée", () =>
@@ -59,8 +61,8 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
       });
 
       expect(second).toEqual({
-        lot: { id: expect.any(String), state: "open" },
-        propositions: [
+        batch: { id: expect.any(String), state: "open" },
+        proposals: [
           {
             id: expect.any(String),
             name: "couleur.fond.primaire",
@@ -70,13 +72,13 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
         ],
         unchanged: [],
         replaced: [
-          { id: first.propositions[0].id, name: "couleur.fond.primaire", lotId: first.lot.id },
+          { id: first.proposals[0].id, name: "couleur.fond.primaire", batchId: first.batch.id },
         ],
       });
-      expect(second.lot.id).not.toBe(first.lot.id);
-      expect((await batchOf(app, { accessToken, lotId: first.lot.id })).propositions).toMatchObject(
-        [{ id: first.propositions[0].id, status: "replaced" }],
-      );
+      expect(second.batch.id).not.toBe(first.batch.id);
+      expect(
+        (await batchOf(app, { accessToken, batchId: first.batch.id })).proposals,
+      ).toMatchObject([{ id: first.proposals[0].id, status: "replaced" }]);
     }));
 
   it("une proposition déjà relue n'est pas remplacée", () =>
@@ -89,7 +91,7 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
       });
       await request(app, {
         accessToken,
-        path: `/proposals/${first.propositions[0].id}/reject`,
+        path: `/proposals/${first.proposals[0].id}/reject`,
         method: "POST",
       });
 
@@ -100,9 +102,9 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
       });
 
       expect(second.replaced).toEqual([]);
-      expect((await batchOf(app, { accessToken, lotId: first.lot.id })).propositions).toMatchObject(
-        [{ status: "rejected" }, { status: "proposed" }],
-      );
+      expect(
+        (await batchOf(app, { accessToken, batchId: first.batch.id })).proposals,
+      ).toMatchObject([{ status: "rejected" }, { status: "proposed" }]);
     }));
 
   it("chaque token réécrit remplace sa propre proposition en attente", () =>
@@ -127,8 +129,8 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
       });
 
       expect(second.replaced).toEqual([
-        { id: first.propositions[0].id, name: "couleur.bleu.500", lotId: first.lot.id },
-        { id: first.propositions[1].id, name: "couleur.bleu.700", lotId: first.lot.id },
+        { id: first.proposals[0].id, name: "couleur.bleu.500", batchId: first.batch.id },
+        { id: first.proposals[1].id, name: "couleur.bleu.700", batchId: first.batch.id },
       ]);
     }));
 
@@ -166,8 +168,8 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
       });
 
       expect(second).toEqual({
-        lot: first.lot,
-        propositions: [],
+        batch: first.batch,
+        proposals: [],
         unchanged: ["couleur.fond.primaire"],
         replaced: [],
       });
@@ -189,7 +191,7 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${first.propositions[0].id}/validate`,
+        path: `/proposals/${first.proposals[0].id}/validate`,
         method: "POST",
       });
       const { batches } = await (
@@ -197,7 +199,7 @@ describe("une nouvelle écriture remplace la proposition en attente sur le même
       ).json();
 
       expect(response.status).toBe(409);
-      expect(batches).toMatchObject([{ id: first.lot.id, toReview: 1 }]);
+      expect(batches).toMatchObject([{ id: first.batch.id, toReview: 1 }]);
     }));
 });
 
@@ -220,16 +222,16 @@ describe("revenir à la valeur validée remplace la proposition en attente, sans
       });
 
       expect(back).toEqual({
-        lot: null,
-        propositions: [],
+        batch: null,
+        proposals: [],
         unchanged: ["couleur.fond.primaire"],
         replaced: [
-          { id: first.propositions[0].id, name: "couleur.fond.primaire", lotId: first.lot.id },
+          { id: first.proposals[0].id, name: "couleur.fond.primaire", batchId: first.batch.id },
         ],
       });
-      expect(await db.orm.select().from(schema.propositionLot)).toHaveLength(1);
-      expect((await batchOf(app, { accessToken, lotId: first.lot.id })).propositions).toMatchObject(
-        [{ status: "replaced" }],
-      );
+      expect(await db.orm.select().from(schema.proposalBatch)).toHaveLength(1);
+      expect(
+        (await batchOf(app, { accessToken, batchId: first.batch.id })).proposals,
+      ).toMatchObject([{ status: "replaced" }]);
     }));
 });

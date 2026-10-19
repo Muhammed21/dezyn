@@ -4,8 +4,8 @@ import { jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/
 import { identityUser } from "./identity.ts";
 import { project } from "./project.ts";
 
-export const propositionLot = pgTable(
-  "proposition_lot",
+export const proposalBatch = pgTable(
+  "proposal_batch",
   {
     id: uuid("id").primaryKey(),
     projectId: uuid("project_id")
@@ -15,23 +15,23 @@ export const propositionLot = pgTable(
       .notNull()
       .references(() => identityUser.id),
     clientId: text("client_id").notNull(),
-    intention: text("intention"),
+    intent: text("intent"),
     state: text("state").notNull(),
     openedAt: timestamp("opened_at", { withTimezone: true }).notNull(),
     lastWrittenAt: timestamp("last_written_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("proposition_lot_open_key")
+    uniqueIndex("proposal_batch_open_key")
       .on(table.projectId, table.userId, table.clientId)
       .where(sql`${table.state} = 'open'`),
   ],
 );
 
-export const proposition = pgTable("proposition", {
+export const proposal = pgTable("proposal", {
   id: uuid("id").primaryKey(),
-  lotId: uuid("lot_id")
+  batchId: uuid("batch_id")
     .notNull()
-    .references(() => propositionLot.id),
+    .references(() => proposalBatch.id),
   tokenName: text("token_name").notNull(),
   kind: text("kind").notNull(),
   payload: jsonb("payload").notNull(),

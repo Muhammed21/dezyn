@@ -48,8 +48,10 @@ const writeTokens = (
 const request = (app: App, { accessToken, path }: { accessToken: string; path: string }) =>
   app.request(`${BASE_URL}/v1${path}`, { headers: { authorization: `Bearer ${accessToken}` } });
 
-const batchOf = async (app: App, { accessToken, lotId }: { accessToken: string; lotId: string }) =>
-  (await request(app, { accessToken, path: `/proposal-batches/${lotId}` })).json();
+const batchOf = async (
+  app: App,
+  { accessToken, batchId }: { accessToken: string; batchId: string },
+) => (await request(app, { accessToken, path: `/proposal-batches/${batchId}` })).json();
 
 const batchesOf = async (
   app: App,
@@ -76,7 +78,7 @@ describe("une écriture constate qu'un lot s'est fermé après 30 minutes sans �
           name: "couleur.bleu.500",
         });
 
-        expect(second.lot.id).toBe(first.lot.id);
+        expect(second.batch.id).toBe(first.batch.id);
       },
       { clock: clock.now },
     );
@@ -96,11 +98,11 @@ describe("une écriture constate qu'un lot s'est fermé après 30 minutes sans �
           name: "couleur.bleu.500",
         });
 
-        expect(second.lot).toEqual({ id: expect.any(String), state: "open" });
-        expect(second.lot.id).not.toBe(first.lot.id);
+        expect(second.batch).toEqual({ id: expect.any(String), state: "open" });
+        expect(second.batch.id).not.toBe(first.batch.id);
         expect(await batchesOf(app, { accessToken, projectId })).toMatchObject([
-          { id: second.lot.id, state: "open", intention: null },
-          { id: first.lot.id, state: "closed" },
+          { id: second.batch.id, state: "open", intent: null },
+          { id: first.batch.id, state: "closed" },
         ]);
       },
       { clock: clock.now },
@@ -123,7 +125,7 @@ describe("une écriture constate qu'un lot s'est fermé après 30 minutes sans �
           name: "couleur.bleu.700",
         });
 
-        expect(third.lot.id).toBe(first.lot.id);
+        expect(third.batch.id).toBe(first.batch.id);
       },
       { clock: clock.now },
     );
@@ -146,8 +148,8 @@ describe("une écriture constate qu'un lot s'est fermé après 30 minutes sans �
 
         const unchanged = await writeTokens(app, { token: accessToken, projectId });
 
-        expect(unchanged).toMatchObject({ lot: null, unchanged: ["couleur.fond.primaire"] });
-        expect(await batchOf(app, { accessToken, lotId: first.lot.id })).toMatchObject({
+        expect(unchanged).toMatchObject({ batch: null, unchanged: ["couleur.fond.primaire"] });
+        expect(await batchOf(app, { accessToken, batchId: first.batch.id })).toMatchObject({
           state: "closed",
         });
       },
@@ -162,17 +164,17 @@ describe("une lecture constate qu'un lot s'est fermé après 30 minutes sans éc
     return withIdentityApp(
       async (app, db) => {
         const { accessToken, projectId } = await seedProject(app, db);
-        const { lot } = await writeTokens(app, { token: accessToken, projectId });
+        const { batch } = await writeTokens(app, { token: accessToken, projectId });
         clock.at(30 * MINUTE - 1);
-        const before = await batchOf(app, { accessToken, lotId: lot.id });
+        const before = await batchOf(app, { accessToken, batchId: batch.id });
         clock.at(30 * MINUTE);
 
-        const after = await batchOf(app, { accessToken, lotId: lot.id });
+        const after = await batchOf(app, { accessToken, batchId: batch.id });
 
         expect(before).toMatchObject({ state: "open" });
         expect(after).toMatchObject({ state: "closed" });
         expect(await batchesOf(app, { accessToken, projectId })).toMatchObject([
-          { id: lot.id, state: "closed" },
+          { id: batch.id, state: "closed" },
         ]);
       },
       { clock: clock.now },
@@ -192,11 +194,11 @@ describe("ouvrir ou fermer un lot constate son expiration (ADR 0013 §7)", () =>
         const opened = await callTool(app, {
           token: accessToken,
           name: "open_proposal_batch",
-          args: { projectId, intention: "Import du Figma Healthcare" },
+          args: { projectId, intent: "Import du Figma Healthcare" },
         });
 
         expect(opened.closed).toBeNull();
-        expect(await batchOf(app, { accessToken, lotId: expired.lot.id })).toMatchObject({
+        expect(await batchOf(app, { accessToken, batchId: expired.batch.id })).toMatchObject({
           state: "closed",
         });
       },
@@ -218,7 +220,7 @@ describe("ouvrir ou fermer un lot constate son expiration (ADR 0013 §7)", () =>
           args: { projectId },
         });
 
-        expect(closed).toEqual({ lot: null });
+        expect(closed).toEqual({ batch: null });
       },
       { clock: clock.now },
     );
@@ -232,15 +234,15 @@ describe("ouvrir ou fermer un lot constate son expiration (ADR 0013 §7)", () =>
         const opened = await callTool(app, {
           token: accessToken,
           name: "open_proposal_batch",
-          args: { projectId, intention: "Import du Figma Healthcare" },
+          args: { projectId, intent: "Import du Figma Healthcare" },
         });
         clock.at(30 * MINUTE);
 
         const written = await writeTokens(app, { token: accessToken, projectId });
 
-        expect(written.lot.id).not.toBe(opened.lot.id);
-        expect(await batchOf(app, { accessToken, lotId: written.lot.id })).toMatchObject({
-          intention: null,
+        expect(written.batch.id).not.toBe(opened.batch.id);
+        expect(await batchOf(app, { accessToken, batchId: written.batch.id })).toMatchObject({
+          intent: null,
         });
       },
       { clock: clock.now },

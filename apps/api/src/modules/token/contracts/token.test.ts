@@ -77,12 +77,12 @@ describe("la lecture des tokens d'un projet rend ses modes et ses tokens (ADR 00
   });
 });
 
-const makePropositionOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+const makeProposalOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   id: "1c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
   name: "couleur.fond.primaire",
   kind: "create",
   status: "proposed",
-  lot: { id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "open" },
+  batch: { id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "open" },
   token: {
     name: "couleur.fond.primaire",
     $type: "color",
@@ -93,7 +93,7 @@ const makePropositionOutput = (overrides: Readonly<Record<string, unknown>> = {}
 
 describe("la lecture des tokens rend aussi les propositions en attente, sur demande (ADR 0012 §6)", () => {
   it("décode les propositions en attente avec leur lot", () => {
-    const read = { modes: [], tokens: [], propositions: [makePropositionOutput()] };
+    const read = { modes: [], tokens: [], proposals: [makeProposalOutput()] };
 
     expect(TokensOutput.parse(read)).toEqual(read);
   });
@@ -102,14 +102,14 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
     expect(TokensOutput.parse({ modes: [], tokens: [] })).toEqual({ modes: [], tokens: [] });
   });
 
-  it.each([["id"], ["name"], ["kind"], ["status"], ["lot"], ["token"]])(
+  it.each([["id"], ["name"], ["kind"], ["status"], ["batch"], ["token"]])(
     "refuse une proposition sans %s",
     (field) => {
       expect(
         TokensOutput.safeParse({
           modes: [],
           tokens: [],
-          propositions: [makePropositionOutput({ [field]: undefined })],
+          proposals: [makeProposalOutput({ [field]: undefined })],
         }).success,
       ).toBe(false);
     },
@@ -120,9 +120,13 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
       TokensOutput.safeParse({
         modes: [],
         tokens: [],
-        propositions: [
-          makePropositionOutput({
-            lot: { id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "open", [field]: undefined },
+        proposals: [
+          makeProposalOutput({
+            batch: {
+              id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+              state: "open",
+              [field]: undefined,
+            },
           }),
         ],
       }).success,
@@ -130,13 +134,13 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
   });
 
   it.each([["name"], ["$type"]])("refuse une proposition dont le token n'a pas de %s", (field) => {
-    const { token } = makePropositionOutput();
+    const { token } = makeProposalOutput();
 
     expect(
       TokensOutput.safeParse({
         modes: [],
         tokens: [],
-        propositions: [makePropositionOutput({ token: { ...token, [field]: undefined } })],
+        proposals: [makeProposalOutput({ token: { ...token, [field]: undefined } })],
       }).success,
     ).toBe(false);
   });
@@ -145,11 +149,11 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
     const read = {
       modes: [],
       tokens: [],
-      propositions: [
-        makePropositionOutput({
+      proposals: [
+        makeProposalOutput({
           kind: "delete",
           status: "rejected",
-          lot: { id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "archived" },
+          batch: { id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "archived" },
         }),
       ],
     };
@@ -160,7 +164,7 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
   it("annonce à l'IA les natures, statuts et états connus", () => {
     expect(z.toJSONSchema(TokensOutput)).toMatchObject({
       properties: {
-        propositions: {
+        proposals: {
           items: {
             properties: {
               kind: { anyOf: [{ enum: ["create", "update"] }, { type: "string" }] },
@@ -175,7 +179,7 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
                   },
                 },
               },
-              lot: {
+              batch: {
                 properties: {
                   state: { anyOf: [{ enum: ["open", "closed"] }, { type: "string" }] },
                 },

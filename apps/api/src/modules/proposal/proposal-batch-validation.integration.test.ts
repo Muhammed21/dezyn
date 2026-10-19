@@ -51,24 +51,27 @@ const readTokenNames = async (
 
 const validateBatch = (
   app: App,
-  { accessToken, lotId, body }: { accessToken: string; lotId: string; body?: object },
+  { accessToken, batchId, body }: { accessToken: string; batchId: string; body?: object },
 ) =>
-  app.request(`${BASE_URL}/v1/proposal-batches/${lotId}/validate`, {
+  app.request(`${BASE_URL}/v1/proposal-batches/${batchId}/validate`, {
     method: "POST",
     headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
 
-const batchOf = async (app: App, { accessToken, lotId }: { accessToken: string; lotId: string }) =>
+const batchOf = async (
+  app: App,
+  { accessToken, batchId }: { accessToken: string; batchId: string },
+) =>
   (
-    await app.request(`${BASE_URL}/v1/proposal-batches/${lotId}`, {
+    await app.request(`${BASE_URL}/v1/proposal-batches/${batchId}`, {
       headers: { authorization: `Bearer ${accessToken}` },
     })
   ).json();
 
-const statusesOf = async (app: App, args: { accessToken: string; lotId: string }) =>
+const statusesOf = async (app: App, args: { accessToken: string; batchId: string }) =>
   Object.fromEntries(
-    (await batchOf(app, args)).propositions.map(
+    (await batchOf(app, args)).proposals.map(
       ({ name, status }: { name: string; status: string }) => [name, status],
     ),
   );
@@ -90,13 +93,13 @@ describe("seul un lot fermé se valide en entier (ADR 0013 §4)", () => {
   it("valider un lot ouvert répond 409, sans rien valider", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot } = await writeTokens(app, {
+      const { batch } = await writeTokens(app, {
         token: accessToken,
         projectId,
         tokens: [makeColorToken()],
       });
 
-      const response = await validateBatch(app, { accessToken, lotId: lot.id });
+      const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
       expect(response.status).toBe(409);
       expect(response.headers.get("content-type")).toContain("application/problem+json");
@@ -105,7 +108,7 @@ describe("seul un lot fermé se valide en entier (ADR 0013 §4)", () => {
         title: "Lot ouvert",
         status: 409,
       });
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.fond.primaire": "proposed",
       });
     }));
@@ -115,14 +118,14 @@ describe("seul un lot fermé se valide en entier (ADR 0013 §4)", () => {
     return withIdentityApp(
       async (app, db) => {
         const { accessToken, projectId } = await seedProject(app, db);
-        const { lot } = await writeTokens(app, {
+        const { batch } = await writeTokens(app, {
           token: accessToken,
           projectId,
           tokens: [makeColorToken()],
         });
         clock.instant = new Date("2026-10-19T09:30:00Z");
 
-        const response = await validateBatch(app, { accessToken, lotId: lot.id });
+        const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
         expect(response.status).toBe(200);
         expect(await readTokenNames(app, { token: accessToken, projectId })).toEqual([
@@ -136,17 +139,20 @@ describe("seul un lot fermé se valide en entier (ADR 0013 §4)", () => {
   it("l'IA d'un non-membre ne valide pas le lot : 404", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot } = await seedClosedBatch(app, {
+      const { batch } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
       });
       const grace = await obtainAccessToken(app, { user: GRACE });
 
-      const response = await validateBatch(app, { accessToken: grace.accessToken, lotId: lot.id });
+      const response = await validateBatch(app, {
+        accessToken: grace.accessToken,
+        batchId: batch.id,
+      });
 
       expect(response.status).toBe(404);
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.fond.primaire": "proposed",
       });
     }));
@@ -155,7 +161,7 @@ describe("seul un lot fermé se valide en entier (ADR 0013 §4)", () => {
     withIdentityApp(async (app, db) => {
       const { accessToken } = await seedProject(app, db);
 
-      const response = await validateBatch(app, { accessToken, lotId: "pas-un-uuid" });
+      const response = await validateBatch(app, { accessToken, batchId: "pas-un-uuid" });
 
       expect(response.status).toBe(404);
     }));
@@ -166,7 +172,7 @@ describe("seul un lot fermé se valide en entier (ADR 0013 §4)", () => {
 
       const response = await validateBatch(app, {
         accessToken,
-        lotId: "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+        batchId: "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
       });
 
       expect(response.status).toBe(404);
@@ -177,7 +183,7 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
   it("les propositions sont validées ou rejetées, et lisibles par read_tokens", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await seedClosedBatch(app, {
+      const { batch, proposals } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [
@@ -189,18 +195,18 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
 
       const response = await validateBatch(app, {
         accessToken,
-        lotId: lot.id,
-        body: { rejected: [propositions[1].id] },
+        batchId: batch.id,
+        body: { rejected: [proposals[1].id] },
       });
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-        id: lot.id,
+        id: batch.id,
         state: "closed",
-        validated: expect.arrayContaining([propositions[0].id, propositions[2].id]),
-        rejected: [propositions[1].id],
+        validated: expect.arrayContaining([proposals[0].id, proposals[2].id]),
+        rejected: [proposals[1].id],
       });
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.bleu.500": "validated",
         "couleur.bleu.600": "rejected",
         "couleur.bleu.700": "validated",
@@ -214,19 +220,19 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
   it("sans corps, toutes les propositions Proposées sont validées", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await seedClosedBatch(app, {
+      const { batch, proposals } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
       });
 
-      const response = await app.request(`${BASE_URL}/v1/proposal-batches/${lot.id}/validate`, {
+      const response = await app.request(`${BASE_URL}/v1/proposal-batches/${batch.id}/validate`, {
         method: "POST",
         headers: { authorization: `Bearer ${accessToken}` },
       });
 
       expect(await response.json()).toMatchObject({
-        validated: [propositions[0].id],
+        validated: [proposals[0].id],
         rejected: [],
       });
     }));
@@ -234,7 +240,7 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
   it("chaque validation et chaque rejet entre dans l'historique", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, userId, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await seedClosedBatch(app, {
+      const { batch, proposals } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [
@@ -245,24 +251,24 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
 
       await validateBatch(app, {
         accessToken,
-        lotId: lot.id,
-        body: { rejected: [propositions[1].id] },
+        batchId: batch.id,
+        body: { rejected: [proposals[1].id] },
       });
       const entries = await historyOf(app, { accessToken, projectId });
 
       expect(
-        entries.filter(({ action }: { action: string }) => action.startsWith("proposition.")),
+        entries.filter(({ action }: { action: string }) => action.startsWith("proposal.")),
       ).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            action: "proposition.validated",
+            action: "proposal.validated",
             author: expect.objectContaining({ userId }),
             clientId: null,
-            after: expect.objectContaining({ propositionId: propositions[0].id }),
+            after: expect.objectContaining({ proposalId: proposals[0].id }),
           }),
           expect.objectContaining({
-            action: "proposition.rejected",
-            after: expect.objectContaining({ propositionId: propositions[1].id }),
+            action: "proposal.rejected",
+            after: expect.objectContaining({ proposalId: proposals[1].id }),
           }),
         ]),
       );
@@ -271,7 +277,7 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
   it("un rejet qui désigne une proposition hors du lot répond 400, sans rien valider", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await seedClosedBatch(app, {
+      const { batch, proposals } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -280,8 +286,8 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
 
       const response = await validateBatch(app, {
         accessToken,
-        lotId: lot.id,
-        body: { rejected: [propositions[0].id, elsewhere] },
+        batchId: batch.id,
+        body: { rejected: [proposals[0].id, elsewhere] },
       });
 
       expect(response.status).toBe(400);
@@ -290,7 +296,7 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
         title: "Requête invalide",
         errors: [{ path: "rejected.1", message: "Proposition hors du lot" }],
       });
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.fond.primaire": "proposed",
       });
     }));
@@ -298,7 +304,7 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
   it("un rejet qui n'est pas un identifiant répond 400", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot } = await seedClosedBatch(app, {
+      const { batch } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken()],
@@ -306,7 +312,7 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
 
       const response = await validateBatch(app, {
         accessToken,
-        lotId: lot.id,
+        batchId: batch.id,
         body: { rejected: ["pas-un-uuid"] },
       });
 
@@ -319,13 +325,13 @@ describe("valider un lot valide aussi les modifications proposées (ADR 0013 §8
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
       await addToken(app, { accessToken, projectId, token: makeColorToken() });
-      const { lot } = await seedClosedBatch(app, {
+      const { batch } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken({ $value: NIGHT_BLUE })],
       });
 
-      await validateBatch(app, { accessToken, lotId: lot.id });
+      await validateBatch(app, { accessToken, batchId: batch.id });
       const { tokens } = await callTool(app, {
         token: accessToken,
         name: "read_tokens",
@@ -335,7 +341,7 @@ describe("valider un lot valide aussi les modifications proposées (ADR 0013 §8
 
       expect(tokens).toMatchObject([{ name: "couleur.fond.primaire", $value: NIGHT_BLUE }]);
       expect(
-        entries.find(({ action }: { action: string }) => action === "proposition.validated"),
+        entries.find(({ action }: { action: string }) => action === "proposal.validated"),
       ).toMatchObject({
         before: { name: "couleur.fond.primaire", $value: PRIMARY_BLUE },
         after: { token: { $value: NIGHT_BLUE } },
@@ -347,7 +353,7 @@ describe("une proposition Remplacée pendant la relecture n'est pas validée (AD
   it("la proposition remplacée par l'écriture d'une autre IA reste Remplacée", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, browser, projectId } = await seedProject(app, db);
-      const { lot } = await seedClosedBatch(app, {
+      const { batch } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken(), makeColorToken({ name: "couleur.bleu.500" })],
@@ -359,10 +365,10 @@ describe("une proposition Remplacée pendant la relecture n'est pas validée (AD
         tokens: [makeColorToken({ $value: NIGHT_BLUE })],
       });
 
-      const response = await validateBatch(app, { accessToken, lotId: lot.id });
+      const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
       expect(await response.json()).toMatchObject({ validated: [expect.any(String)] });
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.fond.primaire": "replaced",
         "couleur.bleu.500": "validated",
       });
@@ -374,17 +380,17 @@ describe("une proposition Remplacée pendant la relecture n'est pas validée (AD
   it("la proposition remplacée par l'ajout d'un membre n'est pas validée", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot } = await seedClosedBatch(app, {
+      const { batch } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken({ $value: NIGHT_BLUE })],
       });
       await addToken(app, { accessToken, projectId, token: makeColorToken() });
 
-      const response = await validateBatch(app, { accessToken, lotId: lot.id });
+      const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
       expect(await response.json()).toMatchObject({ validated: [], rejected: [] });
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.fond.primaire": "replaced",
       });
     }));
@@ -394,7 +400,7 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
   it("un token écrit avant le token qu'il référence se valide après lui", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot } = await seedClosedBatch(app, {
+      const { batch } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [
@@ -403,7 +409,7 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
         ],
       });
 
-      const response = await validateBatch(app, { accessToken, lotId: lot.id });
+      const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
       expect(response.status).toBe(200);
       expect(await readTokenNames(app, { token: accessToken, projectId })).toEqual([
@@ -415,7 +421,7 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
   it("rejeter la cible d'une référence du lot répond 409, sans rien valider", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await seedClosedBatch(app, {
+      const { batch, proposals } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [
@@ -427,8 +433,8 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
 
       const response = await validateBatch(app, {
         accessToken,
-        lotId: lot.id,
-        body: { rejected: [propositions[2].id] },
+        batchId: batch.id,
+        body: { rejected: [proposals[2].id] },
       });
 
       expect(response.status).toBe(409);
@@ -438,12 +444,12 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
         status: 409,
         errors: [
           {
-            path: `propositions.${propositions[1].id}.$value`,
+            path: `proposals.${proposals[1].id}.$value`,
             message: "Référence vers un token non validé",
           },
         ],
       });
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.bleu.700": "proposed",
         "couleur.fond.primaire": "proposed",
         "couleur.bleu.500": "proposed",
@@ -454,26 +460,26 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
   it("un nom pris entre-temps répond 409 sur ce nom, et annule les validations du lot", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await seedClosedBatch(app, {
+      const { batch, proposals } = await seedClosedBatch(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken({ name: "couleur.bleu.500" }), makeColorToken()],
       });
       await seedValidatedToken(db, { projectId, name: "couleur.fond.primaire" });
 
-      const response = await validateBatch(app, { accessToken, lotId: lot.id });
+      const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
         title: "Lot invalide",
         errors: [
           {
-            path: `propositions.${propositions[1].id}.name`,
+            path: `proposals.${proposals[1].id}.name`,
             message: "Nom déjà pris dans le projet",
           },
         ],
       });
-      expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.bleu.500": "proposed",
         "couleur.fond.primaire": "proposed",
       });
@@ -486,16 +492,16 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
     withIdentityApp(
       async (app, db) => {
         const { accessToken, projectId } = await seedProject(app, db);
-        const { lot } = await seedClosedBatch(app, {
+        const { batch } = await seedClosedBatch(app, {
           accessToken,
           projectId,
           tokens: [makeColorToken({ name: "couleur.bleu.500" }), makeColorToken()],
         });
 
-        const response = await validateBatch(app, { accessToken, lotId: lot.id });
+        const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
         expect(response.status).toBe(500);
-        expect(await statusesOf(app, { accessToken, lotId: lot.id })).toEqual({
+        expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
           "couleur.bleu.500": "proposed",
           "couleur.fond.primaire": "proposed",
         });
@@ -503,7 +509,7 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
       {
         wrapHistoryWriter: (writer) => ({
           append: (entry) =>
-            entry.action === "proposition.validated" &&
+            entry.action === "proposal.validated" &&
             JSON.stringify(entry.after).includes("couleur.fond.primaire")
               ? Promise.reject(new Error("historique indisponible"))
               : writer.append(entry),

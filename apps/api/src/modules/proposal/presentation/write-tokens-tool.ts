@@ -9,7 +9,7 @@ import { TokenDefinitionInput } from "../../token/contracts/token-definition.ts"
 import { issuesOfCheck } from "../../token/contracts/token-issues.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
 import type { UncheckedTokens, Written } from "../application/write-tokens.ts";
-import { WrittenTokensOutput } from "../contracts/proposition.ts";
+import { WrittenTokensOutput } from "../contracts/proposal.ts";
 
 type InvalidTokens = { readonly code: "invalid_tokens"; readonly issues: readonly string[] };
 
@@ -50,9 +50,9 @@ const issuesOf = (failure: InvalidTokens | UncheckedTokens): readonly string[] =
 const errorTextOf = (failure: WriteFailure): string =>
   typeof failure === "string" ? ERROR_TEXT[failure] : issuesOf(failure).join("\n");
 
-const writtenOutputOf = ({ lot, propositions, unchanged, replaced }: Written) => ({
-  lot: lot === null ? null : { id: lot.id, state: lot.state },
-  propositions: propositions.map(({ id, name, kind, status }) => ({ id, name, kind, status })),
+const writtenOutputOf = ({ batch, proposals, unchanged, replaced }: Written) => ({
+  batch: batch === null ? null : { id: batch.id, state: batch.state },
+  proposals: proposals.map(({ id, name, kind, status }) => ({ id, name, kind, status })),
   unchanged,
   replaced,
 });

@@ -55,8 +55,8 @@ describe("l'IA propose la modification d'un token validé (ADR 0012 §3)", () =>
       });
 
       expect(result.structuredContent).toEqual({
-        lot: { id: expect.any(String), state: "open" },
-        propositions: [
+        batch: { id: expect.any(String), state: "open" },
+        proposals: [
           {
             id: expect.any(String),
             name: "couleur.fond.primaire",
@@ -81,7 +81,7 @@ describe("l'IA propose la modification d'un token validé (ADR 0012 §3)", () =>
         token: makeColorToken({ name: "couleur.bleu.500", $value: NIGHT_BLUE }),
       });
       await addToken(app, { accessToken, projectId, token: makeColorToken() });
-      const { lot } = (
+      const { batch } = (
         await writeTokens(app, {
           accessToken,
           projectId,
@@ -89,11 +89,11 @@ describe("l'IA propose la modification d'un token validé (ADR 0012 §3)", () =>
         })
       ).structuredContent;
 
-      const batch = await (
-        await request(app, { accessToken, path: `/proposal-batches/${lot.id}` })
+      const reviewed = await (
+        await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
       ).json();
 
-      expect(batch.propositions).toEqual([
+      expect(reviewed.proposals).toEqual([
         {
           id: expect.any(String),
           name: "couleur.fond.primaire",
@@ -141,7 +141,7 @@ describe("un nouveau nom n'est comparé à aucun autre token", () => {
         tokens: [makeColorToken()],
       });
 
-      expect(result.structuredContent.propositions).toMatchObject([
+      expect(result.structuredContent.proposals).toMatchObject([
         { name: "couleur.fond.primaire", kind: "create" },
       ]);
     }));
@@ -160,12 +160,12 @@ describe("une écriture identique à la valeur validée ne crée rien (ADR 0013 
       });
 
       expect(result.structuredContent).toEqual({
-        lot: null,
-        propositions: [],
+        batch: null,
+        proposals: [],
         unchanged: ["couleur.fond.primaire"],
         replaced: [],
       });
-      expect(await db.orm.select().from(schema.propositionLot)).toEqual([]);
+      expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
       expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
         action: "mcp.write_tokens",
         after: { outcome: "success" },
@@ -189,8 +189,8 @@ describe("une écriture identique à la valeur validée ne crée rien (ADR 0013 
       });
 
       expect(result.structuredContent).toEqual({
-        lot: opened.structuredContent.lot,
-        propositions: [],
+        batch: opened.structuredContent.batch,
+        proposals: [],
         unchanged: ["couleur.fond.primaire"],
         replaced: [],
       });
@@ -224,11 +224,11 @@ describe("une écriture identique à la valeur validée ne crée rien (ADR 0013 
       });
 
       expect(result.structuredContent).toMatchObject({
-        propositions: [{ name: "couleur.texte", kind: "create" }],
+        proposals: [{ name: "couleur.texte", kind: "create" }],
         unchanged: ["couleur.fond"],
       });
       expect(changed.structuredContent).toMatchObject({
-        propositions: [{ name: "couleur.fond", kind: "update" }],
+        proposals: [{ name: "couleur.fond", kind: "update" }],
         unchanged: [],
         replaced: [],
       });
@@ -241,13 +241,12 @@ describe("valider une modification fait de la valeur proposée la valeur validé
       const { accessToken, projectId } = await seedProject(app, db);
       await addToken(app, { accessToken, projectId, token: makeColorToken() });
       const proposed = makeColorToken({ $value: NIGHT_BLUE, $description: "Fond sombre" });
-      const { propositions } = (
-        await writeTokens(app, { accessToken, projectId, tokens: [proposed] })
-      ).structuredContent;
+      const { proposals } = (await writeTokens(app, { accessToken, projectId, tokens: [proposed] }))
+        .structuredContent;
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/validate`,
+        path: `/proposals/${proposals[0].id}/validate`,
         method: "POST",
       });
 
@@ -264,11 +263,11 @@ describe("valider une modification fait de la valeur proposée la valeur validé
       ]);
       expect(
         (await historyOf(app, { accessToken, projectId })).find(
-          (entry: { action: string }) => entry.action === "proposition.validated",
+          (entry: { action: string }) => entry.action === "proposal.validated",
         ),
       ).toMatchObject({
         before: { name: "couleur.fond.primaire", $type: "color", $value: PRIMARY_BLUE },
-        after: { propositionId: propositions[0].id, token: proposed },
+        after: { proposalId: proposals[0].id, token: proposed },
       });
     }));
 
@@ -276,7 +275,7 @@ describe("valider une modification fait de la valeur proposée la valeur validé
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
       await addToken(app, { accessToken, projectId, token: makeColorToken() });
-      const { propositions } = (
+      const { proposals } = (
         await writeTokens(app, {
           accessToken,
           projectId,
@@ -289,7 +288,7 @@ describe("valider une modification fait de la valeur proposée la valeur validé
 
       const response = await request(app, {
         accessToken,
-        path: `/proposals/${propositions[1].id}/validate`,
+        path: `/proposals/${proposals[1].id}/validate`,
         method: "POST",
       });
 
@@ -315,7 +314,7 @@ describe("valider une modification fait de la valeur proposée la valeur validé
           modes: { clair: PRIMARY_BLUE, sombre: PRIMARY_BLUE },
         },
       });
-      const { propositions } = (
+      const { proposals } = (
         await writeTokens(app, {
           accessToken,
           projectId,
@@ -331,7 +330,7 @@ describe("valider une modification fait de la valeur proposée la valeur validé
 
       await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/validate`,
+        path: `/proposals/${proposals[0].id}/validate`,
         method: "POST",
       });
 

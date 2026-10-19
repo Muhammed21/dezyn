@@ -1,5 +1,5 @@
 {
-  "id": "e347478d-8916-48fd-80d7-e342091a0731",
+  "id": "a2bf964d-8ead-420b-8d1f-e0cf27dfc91d",
   "prevId": "e5368d0e-2b1c-498d-aae7-dc43a694bbc8",
   "version": "7",
   "dialect": "postgresql",
@@ -1807,8 +1807,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.proposition": {
-      "name": "proposition",
+    "public.proposal": {
+      "name": "proposal",
       "schema": "",
       "columns": {
         "id": {
@@ -1817,8 +1817,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "lot_id": {
-          "name": "lot_id",
+        "batch_id": {
+          "name": "batch_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -1856,11 +1856,11 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "proposition_lot_id_proposition_lot_id_fk": {
-          "name": "proposition_lot_id_proposition_lot_id_fk",
-          "tableFrom": "proposition",
-          "tableTo": "proposition_lot",
-          "columnsFrom": ["lot_id"],
+        "proposal_batch_id_proposal_batch_id_fk": {
+          "name": "proposal_batch_id_proposal_batch_id_fk",
+          "tableFrom": "proposal",
+          "tableTo": "proposal_batch",
+          "columnsFrom": ["batch_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -1872,8 +1872,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.proposition_lot": {
-      "name": "proposition_lot",
+    "public.proposal_batch": {
+      "name": "proposal_batch",
       "schema": "",
       "columns": {
         "id": {
@@ -1900,8 +1900,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "intention": {
-          "name": "intention",
+        "intent": {
+          "name": "intent",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1926,8 +1926,8 @@
         }
       },
       "indexes": {
-        "proposition_lot_open_key": {
-          "name": "proposition_lot_open_key",
+        "proposal_batch_open_key": {
+          "name": "proposal_batch_open_key",
           "columns": [
             {
               "expression": "project_id",
@@ -1949,25 +1949,25 @@
             }
           ],
           "isUnique": true,
-          "where": "\"proposition_lot\".\"state\" = 'open'",
+          "where": "\"proposal_batch\".\"state\" = 'open'",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "proposition_lot_project_id_project_id_fk": {
-          "name": "proposition_lot_project_id_project_id_fk",
-          "tableFrom": "proposition_lot",
+        "proposal_batch_project_id_project_id_fk": {
+          "name": "proposal_batch_project_id_project_id_fk",
+          "tableFrom": "proposal_batch",
           "tableTo": "project",
           "columnsFrom": ["project_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "proposition_lot_user_id_identity_user_id_fk": {
-          "name": "proposition_lot_user_id_identity_user_id_fk",
-          "tableFrom": "proposition_lot",
+        "proposal_batch_user_id_identity_user_id_fk": {
+          "name": "proposal_batch_user_id_identity_user_id_fk",
+          "tableFrom": "proposal_batch",
           "tableTo": "identity_user",
           "columnsFrom": ["user_id"],
           "columnsTo": ["id"],

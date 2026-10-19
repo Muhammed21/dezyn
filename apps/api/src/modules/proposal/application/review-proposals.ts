@@ -8,53 +8,53 @@ import type {
   ValidatedTokenWriter,
 } from "../../token/contracts/token-issues.ts";
 import { planBatchValidation } from "../domain/batch-validation.ts";
-import { lotStateAt } from "../domain/proposition-lot.ts";
+import { batchStateAt } from "../domain/proposal-batch.ts";
 import {
   type Decision,
-  type Proposition,
-  type PropositionLot,
-  type PropositionStatus,
+  type Proposal,
+  type ProposalBatch,
+  type ProposalStatus,
   review,
-} from "../domain/proposition.ts";
+} from "../domain/proposal.ts";
 import type { ValidatedDefinition, ValidatedTokensOf } from "./write-tokens.ts";
 
-export type BatchSummary = Pick<PropositionLot, "id" | "intention" | "state"> & {
+export type BatchSummary = Pick<ProposalBatch, "id" | "intent" | "state"> & {
   readonly toReview: number;
 };
 
-export type StoredBatchSummary = BatchSummary & Pick<PropositionLot, "lastWrittenAt">;
+export type StoredBatchSummary = BatchSummary & Pick<ProposalBatch, "lastWrittenAt">;
 
-export type StoredBatch = PropositionLot & { readonly propositions: readonly Proposition[] };
+export type StoredBatch = ProposalBatch & { readonly proposals: readonly Proposal[] };
 
-export type Batch = PropositionLot & {
-  readonly propositions: readonly (Proposition & {
+export type Batch = ProposalBatch & {
+  readonly proposals: readonly (Proposal & {
     readonly validated: ValidatedDefinition | null;
   })[];
 };
 
-export interface PropositionReader {
+export interface ProposalReader {
   batchesOf(projectId: string): Promise<readonly StoredBatchSummary[]>;
   batch(batchId: string): Promise<StoredBatch | undefined>;
   pendingTokensOf(
     projectId: string,
   ): Promise<readonly { readonly name: string; readonly $type: string }[]>;
-  pendingPropositionsOf(projectId: string): Promise<
-    readonly (Proposition & {
-      readonly lot: Pick<PropositionLot, "id" | "state" | "lastWrittenAt">;
+  pendingProposalsOf(projectId: string): Promise<
+    readonly (Proposal & {
+      readonly batch: Pick<ProposalBatch, "id" | "state" | "lastWrittenAt">;
     })[]
   >;
-  proposition(
-    propositionId: string,
-  ): Promise<{ readonly proposition: Proposition; readonly projectId: string } | undefined>;
+  proposal(
+    proposalId: string,
+  ): Promise<{ readonly proposal: Proposal; readonly projectId: string } | undefined>;
 }
 
 export type ReviewUnit = {
-  readonly propositions: {
-    lock(propositionId: string): Promise<PropositionStatus>;
+  readonly proposals: {
+    lock(proposalId: string): Promise<ProposalStatus>;
     lockBatch(
       batchId: string,
-    ): Promise<readonly { readonly id: string; readonly status: PropositionStatus }[]>;
-    settle(propositionId: string, status: "validated" | "rejected"): Promise<void>;
+    ): Promise<readonly { readonly id: string; readonly status: ProposalStatus }[]>;
+    settle(proposalId: string, status: "validated" | "rejected"): Promise<void>;
   };
   readonly tokens: ValidatedTokenWriter;
   readonly history: HistoryWriter;
@@ -94,11 +94,7 @@ const spaceOf = async (
 };
 
 export const listBatches =
-  ({
-    propositions,
-    now,
-    ...access
-  }: Access & Clocked & { readonly propositions: PropositionReader }) =>
+  ({ proposals, now, ...access }: Access & Clocked & { readonly proposals: ProposalReader }) =>
   async ({
     projectId,
     userId,
@@ -111,10 +107,10 @@ export const listBatches =
     }
     const at = now();
     return ok(
-      (await propositions.batchesOf(projectId)).map(({ id, intention, toReview, ...lot }) => ({
+      (await proposals.batchesOf(projectId)).map(({ id, intent, toReview, ...batch }) => ({
         id,
-        intention,
-        state: lotStateAt({ lot, now: at }),
+        intent,
+        state: batchStateAt({ batch, now: at }),
         toReview,
       })),
     );
@@ -130,18 +126,18 @@ const definitionOf = ({ name, $type, $value, modes, $description }: ValidatedDef
 
 const validatedOf = (
   validated: readonly ValidatedDefinition[],
-  { name }: Proposition,
+  { name }: Proposal,
 ): ValidatedDefinition | null => validated.find((token) => token.name === name) ?? null;
 
 export const batchOf =
   ({
-    propositions,
+    proposals,
     validatedTokensOf,
     now,
     ...access
   }: Access &
     Clocked & {
-      readonly propositions: PropositionReader;
+      readonly proposals: ProposalReader;
       readonly validatedTokensOf: ValidatedTokensOf;
     }) =>
   async ({
@@ -151,7 +147,7 @@ export const batchOf =
     readonly batchId: string;
     readonly userId: string;
   }): Promise<Result<Batch, "not_found">> => {
-    const batch = await propositions.batch(batchId);
+    const batch = await proposals.batch(batchId);
     if (
       batch === undefined ||
       (await spaceOf(access, { projectId: batch.projectId, userId, action: "space.read" })) ===
@@ -162,39 +158,39 @@ export const batchOf =
     const validated = await validatedTokensOf(batch.projectId);
     return ok({
       ...batch,
-      state: lotStateAt({ lot: batch, now: now() }),
-      propositions: batch.propositions.map((proposition) => ({
-        ...proposition,
-        validated: validatedOf(validated, proposition),
+      state: batchStateAt({ batch: batch, now: now() }),
+      proposals: batch.proposals.map((proposal) => ({
+        ...proposal,
+        validated: validatedOf(validated, proposal),
       })),
     });
   };
 
-export const reviewProposition =
+export const reviewProposal =
   ({
-    propositions,
+    proposals,
     validatedTokensOf,
     unitOfWork,
     now,
     ...access
   }: Access & {
-    readonly propositions: PropositionReader;
+    readonly proposals: ProposalReader;
     readonly validatedTokensOf: ValidatedTokensOf;
     readonly unitOfWork: ReviewUnitOfWork;
     readonly now: () => Date;
   }) =>
   async ({
-    propositionId,
+    proposalId,
     userId,
     decision,
     correlationId,
   }: {
-    readonly propositionId: string;
+    readonly proposalId: string;
     readonly userId: string;
     readonly decision: Decision;
     readonly correlationId: string;
-  }): Promise<Result<Proposition, ReviewFailure>> => {
-    const found = await propositions.proposition(propositionId);
+  }): Promise<Result<Proposal, ReviewFailure>> => {
+    const found = await proposals.proposal(proposalId);
     const spaceId =
       found === undefined
         ? undefined
@@ -202,48 +198,48 @@ export const reviewProposition =
     if (found === undefined || spaceId === undefined) {
       return err("not_found");
     }
-    const { proposition, projectId } = found;
-    return unitOfWork.run(async (unit): Promise<Result<Proposition, ReviewFailure>> => {
-      const reviewed = review({ status: await unit.propositions.lock(propositionId), decision });
+    const { proposal, projectId } = found;
+    return unitOfWork.run(async (unit): Promise<Result<Proposal, ReviewFailure>> => {
+      const reviewed = review({ status: await unit.proposals.lock(proposalId), decision });
       if ("refusal" in reviewed) {
         return err("already_reviewed");
       }
       const occurredAt = now();
-      const before = validatedOf(await validatedTokensOf(projectId), proposition);
+      const before = validatedOf(await validatedTokensOf(projectId), proposal);
       if (reviewed.status === "validated") {
         const validated = {
           projectId,
-          token: proposition.token,
-          pending: await propositions.pendingTokensOf(projectId),
+          token: proposal.token,
+          pending: await proposals.pendingTokensOf(projectId),
           createdAt: occurredAt,
         };
         const failure =
-          proposition.kind === "create"
+          proposal.kind === "create"
             ? await unit.tokens.create(validated)
             : await unit.tokens.replace(validated);
         if (failure !== undefined) {
           return err(failure);
         }
       }
-      await unit.propositions.settle(propositionId, reviewed.status);
+      await unit.proposals.settle(proposalId, reviewed.status);
       await unit.history.append({
         spaceId,
         projectId,
-        action: `proposition.${reviewed.status}`,
+        action: `proposal.${reviewed.status}`,
         userId,
         clientId: null,
         before: before === null ? null : definitionOf(before),
-        after: { propositionId, token: proposition.token },
+        after: { proposalId, token: proposal.token },
         correlationId,
         occurredAt,
       });
-      return ok({ ...proposition, status: reviewed.status });
+      return ok({ ...proposal, status: reviewed.status });
     });
   };
 
-export type InvalidProposition = {
+export type InvalidProposal = {
   readonly code: "invalid_proposition";
-  readonly propositionId: string;
+  readonly proposalId: string;
   readonly failure: ValidatedTokenFailure;
 };
 
@@ -251,7 +247,7 @@ export type BatchValidationFailure =
   | "not_found"
   | "batch_open"
   | { readonly code: "unknown_propositions"; readonly ids: readonly string[] }
-  | InvalidProposition;
+  | InvalidProposal;
 
 export type ValidatedBatch = {
   readonly id: string;
@@ -261,7 +257,7 @@ export type ValidatedBatch = {
 };
 
 type Decided = {
-  readonly proposition: Proposition;
+  readonly proposal: Proposal;
   readonly status: "validated" | "rejected";
 };
 
@@ -276,13 +272,13 @@ const inSequence = async <Item, Failure>(
 
 export const validateBatch =
   ({
-    propositions,
+    proposals,
     validatedTokensOf,
     unitOfWork,
     now,
     ...access
   }: Access & {
-    readonly propositions: PropositionReader;
+    readonly proposals: ProposalReader;
     readonly validatedTokensOf: ValidatedTokensOf;
     readonly unitOfWork: ReviewUnitOfWork;
     readonly now: () => Date;
@@ -298,7 +294,7 @@ export const validateBatch =
     readonly rejected: readonly string[];
     readonly correlationId: string;
   }): Promise<Result<ValidatedBatch, BatchValidationFailure>> => {
-    const batch = await propositions.batch(batchId);
+    const batch = await proposals.batch(batchId);
     const spaceId =
       batch === undefined
         ? undefined
@@ -309,14 +305,14 @@ export const validateBatch =
     const { projectId } = batch;
     const occurredAt = now();
     const validated = await validatedTokensOf(projectId);
-    const pending = await propositions.pendingTokensOf(projectId);
+    const pending = await proposals.pendingTokensOf(projectId);
     return unitOfWork.run(async (unit): Promise<Result<ValidatedBatch, BatchValidationFailure>> => {
-      const locked = await unit.propositions.lockBatch(batchId);
+      const locked = await unit.proposals.lockBatch(batchId);
       const plan = planBatchValidation({
-        lotState: lotStateAt({ lot: batch, now: occurredAt }),
-        propositions: batch.propositions.map((proposition) => ({
-          ...proposition,
-          status: locked.find(({ id }) => id === proposition.id)?.status ?? proposition.status,
+        batchState: batchStateAt({ batch: batch, now: occurredAt }),
+        proposals: batch.proposals.map((proposal) => ({
+          ...proposal,
+          status: locked.find(({ id }) => id === proposal.id)?.status ?? proposal.status,
         })),
         rejected,
       });
@@ -329,35 +325,35 @@ export const validateBatch =
       }
       const invalid = await inSequence(
         plan.toValidate,
-        async (proposition): Promise<InvalidProposition | undefined> => {
-          const written = { projectId, token: proposition.token, pending, createdAt: occurredAt };
+        async (proposal): Promise<InvalidProposal | undefined> => {
+          const written = { projectId, token: proposal.token, pending, createdAt: occurredAt };
           const failure =
-            proposition.kind === "create"
+            proposal.kind === "create"
               ? await unit.tokens.create(written)
               : await unit.tokens.replace(written);
           return failure === undefined
             ? undefined
-            : { code: "invalid_proposition", propositionId: proposition.id, failure };
+            : { code: "invalid_proposition", proposalId: proposal.id, failure };
         },
       );
       if (invalid !== undefined) {
         return err(invalid);
       }
       const decided = [
-        ...plan.toValidate.map((proposition): Decided => ({ proposition, status: "validated" })),
-        ...plan.toReject.map((proposition): Decided => ({ proposition, status: "rejected" })),
+        ...plan.toValidate.map((proposal): Decided => ({ proposal, status: "validated" })),
+        ...plan.toReject.map((proposal): Decided => ({ proposal, status: "rejected" })),
       ];
-      await inSequence(decided, async ({ proposition, status }) => {
-        const before = validatedOf(validated, proposition);
-        await unit.propositions.settle(proposition.id, status);
+      await inSequence(decided, async ({ proposal, status }) => {
+        const before = validatedOf(validated, proposal);
+        await unit.proposals.settle(proposal.id, status);
         await unit.history.append({
           spaceId,
           projectId,
-          action: `proposition.${status}`,
+          action: `proposal.${status}`,
           userId,
           clientId: null,
           before: before === null ? null : definitionOf(before),
-          after: { propositionId: proposition.id, token: proposition.token },
+          after: { proposalId: proposal.id, token: proposal.token },
           correlationId,
           occurredAt,
         });
@@ -372,17 +368,17 @@ export const validateBatch =
     });
   };
 
-export const pendingPropositionsOf =
-  ({ propositions, now }: { readonly propositions: PropositionReader; readonly now: () => Date }) =>
+export const pendingProposalsOf =
+  ({ proposals, now }: { readonly proposals: ProposalReader; readonly now: () => Date }) =>
   async (projectId: string) => {
     const at = now();
-    return (await propositions.pendingPropositionsOf(projectId)).map(
-      ({ id, name, kind, status, token, lot }) => ({
+    return (await proposals.pendingProposalsOf(projectId)).map(
+      ({ id, name, kind, status, token, batch }) => ({
         id,
         name,
         kind,
         status,
-        lot: { id: lot.id, state: lotStateAt({ lot, now: at }) },
+        batch: { id: batch.id, state: batchStateAt({ batch, now: at }) },
         token,
       }),
     );

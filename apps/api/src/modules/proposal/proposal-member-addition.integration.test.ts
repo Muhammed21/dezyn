@@ -28,14 +28,16 @@ const request = (
     headers: { authorization: `Bearer ${accessToken}` },
   });
 
-const batchOf = async (app: App, { accessToken, lotId }: { accessToken: string; lotId: string }) =>
-  (await request(app, { accessToken, path: `/proposal-batches/${lotId}` })).json();
+const batchOf = async (
+  app: App,
+  { accessToken, batchId }: { accessToken: string; batchId: string },
+) => (await request(app, { accessToken, path: `/proposal-batches/${batchId}` })).json();
 
 describe("l'ajout d'un membre remplace la proposition en attente sur le même nom (ADR 0026 §4)", () => {
   it("l'ajout réussit, la proposition passe à Remplacée dans son lot, et la réponse la désigne", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await writeTokens(app, {
+      const { batch, proposals } = await writeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken({ $value: NIGHT_BLUE })],
@@ -50,17 +52,17 @@ describe("l'ajout d'un membre remplace la proposition en attente sur le même no
         $type: "color",
         $value: PRIMARY_BLUE,
         status: "validated",
-        replaced: { id: propositions[0].id, lotId: lot.id },
+        replaced: { id: proposals[0].id, batchId: batch.id },
       });
-      expect((await batchOf(app, { accessToken, lotId: lot.id })).propositions).toMatchObject([
-        { id: propositions[0].id, status: "replaced" },
+      expect((await batchOf(app, { accessToken, batchId: batch.id })).proposals).toMatchObject([
+        { id: proposals[0].id, status: "replaced" },
       ]);
     }));
 
   it("l'entrée token.created désigne la proposition remplacée", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await writeTokens(app, {
+      const { batch, proposals } = await writeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken({ $value: NIGHT_BLUE })],
@@ -72,7 +74,7 @@ describe("l'ajout d'un membre remplace la proposition en attente sur le même no
         action: "token.created",
         after: {
           name: "couleur.fond.primaire",
-          replaced: { id: propositions[0].id, lotId: lot.id },
+          replaced: { id: proposals[0].id, batchId: batch.id },
         },
       });
     }));
@@ -94,21 +96,21 @@ describe("l'ajout d'un membre remplace la proposition en attente sur le même no
   it("une proposition déjà rejetée n'est pas remplacée", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await writeTokens(app, {
+      const { batch, proposals } = await writeTokens(app, {
         accessToken,
         projectId,
         tokens: [makeColorToken({ $value: NIGHT_BLUE })],
       });
       await request(app, {
         accessToken,
-        path: `/proposals/${propositions[0].id}/reject`,
+        path: `/proposals/${proposals[0].id}/reject`,
         method: "POST",
       });
 
       const response = await addToken(app, { accessToken, projectId, token: makeColorToken() });
 
       expect(await response.json()).toMatchObject({ replaced: null });
-      expect((await batchOf(app, { accessToken, lotId: lot.id })).propositions).toMatchObject([
+      expect((await batchOf(app, { accessToken, batchId: batch.id })).proposals).toMatchObject([
         { status: "rejected" },
       ]);
     }));
@@ -117,7 +119,7 @@ describe("l'ajout d'un membre remplace la proposition en attente sur le même no
     withIdentityApp(
       async (app, db) => {
         const { accessToken, projectId } = await seedProject(app, db);
-        const { lot } = await writeTokens(app, {
+        const { batch } = await writeTokens(app, {
           accessToken,
           projectId,
           tokens: [makeColorToken({ $value: NIGHT_BLUE })],
@@ -126,7 +128,7 @@ describe("l'ajout d'un membre remplace la proposition en attente sur le même no
         const response = await addToken(app, { accessToken, projectId, token: makeColorToken() });
 
         expect(response.status).toBe(500);
-        expect((await batchOf(app, { accessToken, lotId: lot.id })).propositions).toMatchObject([
+        expect((await batchOf(app, { accessToken, batchId: batch.id })).proposals).toMatchObject([
           { status: "proposed" },
         ]);
       },

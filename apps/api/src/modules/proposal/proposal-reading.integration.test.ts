@@ -49,7 +49,7 @@ const seedPendingWork = async (
 describe("sans le demander, l'IA ne lit que les données validées (ADR 0012 §6)", () => {
   it.each([
     ["sans le paramètre", {}],
-    ["avec includePropositions à false", { includePropositions: false }],
+    ["avec includeProposals à false", { includeProposals: false }],
   ])("%s, la lecture rend les tokens validés seuls", (_, option) =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
@@ -77,31 +77,31 @@ describe("sur demande, l'IA lit aussi les propositions en attente, avec leur sta
   it("chaque proposition en attente vient avec sa nature, son statut, son lot et sa valeur", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
-      const { lot, propositions } = await seedPendingWork(app, { accessToken, projectId });
+      const { batch, proposals } = await seedPendingWork(app, { accessToken, projectId });
 
       const result = await readTokens(app, {
         token: accessToken,
-        args: { projectId, includePropositions: true },
+        args: { projectId, includeProposals: true },
       });
 
       expect(result.structuredContent).toEqual({
         modes: [],
         tokens: [expect.objectContaining({ name: "couleur.fond.primaire", $value: PRIMARY_BLUE })],
-        propositions: [
+        proposals: [
           {
-            id: propositions[1].id,
+            id: proposals[1].id,
             name: "couleur.bleu.500",
             kind: "create",
             status: "proposed",
-            lot: { id: lot.id, state: "open" },
+            batch: { id: batch.id, state: "open" },
             token: { name: "couleur.bleu.500", $type: "color", $value: SKY_BLUE },
           },
           {
-            id: propositions[0].id,
+            id: proposals[0].id,
             name: "couleur.fond.primaire",
             kind: "update",
             status: "proposed",
-            lot: { id: lot.id, state: "open" },
+            batch: { id: batch.id, state: "open" },
             token: { name: "couleur.fond.primaire", $type: "color", $value: NIGHT_BLUE },
           },
         ],
@@ -124,18 +124,18 @@ describe("sur demande, l'IA lit aussi les propositions en attente, avec leur sta
         projectId,
         tokens: [makeColorToken({ $value: NIGHT_BLUE })],
       });
-      await app.request(`${BASE_URL}/v1/proposals/${first.propositions[1].id}/reject`, {
+      await app.request(`${BASE_URL}/v1/proposals/${first.proposals[1].id}/reject`, {
         method: "POST",
         headers: { authorization: `Bearer ${accessToken}` },
       });
 
       const result = await readTokens(app, {
         token: accessToken,
-        args: { projectId, includePropositions: true },
+        args: { projectId, includeProposals: true },
       });
 
-      expect(result.structuredContent.propositions).toEqual([
-        expect.objectContaining({ id: second.propositions[0].id, status: "proposed" }),
+      expect(result.structuredContent.proposals).toEqual([
+        expect.objectContaining({ id: second.proposals[0].id, status: "proposed" }),
       ]);
     }));
 
@@ -144,7 +144,7 @@ describe("sur demande, l'IA lit aussi les propositions en attente, avec leur sta
     return withIdentityApp(
       async (app, db) => {
         const { accessToken, projectId } = await seedProject(app, db);
-        const { lot } = await writeTokens(app, {
+        const { batch } = await writeTokens(app, {
           token: accessToken,
           projectId,
           tokens: [makeColorToken()],
@@ -153,11 +153,11 @@ describe("sur demande, l'IA lit aussi les propositions en attente, avec leur sta
 
         const result = await readTokens(app, {
           token: accessToken,
-          args: { projectId, includePropositions: true },
+          args: { projectId, includeProposals: true },
         });
 
-        expect(result.structuredContent.propositions).toMatchObject([
-          { lot: { id: lot.id, state: "closed" } },
+        expect(result.structuredContent.proposals).toMatchObject([
+          { batch: { id: batch.id, state: "closed" } },
         ]);
       },
       { clock: () => clock.instant },
@@ -181,21 +181,21 @@ describe("sur demande, l'IA lit aussi les propositions en attente, avec leur sta
 
       const result = await readTokens(app, {
         token: accessToken,
-        args: { projectId, includePropositions: true },
+        args: { projectId, includeProposals: true },
       });
 
-      expect(result.structuredContent.propositions).toEqual([]);
+      expect(result.structuredContent.proposals).toEqual([]);
     }));
 });
 
 describe("le paramètre de lecture des propositions est strict et entre dans l'historique (ADR 0021)", () => {
-  it("un includePropositions qui n'est pas un booléen est refusé", () =>
+  it("un includeProposals qui n'est pas un booléen est refusé", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
 
       const result = await readTokens(app, {
         token: accessToken,
-        args: { projectId, includePropositions: "oui" },
+        args: { projectId, includeProposals: "oui" },
       });
 
       expect(result).toMatchObject({ isError: true });
@@ -208,12 +208,12 @@ describe("le paramètre de lecture des propositions est strict et entre dans l'h
 
       await readTokens(app, {
         token: accessToken,
-        args: { projectId, includePropositions: true },
+        args: { projectId, includeProposals: true },
       });
 
       expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
         action: "mcp.read_tokens",
-        after: { outcome: "success", input: { includePropositions: true } },
+        after: { outcome: "success", input: { includeProposals: true } },
       });
     }));
 
@@ -229,14 +229,14 @@ describe("le paramètre de lecture des propositions est strict et entre dans l'h
             expect.objectContaining({
               name: "read_tokens",
               description:
-                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}. Avec includePropositions, rend aussi les propositions en attente, triées par nom, avec leur statut et leur lot.",
+                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}. Avec includeProposals, rend aussi les propositions en attente, triées par nom, avec leur statut et leur lot.",
               inputSchema: expect.objectContaining({
                 properties: expect.objectContaining({
-                  includePropositions: expect.objectContaining({ type: "boolean" }),
+                  includeProposals: expect.objectContaining({ type: "boolean" }),
                 }),
               }),
               outputSchema: expect.objectContaining({
-                properties: expect.objectContaining({ propositions: expect.anything() }),
+                properties: expect.objectContaining({ proposals: expect.anything() }),
               }),
             }),
           ]),

@@ -15,17 +15,17 @@ export const TokenOutput = DefinitionOutput.extend({
   status: openEnum(["validated"]),
 });
 
-const PropositionOutput = z.looseObject({
+const ProposalOutput = z.looseObject({
   id: Uuid,
   name: z.string(),
   kind: openEnum(["create", "update"]),
   status: openEnum(["proposed"]),
-  lot: z.looseObject({ id: Uuid, state: openEnum(["open", "closed"]) }),
+  batch: z.looseObject({ id: Uuid, state: openEnum(["open", "closed"]) }),
   token: DefinitionOutput,
 });
 
 export const TokensOutput = z.looseObject({
   modes: z.array(z.string()),
   tokens: z.array(TokenOutput),
-  propositions: z.array(PropositionOutput).optional(),
+  proposals: z.array(ProposalOutput).optional(),
 });

@@ -53,9 +53,9 @@ export const makeProposals = (): ProposalUseCases => ({
   closeBatch: () => Promise.reject(new Error("Pas de lot dans ce test")),
   listBatches: () => Promise.resolve(err("not_found")),
   batchOf: () => Promise.resolve(err("not_found")),
-  reviewProposition: () => Promise.resolve(err("not_found")),
+  reviewProposal: () => Promise.resolve(err("not_found")),
   validateBatch: () => Promise.resolve(err("not_found")),
-  pendingPropositionsOf: () => Promise.resolve([]),
+  pendingProposalsOf: () => Promise.resolve([]),
 });
 
 export const makeApp = ({
