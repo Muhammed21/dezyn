@@ -51,3 +51,15 @@ export const resolveReference = ({
   }
   return target.$type === $type ? { tokenId: target.id } : { refusal: "type_mismatch" };
 };
+
+export const referencedNames = ({
+  $value,
+  modes = {},
+}: {
+  readonly $value?: unknown;
+  readonly modes?: Readonly<Record<string, unknown>>;
+}): readonly string[] =>
+  [$value, ...Object.values(modes)].flatMap((value) => {
+    const name = typeof value === "string" ? aliasName(value) : undefined;
+    return name === undefined ? [] : [name];
+  });

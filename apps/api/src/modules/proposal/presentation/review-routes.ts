@@ -1,12 +1,14 @@
 import { Hono } from "hono";
+import { z } from "zod";
 
 import { Uuid } from "@repo/contracts";
 
 import type { AuthenticatedEnv } from "../../../platform/access-token.ts";
 import { type Problem, problemResponse } from "../../../platform/problem.ts";
-import { issuesOfCheck } from "../../token/contracts/token-issues.ts";
+import { validate } from "../../../platform/validate.ts";
+import { issuesOfCheck, type ValidatedTokenFailure } from "../../token/contracts/token-issues.ts";
 import type { ProposalUseCases } from "../application/proposal-use-cases.ts";
-import type { ReviewFailure } from "../application/review-propositions.ts";
+import type { BatchValidationFailure, ReviewFailure } from "../application/review-propositions.ts";
 import type { ValidatedDefinition } from "../application/write-tokens.ts";
 import type { Decision, Proposition } from "../domain/proposition.ts";
 
@@ -35,23 +37,50 @@ const propositionOutputOf = (
   proposed: proposedOf(proposition),
 });
 
-const conflictOf = (failure: Exclude<ReviewFailure, "not_found">): Problem => {
-  if (failure === "already_reviewed") {
-    return { type: "about:blank", title: "Proposition déjà relue", status: 409 };
+const issuesOfFailure = (failure: ValidatedTokenFailure) =>
+  failure.code === "name_taken"
+    ? [{ path: "name", message: "Nom déjà pris dans le projet" }]
+    : issuesOfCheck(failure);
+
+const conflictOf = (failure: Exclude<ReviewFailure, "not_found">): Problem =>
+  failure === "already_reviewed"
+    ? { type: "about:blank", title: "Proposition déjà relue", status: 409 }
+    : {
+        type: "about:blank",
+        title: "Proposition invalide",
+        status: 409,
+        errors: issuesOfFailure(failure),
+      };
+
+const BatchValidationInput = z.object({ rejected: z.array(Uuid).default([]) });
+
+const batchProblemOf = (
+  failure: Exclude<BatchValidationFailure, "not_found">,
+  rejected: readonly string[],
+): Problem => {
+  if (failure === "batch_open") {
+    return { type: "about:blank", title: "Lot ouvert", status: 409 };
   }
-  if (failure.code === "name_taken") {
+  if (failure.code === "unknown_propositions") {
     return {
       type: "about:blank",
-      title: "Proposition invalide",
-      status: 409,
-      errors: [{ path: "name", message: "Nom déjà pris dans le projet" }],
+      title: "Requête invalide",
+      status: 400,
+      errors: rejected.flatMap((id, index) =>
+        failure.ids.includes(id)
+          ? [{ path: `rejected.${index}`, message: "Proposition hors du lot" }]
+          : [],
+      ),
     };
   }
   return {
     type: "about:blank",
-    title: "Proposition invalide",
+    title: "Lot invalide",
     status: 409,
-    errors: issuesOfCheck(failure),
+    errors: issuesOfFailure(failure.failure).map(({ path, message }) => ({
+      path: `propositions.${failure.propositionId}.${path}`,
+      message,
+    })),
   };
 };
 
@@ -65,7 +94,7 @@ export const projectBatchesRoutes = ({ listBatches }: ProposalUseCases) =>
     return batches.ok ? c.json({ batches: batches.value }) : c.notFound();
   });
 
-export const reviewRoutes = ({ batchOf, reviewProposition }: ProposalUseCases) => {
+export const reviewRoutes = ({ batchOf, reviewProposition, validateBatch }: ProposalUseCases) => {
   const reviewed = (decision: Decision) =>
     new Hono<AuthenticatedEnv>().post("/:propositionId/" + decision, async (c) => {
       const propositionId = Uuid.safeParse(c.req.param("propositionId")).data;
@@ -105,6 +134,29 @@ export const reviewRoutes = ({ batchOf, reviewProposition }: ProposalUseCases) =
         propositions: propositions.map(propositionOutputOf),
       });
     })
+    .post(
+      "/proposal-batches/:batchId/validate",
+      validate("json", BatchValidationInput),
+      async (c) => {
+        const batchId = Uuid.safeParse(c.req.param("batchId")).data;
+        if (batchId === undefined) {
+          return c.notFound();
+        }
+        const { rejected } = c.req.valid("json");
+        const outcome = await validateBatch({
+          batchId,
+          userId: c.get("identity").userId,
+          rejected,
+          correlationId: c.get("correlationId"),
+        });
+        if (outcome.ok) {
+          return c.json(outcome.value);
+        }
+        return outcome.error === "not_found"
+          ? c.notFound()
+          : problemResponse(c, batchProblemOf(outcome.error, rejected));
+      },
+    )
     .route("/proposals", reviewed("validate"))
     .route("/proposals", reviewed("reject"));
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { aliasName, type ProjectToken, resolveReference } from "./reference.ts";
+import { aliasName, type ProjectToken, referencedNames, resolveReference } from "./reference.ts";
 
 const makeProjectToken = (overrides: Partial<ProjectToken> = {}): ProjectToken => ({
   id: "0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
@@ -136,5 +136,29 @@ describe("une référence vers un token encore proposé n'est pas validée", () 
         pending: [{ name: "couleur.bleu.700", $type: "color" }],
       }),
     ).toEqual({ refusal: "unknown_reference" });
+  });
+});
+
+describe("un token nomme les tokens qu'il référence, par sa valeur ou par mode", () => {
+  const PRIMARY_BLUE = { colorSpace: "srgb", components: [0.2, 0.4, 0.8] };
+
+  it("une valeur directe ne référence rien", () => {
+    expect(referencedNames({ $value: PRIMARY_BLUE })).toEqual([]);
+  });
+
+  it("un alias en valeur nomme sa cible", () => {
+    expect(referencedNames({ $value: "{couleur.bleu.500}" })).toEqual(["couleur.bleu.500"]);
+  });
+
+  it("chaque alias par mode nomme sa cible, et les valeurs directes ne comptent pas", () => {
+    expect(
+      referencedNames({
+        modes: { clair: "{couleur.bleu.500}", sombre: PRIMARY_BLUE, contraste: "{couleur.noir}" },
+      }),
+    ).toEqual(["couleur.bleu.500", "couleur.noir"]);
+  });
+
+  it("un texte qui n'est pas un alias ne référence rien", () => {
+    expect(referencedNames({ $value: "bleu" })).toEqual([]);
   });
 });

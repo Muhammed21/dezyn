@@ -2,12 +2,17 @@ import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { schema } from "@repo/db";
+import type { Err, Result } from "@repo/result";
 
 import type { PostgresDatabase, PostgresTransaction } from "../../../platform/postgres-database.ts";
 import type { HistoryWriter } from "../../history/contracts/history-writer.ts";
 import { TokenDefinitionInput } from "../../token/contracts/token-definition.ts";
 import type { ValidatedTokenWriter } from "../../token/contracts/token-issues.ts";
-import type { PropositionReader, ReviewUnitOfWork } from "../application/review-propositions.ts";
+import type {
+  PropositionReader,
+  ReviewUnit,
+  ReviewUnitOfWork,
+} from "../application/review-propositions.ts";
 import type { PropositionUnitOfWork, Writer } from "../application/write-tokens.ts";
 import type { Proposition, PropositionLot } from "../domain/proposition.ts";
 
@@ -201,24 +206,55 @@ export const postgresReviewUnitOfWork = ({
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
 }): ReviewUnitOfWork => ({
-  run: (work) =>
-    db.orm.transaction((tx) =>
-      work({
-        propositions: {
-          lock: async (propositionId) => {
-            const [locked] = await tx
-              .select({ status: proposition.status })
-              .from(proposition)
-              .where(eq(proposition.id, propositionId))
-              .for("update");
-            return PropositionStatus.parse(locked?.status);
+  async run<T, E>(work: (unit: ReviewUnit) => Promise<Result<T, E>>): Promise<Result<T, E>> {
+    class RolledBack extends Error {
+      readonly failure: Err<E>;
+
+      constructor(failure: Err<E>) {
+        super("Transaction annulée");
+        this.failure = failure;
+      }
+    }
+    return db.orm
+      .transaction(async (tx) => {
+        const outcome = await work({
+          propositions: {
+            lock: async (propositionId) => {
+              const [locked] = await tx
+                .select({ status: proposition.status })
+                .from(proposition)
+                .where(eq(proposition.id, propositionId))
+                .for("update");
+              return PropositionStatus.parse(locked?.status);
+            },
+            lockBatch: async (batchId) => {
+              const rows = await tx
+                .select({ id: proposition.id, status: proposition.status })
+                .from(proposition)
+                .where(eq(proposition.lotId, batchId))
+                .for("update");
+              return rows.map(({ id, status }) => ({
+                id,
+                status: PropositionStatus.parse(status),
+              }));
+            },
+            settle: async (propositionId, status) => {
+              await tx.update(proposition).set({ status }).where(eq(proposition.id, propositionId));
+            },
           },
-          settle: async (propositionId, status) => {
-            await tx.update(proposition).set({ status }).where(eq(proposition.id, propositionId));
-          },
-        },
-        tokens: validatedTokenWriterOn(tx),
-        history: historyWriterOn(tx),
-      }),
-    ),
+          tokens: validatedTokenWriterOn(tx),
+          history: historyWriterOn(tx),
+        });
+        if (!outcome.ok) {
+          throw new RolledBack(outcome);
+        }
+        return outcome;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof RolledBack) {
+          return error.failure;
+        }
+        throw error;
+      });
+  },
 });

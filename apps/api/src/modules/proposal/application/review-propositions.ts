@@ -7,6 +7,7 @@ import type {
   ValidatedTokenFailure,
   ValidatedTokenWriter,
 } from "../../token/contracts/token-issues.ts";
+import { planBatchValidation } from "../domain/batch-validation.ts";
 import { lotStateAt } from "../domain/proposition-lot.ts";
 import {
   type Decision,
@@ -42,17 +43,20 @@ export interface PropositionReader {
   ): Promise<{ readonly proposition: Proposition; readonly projectId: string } | undefined>;
 }
 
+export type ReviewUnit = {
+  readonly propositions: {
+    lock(propositionId: string): Promise<PropositionStatus>;
+    lockBatch(
+      batchId: string,
+    ): Promise<readonly { readonly id: string; readonly status: PropositionStatus }[]>;
+    settle(propositionId: string, status: "validated" | "rejected"): Promise<void>;
+  };
+  readonly tokens: ValidatedTokenWriter;
+  readonly history: HistoryWriter;
+};
+
 export interface ReviewUnitOfWork {
-  run<T>(
-    work: (unit: {
-      readonly propositions: {
-        lock(propositionId: string): Promise<PropositionStatus>;
-        settle(propositionId: string, status: "validated" | "rejected"): Promise<void>;
-      };
-      readonly tokens: ValidatedTokenWriter;
-      readonly history: HistoryWriter;
-    }) => Promise<T>,
-  ): Promise<T>;
+  run<T, E>(work: (unit: ReviewUnit) => Promise<Result<T, E>>): Promise<Result<T, E>>;
 }
 
 export type ReviewFailure = "not_found" | "already_reviewed" | ValidatedTokenFailure;
@@ -229,5 +233,136 @@ export const reviewProposition =
         occurredAt,
       });
       return ok({ ...proposition, status: reviewed.status });
+    });
+  };
+
+export type InvalidProposition = {
+  readonly code: "invalid_proposition";
+  readonly propositionId: string;
+  readonly failure: ValidatedTokenFailure;
+};
+
+export type BatchValidationFailure =
+  | "not_found"
+  | "batch_open"
+  | { readonly code: "unknown_propositions"; readonly ids: readonly string[] }
+  | InvalidProposition;
+
+export type ValidatedBatch = {
+  readonly id: string;
+  readonly state: "closed";
+  readonly validated: readonly string[];
+  readonly rejected: readonly string[];
+};
+
+type Decided = {
+  readonly proposition: Proposition;
+  readonly status: "validated" | "rejected";
+};
+
+const inSequence = async <Item, Failure>(
+  items: readonly Item[],
+  step: (item: Item) => Promise<Failure | undefined>,
+): Promise<Failure | undefined> =>
+  items.reduce<Promise<Failure | undefined>>(
+    async (previous, item) => (await previous) ?? step(item),
+    Promise.resolve(undefined),
+  );
+
+export const validateBatch =
+  ({
+    propositions,
+    validatedTokensOf,
+    unitOfWork,
+    now,
+    ...access
+  }: Access & {
+    readonly propositions: PropositionReader;
+    readonly validatedTokensOf: ValidatedTokensOf;
+    readonly unitOfWork: ReviewUnitOfWork;
+    readonly now: () => Date;
+  }) =>
+  async ({
+    batchId,
+    userId,
+    rejected,
+    correlationId,
+  }: {
+    readonly batchId: string;
+    readonly userId: string;
+    readonly rejected: readonly string[];
+    readonly correlationId: string;
+  }): Promise<Result<ValidatedBatch, BatchValidationFailure>> => {
+    const batch = await propositions.batch(batchId);
+    const spaceId =
+      batch === undefined
+        ? undefined
+        : await spaceOf(access, { projectId: batch.projectId, userId, action: "proposal.review" });
+    if (batch === undefined || spaceId === undefined) {
+      return err("not_found");
+    }
+    const { projectId } = batch;
+    const occurredAt = now();
+    const validated = await validatedTokensOf(projectId);
+    const pending = await propositions.pendingTokensOf(projectId);
+    return unitOfWork.run(async (unit): Promise<Result<ValidatedBatch, BatchValidationFailure>> => {
+      const locked = await unit.propositions.lockBatch(batchId);
+      const plan = planBatchValidation({
+        lotState: lotStateAt({ lot: batch, now: occurredAt }),
+        propositions: batch.propositions.map((proposition) => ({
+          ...proposition,
+          status: locked.find(({ id }) => id === proposition.id)?.status ?? proposition.status,
+        })),
+        rejected,
+      });
+      if ("refusal" in plan) {
+        return err(
+          plan.refusal === "batch_open"
+            ? "batch_open"
+            : { code: "unknown_propositions", ids: plan.ids },
+        );
+      }
+      const invalid = await inSequence(
+        plan.toValidate,
+        async (proposition): Promise<InvalidProposition | undefined> => {
+          const written = { projectId, token: proposition.token, pending, createdAt: occurredAt };
+          const failure =
+            proposition.kind === "create"
+              ? await unit.tokens.create(written)
+              : await unit.tokens.replace(written);
+          return failure === undefined
+            ? undefined
+            : { code: "invalid_proposition", propositionId: proposition.id, failure };
+        },
+      );
+      if (invalid !== undefined) {
+        return err(invalid);
+      }
+      const decided = [
+        ...plan.toValidate.map((proposition): Decided => ({ proposition, status: "validated" })),
+        ...plan.toReject.map((proposition): Decided => ({ proposition, status: "rejected" })),
+      ];
+      await inSequence(decided, async ({ proposition, status }) => {
+        const before = validatedOf(validated, proposition);
+        await unit.propositions.settle(proposition.id, status);
+        await unit.history.append({
+          spaceId,
+          projectId,
+          action: `proposition.${status}`,
+          userId,
+          clientId: null,
+          before: before === null ? null : definitionOf(before),
+          after: { propositionId: proposition.id, token: proposition.token },
+          correlationId,
+          occurredAt,
+        });
+        return undefined;
+      });
+      return ok({
+        id: batchId,
+        state: "closed",
+        validated: plan.toValidate.map(({ id }) => id),
+        rejected: plan.toReject.map(({ id }) => id),
+      });
     });
   };
