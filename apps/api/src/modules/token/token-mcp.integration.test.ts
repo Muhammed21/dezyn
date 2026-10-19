@@ -205,7 +205,7 @@ describe("l'IA lit les tokens validés d'un projet par le MCP (ADR 0012 §6)", (
             expect.objectContaining({
               name: "read_tokens",
               description:
-                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}.",
+                "Lit les tokens validés d'un projet en DTCG, triés par nom : une valeur $value, ou une valeur par mode dans modes, et les alias en {nom.du.token}. Avec includeProposals, rend aussi les propositions en attente, triées par nom, avec leur statut et leur lot.",
               inputSchema: expect.objectContaining({ required: ["projectId"] }),
               outputSchema: expect.objectContaining({
                 properties: expect.objectContaining({

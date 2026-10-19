@@ -76,3 +76,118 @@ describe("la lecture des tokens d'un projet rend ses modes et ses tokens (ADR 00
     expect(TokensOutput.safeParse(read).success).toBe(false);
   });
 });
+
+const makeProposalOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  id: "1c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+  name: "couleur.fond.primaire",
+  kind: "create",
+  status: "proposed",
+  batch: { id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "open" },
+  token: {
+    name: "couleur.fond.primaire",
+    $type: "color",
+    $value: { colorSpace: "srgb", components: [0.2, 0.4, 0.8] },
+  },
+  ...overrides,
+});
+
+describe("la lecture des tokens rend aussi les propositions en attente, sur demande (ADR 0012 §6)", () => {
+  it("décode les propositions en attente avec leur lot", () => {
+    const read = { modes: [], tokens: [], proposals: [makeProposalOutput()] };
+
+    expect(TokensOutput.parse(read)).toEqual(read);
+  });
+
+  it("une lecture sans propositions reste valide", () => {
+    expect(TokensOutput.parse({ modes: [], tokens: [] })).toEqual({ modes: [], tokens: [] });
+  });
+
+  it.each([["id"], ["name"], ["kind"], ["status"], ["batch"], ["token"]])(
+    "refuse une proposition sans %s",
+    (field) => {
+      expect(
+        TokensOutput.safeParse({
+          modes: [],
+          tokens: [],
+          proposals: [makeProposalOutput({ [field]: undefined })],
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it.each([["id"], ["state"]])("refuse un lot sans %s", (field) => {
+    expect(
+      TokensOutput.safeParse({
+        modes: [],
+        tokens: [],
+        proposals: [
+          makeProposalOutput({
+            batch: {
+              id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+              state: "open",
+              [field]: undefined,
+            },
+          }),
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each([["name"], ["$type"]])("refuse une proposition dont le token n'a pas de %s", (field) => {
+    const { token } = makeProposalOutput();
+
+    expect(
+      TokensOutput.safeParse({
+        modes: [],
+        tokens: [],
+        proposals: [makeProposalOutput({ token: { ...token, [field]: undefined } })],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepte une nature, un statut et un état de lot ajoutés plus tard par le serveur", () => {
+    const read = {
+      modes: [],
+      tokens: [],
+      proposals: [
+        makeProposalOutput({
+          kind: "delete",
+          status: "rejected",
+          batch: { id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", state: "archived" },
+        }),
+      ],
+    };
+
+    expect(TokensOutput.parse(read)).toEqual(read);
+  });
+
+  it("annonce à l'IA les natures, statuts et états connus", () => {
+    expect(z.toJSONSchema(TokensOutput)).toMatchObject({
+      properties: {
+        proposals: {
+          items: {
+            properties: {
+              kind: { anyOf: [{ enum: ["create", "update"] }, { type: "string" }] },
+              status: { anyOf: [{ enum: ["proposed"] }, { type: "string" }] },
+              token: {
+                properties: {
+                  $type: {
+                    anyOf: [
+                      { enum: ["color", "dimension", "typography", "shadow"] },
+                      { type: "string" },
+                    ],
+                  },
+                },
+              },
+              batch: {
+                properties: {
+                  state: { anyOf: [{ enum: ["open", "closed"] }, { type: "string" }] },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+});

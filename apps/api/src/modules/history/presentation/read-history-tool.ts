@@ -5,17 +5,16 @@ import { Uuid } from "@repo/contracts";
 import { err, type Result } from "@repo/result";
 
 import type { McpCall } from "../../../platform/mcp.ts";
+import { RECORD_FAILURE_TEXT, type RecordFailure } from "../../../platform/project-call.ts";
 import { decodeCursor } from "../application/history-cursor.ts";
 import type { HistoryUseCases } from "../application/history-use-cases.ts";
 import { DEFAULT_PAGE_SIZE, type HistoryPage } from "../application/read-history.ts";
 import { HistoryOutput } from "../contracts/history.ts";
 
-const ERROR_TEXT: Readonly<Record<"not_found" | "invalid_cursor" | "history_unavailable", string>> =
-  {
-    not_found: "Projet introuvable",
-    invalid_cursor: "Curseur invalide",
-    history_unavailable: "Historique indisponible",
-  };
+const ERROR_TEXT: Readonly<Record<RecordFailure | "invalid_cursor", string>> = {
+  ...RECORD_FAILURE_TEXT,
+  invalid_cursor: "Curseur invalide",
+};
 
 const historyOutputOf = ({ entries, nextCursor }: HistoryPage) => ({
   entries: entries.map((entry) => ({ ...entry, occurredAt: entry.occurredAt.toISOString() })),

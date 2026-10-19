@@ -5,7 +5,8 @@ export type Action =
   | "project.create"
   | "member.invite"
   | "member.leave"
-  | "token.create";
+  | "token.create"
+  | "proposal.review";
 
 export type Membership = {
   readonly spaceId: string;
@@ -14,8 +15,15 @@ export type Membership = {
 };
 
 const PERMISSIONS: Readonly<Record<Role, ReadonlySet<Action>>> = {
-  owner: new Set(["space.read", "project.create", "member.invite", "member.leave", "token.create"]),
-  editor: new Set(["space.read", "member.leave", "token.create"]),
+  owner: new Set([
+    "space.read",
+    "project.create",
+    "member.invite",
+    "member.leave",
+    "token.create",
+    "proposal.review",
+  ]),
+  editor: new Set(["space.read", "member.leave", "token.create", "proposal.review"]),
 };
 
 export const can = ({

@@ -28,6 +28,7 @@ pnpm install
 cp .env.example .env
 pnpm infra:up       # services locaux
 pnpm test:infra     # tests de l'infrastructure locale
+pnpm studio         # Drizzle Studio sur la base locale, rôle migrator
 pnpm lint           # oxlint typé
 pnpm fmt            # oxfmt
 pnpm check-types

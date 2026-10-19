@@ -63,3 +63,17 @@ export const seedProposedToken = (
     status: "proposed",
     createdAt: new Date(),
   });
+
+export const seedValidatedToken = (
+  db: PostgresDatabase,
+  { projectId, name }: { readonly projectId: string; readonly name: string },
+) =>
+  db.orm.insert(schema.token).values({
+    id: randomUUID(),
+    projectId,
+    name,
+    type: "color",
+    description: null,
+    status: "validated",
+    createdAt: new Date(),
+  });

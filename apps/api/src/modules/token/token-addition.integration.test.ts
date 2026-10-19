@@ -35,6 +35,7 @@ describe("un membre ajoute un token couleur, Validé d'emblée (ADR 0012 §2)", 
         $value: PRIMARY_BLUE,
         $description: "Fond des boutons",
         status: "validated",
+        replaced: null,
       });
       expect((await historyOf(app, { accessToken, projectId }))[0]).toEqual({
         id: expect.any(String),
@@ -44,7 +45,7 @@ describe("un membre ajoute un token couleur, Validé d'emblée (ADR 0012 §2)", 
         author: { kind: "member", userId, name: ADA.name },
         clientId: null,
         before: null,
-        after: token,
+        after: { ...token, replaced: null },
         occurredAt: expect.any(String),
         correlationId: ADDITION_CORRELATION_ID,
       });
@@ -63,6 +64,7 @@ describe("un membre ajoute un token couleur, Validé d'emblée (ADR 0012 §2)", 
         $type: "color",
         $value: PRIMARY_BLUE,
         status: "validated",
+        replaced: null,
       });
       expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
         action: "token.created",
