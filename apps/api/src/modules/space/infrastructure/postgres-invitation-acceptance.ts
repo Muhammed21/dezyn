@@ -77,13 +77,13 @@ export const postgresInvitationAcceptance = (db: PostgresDatabase): InvitationAc
         id: decision.value.id,
         spaceId: locked.target.id,
         userId: request.userId,
-        role: "editor",
+        role: decision.value.role,
         joinedAt: decision.value.joinedAt,
       });
       await tx
         .update(spaceInvitation)
         .set({ acceptedAt: decision.value.joinedAt })
         .where(eq(spaceInvitation.id, locked.invitationId));
-      return ok({ ...locked.target, role: "editor" });
+      return ok({ ...locked.target, role: decision.value.role });
     }),
 });

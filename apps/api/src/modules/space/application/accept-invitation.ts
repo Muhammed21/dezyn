@@ -4,10 +4,11 @@ import {
   type AcceptanceFacts,
   type AcceptanceRefusal,
   acceptanceRefusal,
+  INVITEE_ROLE,
 } from "../domain/acceptance.ts";
-import type { MySpace } from "../domain/space.ts";
+import type { MySpace, Role } from "../domain/space.ts";
 
-export type NewMember = { readonly id: string; readonly joinedAt: Date };
+export type NewMember = { readonly id: string; readonly role: Role; readonly joinedAt: Date };
 
 export type AcceptanceDecision = (
   facts: Omit<AcceptanceFacts, "now">,
@@ -36,6 +37,8 @@ export const acceptInvitation =
     const at = now();
     return acceptance.accept({ tokenHash: hashToken(token), userId }, (facts) => {
       const refusal = acceptanceRefusal({ ...facts, now: at });
-      return refusal === undefined ? ok({ id: newId(), joinedAt: at }) : err(refusal);
+      return refusal === undefined
+        ? ok({ id: newId(), role: INVITEE_ROLE, joinedAt: at })
+        : err(refusal);
     });
   };
