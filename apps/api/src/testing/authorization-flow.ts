@@ -32,7 +32,11 @@ export type App = ReturnType<typeof createApp>;
 type UserCreated = (user: { readonly id: string; readonly name: string }) => Promise<void>;
 
 export const withIdentityApp = (
-  run: (app: App, db: PostgresDatabase) => Promise<void>,
+  run: (
+    app: App,
+    db: PostgresDatabase,
+    database: { readonly migratorUrl: string },
+  ) => Promise<void>,
   {
     baseURL = BASE_URL,
     wrapUserCreated = (created) => created,
@@ -69,6 +73,7 @@ export const withIdentityApp = (
       await run(
         createApp({ db, auth, log: () => undefined, spaces, projects, history, tokens, proposals }),
         db,
+        { migratorUrl },
       );
     } finally {
       await db.close();
@@ -213,11 +218,17 @@ export const reachConsent = async (
     clientName = "Claude Code",
     user = ADA,
     password = user.password,
-  }: { readonly clientName?: string; readonly user?: User; readonly password?: string } = {},
+    registeredId,
+  }: {
+    readonly clientName?: string;
+    readonly user?: User;
+    readonly password?: string;
+    readonly registeredId?: string;
+  } = {},
 ) => {
   const ip = makeClientIp();
   const clientId = await registerClient(app, { ip, clientName });
-  const userId = await signUp(app, ip, user);
+  const userId = registeredId ?? (await signUp(app, ip, user));
   const pkce = makePkce();
   const browser = makeBrowser(app, ip);
 
@@ -239,9 +250,13 @@ export const reachConsent = async (
 
 export const signInAndConsent = async (
   app: App,
-  { accept, user = ADA }: { readonly accept: boolean; readonly user?: User },
+  {
+    accept,
+    user = ADA,
+    registeredId,
+  }: { readonly accept: boolean; readonly user?: User; readonly registeredId?: string },
 ) => {
-  const { browser, consentHtml, ...flow } = await reachConsent(app, { user });
+  const { browser, consentHtml, ...flow } = await reachConsent(app, { user, registeredId });
   const backToClient = await browser.postForm("/consent", {
     ...formFields(consentHtml),
     accept: String(accept),
@@ -257,11 +272,12 @@ export const signInAndConsent = async (
 
 export const obtainAccessToken = async (
   app: App,
-  { user = ADA }: { readonly user?: User } = {},
+  { user = ADA, registeredId }: { readonly user?: User; readonly registeredId?: string } = {},
 ) => {
   const { clientId, userId, pkce, browser, callback } = await signInAndConsent(app, {
     accept: true,
     user,
+    registeredId,
   });
   const token = await exchangeCode(app, {
     clientId,
