@@ -1,10 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
-import {
-  issuesOfCheck,
-  type ValidatedTokenFailure,
-} from "#modules/token/contracts/token-issues.ts";
+import { issuesOfCheck } from "#modules/token/contracts/token-issues.ts";
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
 import { type Problem, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
@@ -40,11 +37,6 @@ const proposalOutputOf = (
   proposed: proposedOf(proposal),
 });
 
-const issuesOfFailure = (failure: ValidatedTokenFailure) =>
-  failure.code === "name_taken"
-    ? [{ path: "name", message: "Nom déjà pris dans le projet" }]
-    : issuesOfCheck(failure);
-
 const conflictOf = (failure: Exclude<ReviewFailure, "not_found">): Problem =>
   failure === "already_reviewed"
     ? { type: "about:blank", title: "Proposition déjà relue", status: 409 }
@@ -52,7 +44,7 @@ const conflictOf = (failure: Exclude<ReviewFailure, "not_found">): Problem =>
         type: "about:blank",
         title: "Proposition invalide",
         status: 409,
-        errors: issuesOfFailure(failure),
+        errors: issuesOfCheck(failure),
       };
 
 const BatchValidationInput = z.object({ rejected: z.array(Uuid).default([]) });
@@ -80,7 +72,7 @@ const batchProblemOf = (
     type: "about:blank",
     title: "Lot invalide",
     status: 409,
-    errors: issuesOfFailure(failure.failure).map(({ path, message }) => ({
+    errors: issuesOfCheck(failure.failure).map(({ path, message }) => ({
       path: `proposals.${failure.proposalId}.${path}`,
       message,
     })),
