@@ -80,7 +80,8 @@ export const withIdentityApp = (
     }
   });
 
-export const makeClientIp = () => `198.51.100.${randomInt(1, 255)}`;
+export const makeClientIp = () =>
+  `198.${randomInt(18, 20)}.${randomInt(0, 256)}.${randomInt(0, 256)}`;
 
 export const makeBrowser = (app: App, ip: string) => {
   const jar = new Map<string, string>();
