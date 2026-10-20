@@ -1,10 +1,9 @@
-import { randomInt } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
 import { createApp } from "#create-app";
 import { createPostgresDatabase } from "#db";
 import type { LogRecord } from "#platform/logging.ts";
+import { makeClientIp } from "#testing/authorization-flow.ts";
 import {
   makeHistory,
   makeProjects,
@@ -66,7 +65,7 @@ const withIdentityApp = (run: (identityApp: IdentityApp) => Promise<void>) =>
         tokens: makeTokens(),
         proposals: makeProposals(),
       });
-      await run({ app, records, postJson: postJsonFrom(app, `198.51.100.${randomInt(1, 255)}`) });
+      await run({ app, records, postJson: postJsonFrom(app, makeClientIp()) });
     } finally {
       await db.close();
     }
