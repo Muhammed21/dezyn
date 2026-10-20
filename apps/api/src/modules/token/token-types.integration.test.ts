@@ -306,14 +306,20 @@ describe("un membre ajoute une famille de police, une graisse ou un nombre (ADR 
   );
 
   it.each([
-    ["un mot-clé de graisse inconnu", "fontWeight", "gras"],
-    ["un nombre en chaîne", "number", "1.5"],
-  ])("%s répond 400 en nommant le champ", (_case, $type, $value) =>
+    ["un mot-clé de graisse inconnu", "fontWeight", "gras", "Mot-clé de graisse inconnu"],
+    ["un nombre en chaîne", "number", "1.5", "Nombre attendu"],
+    [
+      "une référence mal formée",
+      "fontWeight",
+      "{graisse.forte",
+      "Référence attendue au format {nom.du.token}",
+    ],
+  ])("%s répond 400 en nommant le champ", (_case, $type, $value, message) =>
     withIdentityApp(async (app, db) => {
       const { status, body } = await refusalOf(app, db, { name: "valeur.a", $type, $value });
 
       expect(status).toBe(400);
-      expect(body).toMatchObject({ errors: [{ path: "$value" }] });
+      expect(body).toMatchObject({ errors: [{ path: "$value", message }] });
     }),
   );
 });

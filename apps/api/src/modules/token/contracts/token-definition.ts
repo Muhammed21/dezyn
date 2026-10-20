@@ -178,7 +178,7 @@ const ShadowRequest = oneOrMany(ShadowLayerRequest);
 
 const ALIAS_FORMAT = "Référence attendue au format {nom.du.token}";
 
-const aliasOr = <Item extends z.ZodType>(item: Item) =>
+const aliasOr = <Item extends z.ZodType>(item: Item, unbracedMessage: string) =>
   z.unknown().transform((value, context): z.output<Item> | string => {
     if (isReference(value)) {
       return value;
@@ -186,7 +186,10 @@ const aliasOr = <Item extends z.ZodType>(item: Item) =>
     const parsed = item.safeParse(value);
     if (!parsed.success) {
       if (typeof value === "string") {
-        context.addIssue({ code: "custom", message: ALIAS_FORMAT });
+        context.addIssue({
+          code: "custom",
+          message: value.startsWith("{") ? ALIAS_FORMAT : unbracedMessage,
+        });
         return z.NEVER;
       }
       parsed.error.issues.forEach((issue) => context.addIssue({ ...issue }));
@@ -195,12 +198,16 @@ const aliasOr = <Item extends z.ZodType>(item: Item) =>
     return parsed.data;
   });
 
-const typed = <Type extends string, Value extends z.ZodType>(type: Type, value: Value) =>
+const typed = <Type extends string, Value extends z.ZodType>(
+  type: Type,
+  value: Value,
+  unbracedMessage = ALIAS_FORMAT,
+) =>
   z.strictObject({
     name: z.string(),
     $type: z.literal(type),
-    $value: aliasOr(value).optional(),
-    modes: z.record(z.string(), aliasOr(value)).optional(),
+    $value: aliasOr(value, unbracedMessage).optional(),
+    modes: z.record(z.string(), aliasOr(value, unbracedMessage)).optional(),
     $description: z.string().optional(),
   });
 
@@ -211,8 +218,8 @@ export const TokenDefinitionInput = z
     typed("typography", TypographyRequest),
     typed("shadow", ShadowRequest),
     typed("fontFamily", FontFamilyRequest),
-    typed("fontWeight", FontWeightRequest),
-    typed("number", z.number()),
+    typed("fontWeight", FontWeightRequest, "Mot-clé de graisse inconnu"),
+    typed("number", z.number(), "Nombre attendu"),
   ])
   .superRefine((token, context) => {
     const nameRefusal = tokenNameRefusal(token.name);
