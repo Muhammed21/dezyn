@@ -1,6 +1,5 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import { fieldAliases } from "../domain/field-references.ts";
@@ -191,18 +190,16 @@ export const checkedValues = (
 
 export const addToken =
   ({
-    projects,
-    memberships,
+    access,
     modes,
     projectTokens,
     unitOfWork,
     newId,
     now,
   }: {
-    readonly projects: ProjectFinder;
+    readonly access: ProjectAccess;
     readonly modes: ModeReader;
     readonly projectTokens: ProjectTokenReader;
-    readonly memberships: MembershipReader;
     readonly unitOfWork: TokenUnitOfWork;
     readonly newId: () => string;
     readonly now: () => Date;
@@ -218,12 +215,8 @@ export const addToken =
     readonly token: TokenDefinition;
     readonly correlationId: string;
   }): Promise<Result<AddedToken, TokenAdditionFailure>> => {
-    const project = await projects.find(projectId);
+    const project = await access({ projectId, userId, action: "token.create" });
     if (project === undefined) {
-      return err("not_found");
-    }
-    const membership = await memberships.activeMembership({ spaceId: project.spaceId, userId });
-    if (!can({ membership, action: "token.create" })) {
       return err("not_found");
     }
     const checked = checkedValues(token, {

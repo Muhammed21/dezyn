@@ -2,8 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import type { MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type { CheckTokens, ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
 import type { Clock } from "#platform/clock.ts";
 
@@ -39,8 +38,7 @@ export const proposalWriterOn = (tx: PostgresTransaction) => ({
 
 export const proposalModule = ({
   db,
-  memberships,
-  projects,
+  access,
   checkTokens,
   validatedTokensOf,
   historyWriterOn,
@@ -49,8 +47,7 @@ export const proposalModule = ({
   clock: now,
 }: {
   readonly db: PostgresDatabase;
-  readonly memberships: MembershipReader;
-  readonly projects: ProjectFinder;
+  readonly access: ProjectAccess;
   readonly checkTokens: CheckTokens;
   readonly validatedTokensOf: ValidatedTokensOf;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
@@ -58,9 +55,8 @@ export const proposalModule = ({
   readonly figmaStateOn: (tx: PostgresTransaction) => FigmaStateSynchronizer;
   readonly clock: Clock;
 }) => {
-  const access = {
-    projects,
-    memberships,
+  const reading = {
+    access,
     validatedTokensOf,
     proposals: postgresProposalReader(db),
     now,
@@ -82,10 +78,10 @@ export const proposalModule = ({
     }),
     openBatch: openBatch({ unitOfWork, newId: randomUUID, now }),
     closeBatch: closeBatch({ unitOfWork, now }),
-    listBatches: listBatches(access),
-    batchOf: batchOf(access),
-    reviewProposal: reviewProposal({ ...access, unitOfWork: reviewUnitOfWork }),
-    validateBatch: validateBatch({ ...access, unitOfWork: reviewUnitOfWork }),
-    pendingProposalsOf: pendingProposalsOf(access),
+    listBatches: listBatches(reading),
+    batchOf: batchOf(reading),
+    reviewProposal: reviewProposal({ ...reading, unitOfWork: reviewUnitOfWork }),
+    validateBatch: validateBatch({ ...reading, unitOfWork: reviewUnitOfWork }),
+    pendingProposalsOf: pendingProposalsOf(reading),
   };
 };

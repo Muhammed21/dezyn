@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import type { MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 
 import { readHistory } from "./application/read-history.ts";
 import { recordProjectCall } from "./application/record-project-call.ts";
@@ -17,19 +16,16 @@ const now = () => new Date();
 
 export const historyModule = ({
   db,
-  memberships,
-  projects,
+  access,
   writerOn,
 }: {
   readonly db: PostgresDatabase;
-  readonly memberships: MembershipReader;
-  readonly projects: ProjectFinder;
+  readonly access: ProjectAccess;
   readonly writerOn: (tx: PostgresTransaction) => HistoryWriter;
 }) => ({
-  readHistory: readHistory({ projects, memberships, history: postgresHistoryReader(db) }),
+  readHistory: readHistory({ access, history: postgresHistoryReader(db) }),
   recordProjectCall: recordProjectCall({
-    projects,
-    memberships,
+    access,
     history: { append: (entry) => db.orm.transaction((tx) => writerOn(tx).append(entry)) },
     now,
   }),

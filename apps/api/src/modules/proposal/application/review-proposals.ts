@@ -1,6 +1,5 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type { TokenDefinition } from "#modules/token/contracts/token-definition.ts";
 import type {
   ValidatedTokenFailure,
@@ -76,35 +75,12 @@ export interface ReviewUnitOfWork {
 
 export type ReviewFailure = "not_found" | "already_reviewed" | ValidatedTokenFailure;
 
-type Access = {
-  readonly projects: ProjectFinder;
-  readonly memberships: MembershipReader;
-};
+type Access = { readonly access: ProjectAccess };
 
 type Clocked = { readonly now: () => Date };
 
-const spaceOf = async (
-  { projects, memberships }: Access,
-  {
-    projectId,
-    userId,
-    action,
-  }: {
-    readonly projectId: string;
-    readonly userId: string;
-    readonly action: "space.read" | "proposal.review";
-  },
-): Promise<string | undefined> => {
-  const project = await projects.find(projectId);
-  if (project === undefined) {
-    return undefined;
-  }
-  const membership = await memberships.activeMembership({ spaceId: project.spaceId, userId });
-  return can({ membership, action }) ? project.spaceId : undefined;
-};
-
 export const listBatches =
-  ({ proposals, now, ...access }: Access & Clocked & { readonly proposals: ProposalReader }) =>
+  ({ proposals, now, access }: Access & Clocked & { readonly proposals: ProposalReader }) =>
   async ({
     projectId,
     userId,
@@ -112,7 +88,7 @@ export const listBatches =
     readonly projectId: string;
     readonly userId: string;
   }): Promise<Result<readonly BatchSummary[], "not_found">> => {
-    if ((await spaceOf(access, { projectId, userId, action: "space.read" })) === undefined) {
+    if ((await access({ projectId, userId, action: "space.read" })) === undefined) {
       return err("not_found");
     }
     const at = now();
@@ -144,7 +120,7 @@ export const batchOf =
     proposals,
     validatedTokensOf,
     now,
-    ...access
+    access,
   }: Access &
     Clocked & {
       readonly proposals: ProposalReader;
@@ -160,8 +136,7 @@ export const batchOf =
     const batch = await proposals.batch(batchId);
     if (
       batch === undefined ||
-      (await spaceOf(access, { projectId: batch.projectId, userId, action: "space.read" })) ===
-        undefined
+      (await access({ projectId: batch.projectId, userId, action: "space.read" })) === undefined
     ) {
       return err("not_found");
     }
@@ -182,7 +157,7 @@ export const reviewProposal =
     validatedTokensOf,
     unitOfWork,
     now,
-    ...access
+    access,
   }: Access & {
     readonly proposals: ProposalReader;
     readonly validatedTokensOf: ValidatedTokensOf;
@@ -204,7 +179,8 @@ export const reviewProposal =
     const spaceId =
       found === undefined
         ? undefined
-        : await spaceOf(access, { projectId: found.projectId, userId, action: "proposal.review" });
+        : (await access({ projectId: found.projectId, userId, action: "proposal.review" }))
+            ?.spaceId;
     if (found === undefined || spaceId === undefined) {
       return err("not_found");
     }
@@ -289,7 +265,7 @@ export const validateBatch =
     validatedTokensOf,
     unitOfWork,
     now,
-    ...access
+    access,
   }: Access & {
     readonly proposals: ProposalReader;
     readonly validatedTokensOf: ValidatedTokensOf;
@@ -311,7 +287,8 @@ export const validateBatch =
     const spaceId =
       batch === undefined
         ? undefined
-        : await spaceOf(access, { projectId: batch.projectId, userId, action: "proposal.review" });
+        : (await access({ projectId: batch.projectId, userId, action: "proposal.review" }))
+            ?.spaceId;
     if (batch === undefined || spaceId === undefined) {
       return err("not_found");
     }
