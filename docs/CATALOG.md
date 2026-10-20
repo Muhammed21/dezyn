@@ -8,6 +8,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 
 ## Charte
 
+- [Plan d'optimisation de l'architecture](ARCHITECTURE-OPTIMIZATION-PLAN.md) — _reference_ — Démarré le 2026-10-20, avec le skill `architecture-optimization`.
 - [Documentation](README.md) — _reference_ — Comment la documentation est organisée, où la lire et où écrire.
 - [Momo : synthèse du projet](synthese.md) — _reference_ — Momo construit un outil qui récupère fidèlement un design Figma pour le passer en code.
 
@@ -40,9 +41,9 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0025 — L'historique appartient au projet ; un espace n'en a pas](adr/0025-l-historique-appartient-au-projet-un-espace-n-en-a-pas.md) — _explanation · Accepté_ — L'historique appartient-il au projet seul, ou aussi à l'espace, et où vont les actions qui ne visent que l'espace ?
 - [0026 — Suppressions, écritures des membres, variantes et décisions dans la relecture des propositions](adr/0026-suppressions-ecritures-des-membres-variantes-et-decisions-dans-la-relecture-des-propositions.md) — _explanation · Accepté_ — Comment se proposent les suppressions de l'IA, que devient une proposition en attente quand un membre écrit sur la même donnée, qu'est-ce qui se relit dans un composant, et…
 - [0027 — Un membre parti reste nommé dans l'historique de chaque projet de l'espace](adr/0027-un-membre-parti-reste-nomme-dans-l-historique-de-chaque-projet-de-l-espace.md) — _explanation · Accepté_ — Où l'historique montre-t-il qu'un auteur a quitté l'espace, maintenant qu'un espace n'a pas d'historique ?
-- [0028 — Types de token `gradient`, `fontFamily`, `fontWeight` et `number`](adr/0028-types-de-token-gradient-fontfamily-fontweight-et-number.md) — _explanation · Proposé_ — Quels types de token dezyn ajoute-t-il maintenant, et lesquels attendent ?
-- [0029 — Un champ d'une valeur composée peut référencer un token](adr/0029-un-champ-d-une-valeur-composee-peut-referencer-un-token.md) — _explanation · Proposé_ — Un champ d'une valeur composée peut-il référencer un token, et qu'est-ce que cela change aux règles des références, aux doublons et au stockage ?
-- [0030 — dezyn conserve les extensions d'un token sans les interpréter](adr/0030-dezyn-conserve-les-extensions-d-un-token-sans-les-interpreter.md) — _explanation · Proposé_ — Dezyn accepte-t-il `$extensions`, et ces extensions comptent-elles pour l'écriture identique et pour le doublon ?
+- [0028 — Types de token `gradient`, `fontFamily`, `fontWeight` et `number`](adr/0028-types-de-token-gradient-fontfamily-fontweight-et-number.md) — _explanation · Accepté_ — Quels types de token dezyn ajoute-t-il maintenant, et lesquels attendent ?
+- [0029 — Un champ d'une valeur composée peut référencer un token](adr/0029-un-champ-d-une-valeur-composee-peut-referencer-un-token.md) — _explanation · Accepté_ — Un champ d'une valeur composée peut-il référencer un token, et qu'est-ce que cela change aux règles des références, aux doublons et au stockage ?
+- [0030 — dezyn conserve les extensions d'un token sans les interpréter](adr/0030-dezyn-conserve-les-extensions-d-un-token-sans-les-interpreter.md) — _explanation · Accepté_ — Dezyn accepte-t-il `$extensions`, et ces extensions comptent-elles pour l'écriture identique et pour le doublon ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée

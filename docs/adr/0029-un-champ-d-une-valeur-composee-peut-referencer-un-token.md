@@ -1,6 +1,6 @@
 # 0029 — Un champ d'une valeur composée peut référencer un token
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-20
 - Décideurs : Muhammed
 

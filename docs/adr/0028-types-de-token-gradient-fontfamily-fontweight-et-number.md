@@ -1,6 +1,6 @@
 # 0028 — Types de token `gradient`, `fontFamily`, `fontWeight` et `number`
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-20
 - Décideurs : Muhammed
 
