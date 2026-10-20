@@ -21,28 +21,39 @@ export const FONT_WEIGHT_KEYWORDS = [
   "ultra-black",
 ] as const;
 
+export type FontFamily = string | readonly string[];
+
+export type FontWeight = number | (typeof FONT_WEIGHT_KEYWORDS)[number];
+
 export type Typography = {
-  readonly fontFamily: string | readonly string[];
+  readonly fontFamily: FontFamily;
   readonly fontSize: Dimension;
-  readonly fontWeight: number | (typeof FONT_WEIGHT_KEYWORDS)[number];
+  readonly fontWeight: FontWeight;
   readonly lineHeight: number;
   readonly letterSpacing: Dimension;
 };
 
-export type TypographyRefusal = "font_weight_out_of_range" | "empty_font_family";
+export type FontFamilyRefusal = "empty_font_family";
 
-const families = (fontFamily: Typography["fontFamily"]): readonly string[] =>
+export type FontWeightRefusal = "font_weight_out_of_range";
+
+export type TypographyRefusal = FontFamilyRefusal | FontWeightRefusal;
+
+const families = (fontFamily: FontFamily): readonly string[] =>
   typeof fontFamily === "string" ? [fontFamily] : fontFamily;
+
+export const fontFamilyRefusal = (fontFamily: FontFamily): FontFamilyRefusal | undefined => {
+  const named = families(fontFamily);
+  return named.length === 0 || named.includes("") ? "empty_font_family" : undefined;
+};
+
+export const fontWeightRefusal = (fontWeight: FontWeight): FontWeightRefusal | undefined =>
+  typeof fontWeight === "number" && (fontWeight < 1 || fontWeight > 1000)
+    ? "font_weight_out_of_range"
+    : undefined;
 
 export const typographyRefusal = ({
   fontFamily,
   fontWeight,
-}: Typography): TypographyRefusal | undefined => {
-  const named = families(fontFamily);
-  if (named.length === 0 || named.includes("")) {
-    return "empty_font_family";
-  }
-  return typeof fontWeight === "number" && (fontWeight < 1 || fontWeight > 1000)
-    ? "font_weight_out_of_range"
-    : undefined;
-};
+}: Typography): TypographyRefusal | undefined =>
+  fontFamilyRefusal(fontFamily) ?? fontWeightRefusal(fontWeight);

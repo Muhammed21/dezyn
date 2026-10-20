@@ -48,7 +48,20 @@ describe("le contrat de sortie d'un token reste ouvert (ADR 0023)", () => {
     expect(z.toJSONSchema(TokenOutput)).toMatchObject({
       properties: {
         $type: {
-          anyOf: [{ enum: ["color", "dimension", "typography", "shadow"] }, { type: "string" }],
+          anyOf: [
+            {
+              enum: [
+                "color",
+                "dimension",
+                "typography",
+                "shadow",
+                "fontFamily",
+                "fontWeight",
+                "number",
+              ],
+            },
+            { type: "string" },
+          ],
         },
         status: { anyOf: [{ enum: ["validated"] }, { type: "string" }] },
         modes: { type: "object", propertyNames: { type: "string" } },
@@ -173,7 +186,17 @@ describe("la lecture des tokens rend aussi les propositions en attente, sur dema
                 properties: {
                   $type: {
                     anyOf: [
-                      { enum: ["color", "dimension", "typography", "shadow"] },
+                      {
+                        enum: [
+                          "color",
+                          "dimension",
+                          "typography",
+                          "shadow",
+                          "fontFamily",
+                          "fontWeight",
+                          "number",
+                        ],
+                      },
                       { type: "string" },
                     ],
                   },

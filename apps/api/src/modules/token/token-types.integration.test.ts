@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { PostgresDatabase } from "#db";
-import { type App, withIdentityApp } from "#testing/authorization-flow.ts";
-import { seedProject } from "#testing/project-fixtures.ts";
+import { type App, BASE_URL, withIdentityApp } from "#testing/authorization-flow.ts";
+import { seedModes, seedProject } from "#testing/project-fixtures.ts";
 import { addToken, historyOf } from "#testing/token-fixtures.ts";
 
 const SIXTEEN_PX = { value: 16, unit: "px" };
@@ -246,5 +246,132 @@ describe("un membre ajoute un effet d'ombre (ADR 0010 §1)", () => {
           },
         ],
       });
+    }));
+});
+
+describe("un membre ajoute une famille de police, une graisse ou un nombre (ADR 0028 §1)", () => {
+  it.each([
+    ["police.corps", "fontFamily", ["Inter", "sans-serif"]],
+    ["police.titre", "fontFamily", "Inter"],
+    ["graisse.forte", "fontWeight", 700],
+    ["graisse.titre", "fontWeight", "semi-bold"],
+    ["interligne.corps", "number", 1.5],
+    ["calque.arriere", "number", -2],
+  ])("le token %s de type %s est Validé, avec son entrée token.created", (name, $type, $value) =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const token = { name, $type, $value };
+
+      const response = await addToken(app, { accessToken, projectId, token });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ ...token, status: "validated" });
+      expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
+        action: "token.created",
+        after: token,
+      });
+    }),
+  );
+
+  it.each([
+    ["une famille vide", "fontFamily", [], "$value", "Famille de police vide"],
+    ["un nom de famille vide", "fontFamily", "", "$value", "Famille de police vide"],
+    ["une graisse sous 1", "fontWeight", 0, "$value", "Graisse hors de l'intervalle 1 à 1000"],
+    [
+      "une graisse au-delà de 1000",
+      "fontWeight",
+      1001,
+      "$value",
+      "Graisse hors de l'intervalle 1 à 1000",
+    ],
+    [
+      "une graisse hors bornes dans un mode",
+      "fontWeight",
+      undefined,
+      "modes.compact",
+      "Graisse hors de l'intervalle 1 à 1000",
+    ],
+  ])("%s répond 400 en nommant le champ", (_case, $type, $value, path, message) =>
+    withIdentityApp(async (app, db) => {
+      const token =
+        $value === undefined
+          ? { name: "graisse.forte", $type, modes: { compact: 1001 } }
+          : { name: "graisse.forte", $type, $value };
+
+      const { status, body } = await refusalOf(app, db, token);
+
+      expect(status).toBe(400);
+      expect(body).toMatchObject({ errors: [{ path, message }] });
+    }),
+  );
+
+  it.each([
+    ["un mot-clé de graisse inconnu", "fontWeight", "gras"],
+    ["un nombre en chaîne", "number", "1.5"],
+  ])("%s répond 400 en nommant le champ", (_case, $type, $value) =>
+    withIdentityApp(async (app, db) => {
+      const { status, body } = await refusalOf(app, db, { name: "valeur.a", $type, $value });
+
+      expect(status).toBe(400);
+      expect(body).toMatchObject({ errors: [{ path: "$value" }] });
+    }),
+  );
+});
+
+const tokensOf = async (
+  app: App,
+  { accessToken, projectId }: { accessToken: string; projectId: string },
+) => {
+  const response = await app.request(`${BASE_URL}/v1/projects/${projectId}/tokens`, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  return (await response.json()).tokens;
+};
+
+describe("une famille, une graisse ou un nombre se réfère à un token validé du même type (ADR 0028 §1)", () => {
+  it.each([
+    ["fontFamily", "Inter", ["Georgia", "serif"]],
+    ["fontWeight", 400, "bold"],
+    ["number", 1.2, 1.6],
+  ])("un token %s à modes, l'un par référence, se relit à l'identique", ($type, base, other) =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["compact", "large"] });
+      const token = {
+        name: "valeur.semantique",
+        $type,
+        modes: { compact: "{valeur.base}", large: other },
+      };
+      await addToken(app, {
+        accessToken,
+        projectId,
+        token: { name: "valeur.base", $type, modes: { compact: base, large: base } },
+      });
+
+      const response = await addToken(app, { accessToken, projectId, token });
+
+      expect(response.status).toBe(201);
+      expect(await tokensOf(app, { accessToken, projectId })).toContainEqual(
+        expect.objectContaining({ ...token, status: "validated" }),
+      );
+    }),
+  );
+
+  it("une graisse qui se réfère à un nombre répond 400", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await addToken(app, {
+        accessToken,
+        projectId,
+        token: { name: "valeur.base", $type: "number", $value: 400 },
+      });
+
+      const response = await addToken(app, {
+        accessToken,
+        projectId,
+        token: { name: "graisse.forte", $type: "fontWeight", $value: "{valeur.base}" },
+      });
+
+      expect(response.status).toBe(400);
     }));
 });

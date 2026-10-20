@@ -27,6 +27,13 @@ describe("un alias DTCG nomme un token entre accolades (ADR 0010 §1)", () => {
   ])("refuse l'alias mal formé %j", (value) => {
     expect(aliasName(value)).toBeUndefined();
   });
+
+  it.each([[["{police.base}"]], [{ name: "{police.base}" }], [400]])(
+    "ne lit pas d'alias dans une valeur qui n'est pas une chaîne : %j",
+    (value) => {
+      expect(aliasName(value)).toBeUndefined();
+    },
+  );
 });
 
 describe("une référence vise un token validé du même type, dans le même projet", () => {

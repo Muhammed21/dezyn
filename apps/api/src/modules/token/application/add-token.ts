@@ -98,19 +98,16 @@ const resolved = (
     readonly pending: readonly WrittenToken[];
   },
 ): readonly Resolved[] =>
-  placed.map((value) => ({
-    ...value,
-    resolution:
-      typeof value.value === "string"
-        ? resolveReference({
-            name: aliasName(value.value) ?? "",
-            $type,
-            tokens,
-            written,
-            pending,
-          })
-        : undefined,
-  }));
+  placed.map((value) => {
+    const name = aliasName(value.value);
+    return {
+      ...value,
+      resolution:
+        name === undefined
+          ? undefined
+          : resolveReference({ name, $type, tokens, written, pending }),
+    };
+  });
 
 const referenceRefusalsOf = (values: readonly Resolved[]): InvalidReferences["refusals"] =>
   values.flatMap(({ mode, resolution }) =>

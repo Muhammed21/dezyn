@@ -1,7 +1,7 @@
 import type { SrgbColor } from "./color.ts";
 import type { Dimension } from "./dimension.ts";
 import type { Shadow } from "./shadow.ts";
-import type { Typography } from "./typography.ts";
+import type { FontFamily, FontWeight, Typography } from "./typography.ts";
 
 type Typed<Type extends string, Value> = {
   readonly name: string;
@@ -15,7 +15,10 @@ export type TokenDefinition =
   | Typed<"color", SrgbColor>
   | Typed<"dimension", Dimension>
   | Typed<"typography", Typography>
-  | Typed<"shadow", Shadow>;
+  | Typed<"shadow", Shadow>
+  | Typed<"fontFamily", FontFamily>
+  | Typed<"fontWeight", FontWeight>
+  | Typed<"number", number>;
 
 export type Token = TokenDefinition & {
   readonly id: string;

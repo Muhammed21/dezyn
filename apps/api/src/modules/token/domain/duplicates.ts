@@ -1,4 +1,4 @@
-import { aliasName } from "./reference.ts";
+import { isReference } from "./reference.ts";
 import { sameDefinition } from "./same-definition.ts";
 
 export type ComparedToken = {
@@ -14,9 +14,6 @@ const sameValue = (left: ComparedToken, right: ComparedToken): boolean =>
     { $value: left.$value, modes: left.modes },
     { $value: right.$value, modes: right.modes },
   );
-
-const isReference = (value: unknown): boolean =>
-  typeof value === "string" && aliasName(value) !== undefined;
 
 const referencesAnother = ({ $value, modes }: ComparedToken): boolean =>
   (modes === undefined ? [$value] : Object.values(modes)).some(isReference);
