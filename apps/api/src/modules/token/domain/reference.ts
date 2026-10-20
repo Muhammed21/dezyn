@@ -16,7 +16,9 @@ export const aliasName = (value: unknown): string | undefined => {
   return name === undefined || tokenNameRefusal(name) !== undefined ? undefined : name;
 };
 
-export const isReference = (value: unknown): value is string => aliasName(value) !== undefined;
+export type Alias = `{${string}}`;
+
+export const isReference = (value: unknown): value is Alias => aliasName(value) !== undefined;
 
 export type WrittenToken = { readonly name: string; readonly $type: string };
 

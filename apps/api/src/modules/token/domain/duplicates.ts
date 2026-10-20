@@ -15,8 +15,12 @@ const sameValue = (left: ComparedToken, right: ComparedToken): boolean =>
     { $value: right.$value, modes: right.modes },
   );
 
+const containsReference = (value: unknown): boolean =>
+  isReference(value) ||
+  (typeof value === "object" && value !== null && Object.values(value).some(containsReference));
+
 const referencesAnother = ({ $value, modes }: ComparedToken): boolean =>
-  (modes === undefined ? [$value] : Object.values(modes)).some(isReference);
+  (modes === undefined ? [$value] : Object.values(modes)).some(containsReference);
 
 export const duplicatesOf = ({
   token,
