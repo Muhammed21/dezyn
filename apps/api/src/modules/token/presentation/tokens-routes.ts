@@ -65,11 +65,10 @@ export const tokensRoutes = ({ addToken, readProjectTokens }: TokenUseCases) =>
       if (added.error === "not_found") {
         return c.notFound();
       }
-      if (added.error === "name_taken") {
-        return problemResponse(
-          c,
-          invalidRequest([{ path: "name", message: "Nom déjà pris dans le projet" }]),
-        );
-      }
-      return problemResponse(c, invalidRequest(issuesOfCheck(added.error)));
+      return problemResponse(
+        c,
+        invalidRequest(
+          issuesOfCheck(added.error === "name_taken" ? { code: "name_taken" } : added.error),
+        ),
+      );
     });

@@ -1,6 +1,6 @@
 import type { ModeRefusal } from "../domain/mode-completeness.ts";
 import type { ReferenceRefusal } from "../domain/reference.ts";
-import type { TokenCheckFailure } from "../domain/token-check.ts";
+import type { ValidatedTokenFailure } from "../domain/token-check.ts";
 export type {
   CheckTokens,
   TokenCheck,
@@ -50,7 +50,7 @@ const referenceIssueOf = ({
 });
 
 export const issuesOfCheck = (
-  failure: TokenCheckFailure,
+  failure: ValidatedTokenFailure,
 ): readonly { readonly path: string; readonly message: string }[] => {
   switch (failure.code) {
     case "invalid_modes":
@@ -59,6 +59,8 @@ export const issuesOfCheck = (
       return failure.refusals.map(referenceIssueOf);
     case "duplicate_name":
       return [{ path: "name", message: "Token déjà nommé dans cet appel" }];
+    case "name_taken":
+      return [{ path: "name", message: "Nom déjà pris dans le projet" }];
     default:
       return [{ path: "$type", message: "Type différent du token validé" }];
   }
