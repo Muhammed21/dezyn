@@ -63,8 +63,12 @@ Un choix de design accompagné de sa justification, rattaché aux tokens qu'il f
 _À éviter_ : changement, entrée d'historique
 
 **Doublon** :
-Un token dont la valeur est identique, dans chaque mode, à celle d'un autre token du même projet. Un token qui référence un autre token n'est pas un doublon.
+Un token dont la valeur est identique, dans chaque mode, à celle d'un autre token du même projet, extensions mises à part. Un token qui référence un autre token, par sa valeur entière ou par un de ses champs, n'est pas un doublon.
 _À éviter_ : copie, duplicata
+
+**Extension** :
+Une donnée propre à un outil, rangée dans un token sous une clé d'espace de noms (par exemple `com.figma`), que dezyn conserve et rend sans l'interpréter.
+_À éviter_ : métadonnée, propriété personnalisée
 
 ### Figma
 
