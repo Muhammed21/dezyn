@@ -33,6 +33,9 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0025](0025-l-historique-appartient-au-projet-un-espace-n-en-a-pas.md)                                       | L'historique appartient au projet ; un espace n'en a pas                                                                      | Accepté                                                                                                                                                                                                                                                                                   |
 | [0026](0026-suppressions-ecritures-des-membres-variantes-et-decisions-dans-la-relecture-des-propositions.md) | Suppressions, écritures des membres, variantes et décisions dans la relecture des propositions                                | Accepté                                                                                                                                                                                                                                                                                   |
 | [0027](0027-un-membre-parti-reste-nomme-dans-l-historique-de-chaque-projet-de-l-espace.md)                   | Un membre parti reste nommé dans l'historique de chaque projet de l'espace                                                    | Accepté                                                                                                                                                                                                                                                                                   |
+| [0028](0028-types-de-token-gradient-fontfamily-fontweight-et-number.md)                                      | Types de token `gradient`, `fontFamily`, `fontWeight` et `number`                                                             | Proposé                                                                                                                                                                                                                                                                                   |
+| [0029](0029-un-champ-d-une-valeur-composee-peut-referencer-un-token.md)                                      | Un champ d'une valeur composée peut référencer un token                                                                       | Proposé                                                                                                                                                                                                                                                                                   |
+| [0030](0030-dezyn-conserve-les-extensions-d-un-token-sans-les-interpreter.md)                                | dezyn conserve les extensions d'un token sans les interpréter                                                                 | Proposé                                                                                                                                                                                                                                                                                   |
 
 ## Dépendances principales
 
@@ -121,6 +124,17 @@ graph TD
   0015 --> 0027[0027 Membre parti dans l'historique]
   0017 --> 0027
   0025 --> 0027
+  0010 --> 0028[0028 Types gradient, fontFamily, fontWeight, number]
+  0023 --> 0028
+  0010 --> 0029[0029 Références dans une valeur composée]
+  0028 --> 0029
+  0013 --> 0029
+  0024 --> 0029
+  0026 --> 0029
+  0010 --> 0030[0030 Extensions d'un token]
+  0013 --> 0030
+  0023 --> 0030
+  0028 --> 0030
 ```
 
 ## Points ouverts
@@ -134,3 +148,6 @@ graph TD
 - La mention « a quitté l'espace » sur les entrées de l'IA autorisée par un membre parti (ADR 0027, risques).
 - La valeur du champ `version` acceptée à l'import d'un fichier Resolver, que le module contredit (ADR 0010, risques).
 - L'export vers les outils qui ne lisent pas encore le module Resolver (ADR 0010, risques).
+- Les types `duration`, `cubicBezier`, `transition`, `border` et `strokeStyle`, qui attendent un import qui en contient (ADR 0028 §3).
+- La détection des doublons parmi les typographies et les ombres dont les champs sont des alias (ADR 0029, négatives).
+- L'exclusion éventuelle de clés changeantes de l'écriture identique (ADR 0030, risques).
