@@ -26,7 +26,7 @@ has "review:$tier" || edit_labels --add-label "review:$tier"
 # Lines of code: docs, lockfile, images, generated tokens and SQL migrations do not count.
 lines=$(gh api "repos/$REPO/pulls/$PR/files" --paginate -q '
   [.[] | select(
-    (.filename | test("^docs/|\\.md$|^pnpm-lock\\.yaml$|\\.png$")) | not
+    (.filename | test("^docs/|\\.md$|^pnpm-lock\\.yaml$|\\.png$|^packages/db/migrations/|/generated/")) | not
   ) | .additions + .deletions] | add // 0' | paste -sd+ - | bc)
 
 oversized=false
