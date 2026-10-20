@@ -4,7 +4,15 @@ import { extensibleUnion, openEnum, Uuid } from "@repo/contracts";
 
 const DefinitionOutput = z.looseObject({
   name: z.string(),
-  $type: openEnum(["color", "dimension", "typography", "shadow"]),
+  $type: openEnum([
+    "color",
+    "dimension",
+    "typography",
+    "shadow",
+    "fontFamily",
+    "fontWeight",
+    "number",
+  ]),
   $value: z.unknown().optional(),
   modes: z.record(z.string(), z.unknown()).optional(),
   $description: z.string().optional(),

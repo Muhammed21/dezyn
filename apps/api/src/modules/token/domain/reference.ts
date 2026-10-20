@@ -11,10 +11,12 @@ export type ReferenceRefusal = "unknown_reference" | "unvalidated_reference" | "
 
 const ALIAS = /^\{(.*)\}$/;
 
-export const aliasName = (value: string): string | undefined => {
-  const name = ALIAS.exec(value)?.[1];
+export const aliasName = (value: unknown): string | undefined => {
+  const name = typeof value === "string" ? ALIAS.exec(value)?.[1] : undefined;
   return name === undefined || tokenNameRefusal(name) !== undefined ? undefined : name;
 };
+
+export const isReference = (value: unknown): value is string => aliasName(value) !== undefined;
 
 export type WrittenToken = { readonly name: string; readonly $type: string };
 
@@ -60,6 +62,6 @@ export const referencedNames = ({
   readonly modes?: Readonly<Record<string, unknown>>;
 }): readonly string[] =>
   [$value, ...Object.values(modes)].flatMap((value) => {
-    const name = typeof value === "string" ? aliasName(value) : undefined;
+    const name = aliasName(value);
     return name === undefined ? [] : [name];
   });

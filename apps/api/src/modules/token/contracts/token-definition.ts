@@ -1,12 +1,16 @@
 import { z } from "zod";
 
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
-import { aliasName } from "../domain/reference.ts";
+import { isReference } from "../domain/reference.ts";
 import { type Shadow, type ShadowRefusal, shadowRefusals } from "../domain/shadow.ts";
 import { type TokenNameRefusal, tokenNameRefusal } from "../domain/token-name.ts";
 import type { TokenDefinition } from "../domain/token.ts";
 import {
   FONT_WEIGHT_KEYWORDS,
+  type FontFamily,
+  fontFamilyRefusal,
+  type FontWeight,
+  fontWeightRefusal,
   type Typography,
   type TypographyRefusal,
   typographyRefusal,
@@ -56,6 +60,15 @@ const issuesOf = <Refusal extends string>(
   return [{ path: [field], message }];
 };
 
+const fieldlessIssuesOf = (refusal: TypographyRefusal | undefined): readonly ValueIssue[] =>
+  refusal === undefined ? [] : [{ path: [], message: TYPOGRAPHY_ISSUES[refusal].message }];
+
+const fontFamilyIssues = (fontFamily: FontFamily) =>
+  fieldlessIssuesOf(fontFamilyRefusal(fontFamily));
+
+const fontWeightIssues = (fontWeight: FontWeight) =>
+  fieldlessIssuesOf(fontWeightRefusal(fontWeight));
+
 const colorIssues = (color: SrgbColor) => issuesOf(colorRefusal(color), COLOR_ISSUES);
 
 const typographyIssues = (typography: Typography) =>
@@ -100,7 +113,7 @@ const issuesIn = <Value>(
   issuesOfValue: (value: Value) => readonly ValueIssue[],
 ): readonly ValueIssue[] =>
   sentValues(token).flatMap(({ prefix, value }) =>
-    (typeof value === "string" ? [] : issuesOfValue(value)).map(({ path, message }) => ({
+    (isReference(value) ? [] : issuesOfValue(value)).map(({ path, message }) => ({
       path: [...prefix, ...path],
       message,
     })),
@@ -114,6 +127,10 @@ const valueIssues = (token: TokenDefinition): readonly ValueIssue[] => {
       return issuesIn(token, typographyIssues);
     case "shadow":
       return issuesIn(token, shadowIssues);
+    case "fontFamily":
+      return issuesIn(token, fontFamilyIssues);
+    case "fontWeight":
+      return issuesIn(token, fontWeightIssues);
     default:
       return [];
   }
@@ -124,10 +141,14 @@ const DimensionRequest = z.strictObject({
   unit: z.enum(["px", "rem"]),
 });
 
+const FontFamilyRequest = z.union([z.string(), z.array(z.string())]);
+
+const FontWeightRequest = z.union([z.number(), z.enum(FONT_WEIGHT_KEYWORDS)]);
+
 const TypographyRequest = z.strictObject({
-  fontFamily: z.union([z.string(), z.array(z.string())]),
+  fontFamily: FontFamilyRequest,
   fontSize: DimensionRequest,
-  fontWeight: z.union([z.number(), z.enum(FONT_WEIGHT_KEYWORDS)]),
+  fontWeight: FontWeightRequest,
   lineHeight: z.number(),
   letterSpacing: DimensionRequest,
 });
@@ -157,29 +178,36 @@ const ShadowRequest = oneOrMany(ShadowLayerRequest);
 
 const ALIAS_FORMAT = "Référence attendue au format {nom.du.token}";
 
-const aliasOr = <Item extends z.ZodType>(item: Item) =>
+const aliasOr = <Item extends z.ZodType>(item: Item, unbracedMessage: string) =>
   z.unknown().transform((value, context): z.output<Item> | string => {
-    if (typeof value === "string") {
-      if (aliasName(value) === undefined) {
-        context.addIssue({ code: "custom", message: ALIAS_FORMAT });
-        return z.NEVER;
-      }
+    if (isReference(value)) {
       return value;
     }
     const parsed = item.safeParse(value);
     if (!parsed.success) {
+      if (typeof value === "string") {
+        context.addIssue({
+          code: "custom",
+          message: value.startsWith("{") ? ALIAS_FORMAT : unbracedMessage,
+        });
+        return z.NEVER;
+      }
       parsed.error.issues.forEach((issue) => context.addIssue({ ...issue }));
       return z.NEVER;
     }
     return parsed.data;
   });
 
-const typed = <Type extends string, Value extends z.ZodType>(type: Type, value: Value) =>
+const typed = <Type extends string, Value extends z.ZodType>(
+  type: Type,
+  value: Value,
+  unbracedMessage = ALIAS_FORMAT,
+) =>
   z.strictObject({
     name: z.string(),
     $type: z.literal(type),
-    $value: aliasOr(value).optional(),
-    modes: z.record(z.string(), aliasOr(value)).optional(),
+    $value: aliasOr(value, unbracedMessage).optional(),
+    modes: z.record(z.string(), aliasOr(value, unbracedMessage)).optional(),
     $description: z.string().optional(),
   });
 
@@ -189,6 +217,9 @@ export const TokenDefinitionInput = z
     typed("dimension", DimensionRequest),
     typed("typography", TypographyRequest),
     typed("shadow", ShadowRequest),
+    typed("fontFamily", FontFamilyRequest),
+    typed("fontWeight", FontWeightRequest, "Mot-clé de graisse inconnu"),
+    typed("number", z.number(), "Nombre attendu"),
   ])
   .superRefine((token, context) => {
     const nameRefusal = tokenNameRefusal(token.name);
