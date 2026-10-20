@@ -1,5 +1,7 @@
 import { invitationRefusalOn, type PlanRequired } from "./invitation.ts";
-import type { Plan } from "./space.ts";
+import type { Plan, Role } from "./space.ts";
+
+export const INVITEE_ROLE: Role = "editor";
 
 export type AcceptanceRefusal = "gone" | "email_mismatch" | "already_member" | PlanRequired;
 
