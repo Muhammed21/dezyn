@@ -418,6 +418,37 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
       ]);
     }));
 
+  it("une typographie écrite avant le token que référence un de ses champs se valide après lui", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const { batch } = await seedClosedBatch(app, {
+        accessToken,
+        projectId,
+        tokens: [
+          {
+            name: "texte.corps",
+            $type: "typography",
+            $value: {
+              fontFamily: "Inter",
+              fontSize: "{taille.corps}",
+              fontWeight: 400,
+              lineHeight: 1.5,
+              letterSpacing: { value: 0, unit: "px" },
+            },
+          },
+          { name: "taille.corps", $type: "dimension", $value: { value: 16, unit: "px" } },
+        ],
+      });
+
+      const response = await validateBatch(app, { accessToken, batchId: batch.id });
+
+      expect(response.status).toBe(200);
+      expect(await readTokenNames(app, { token: accessToken, projectId })).toEqual([
+        "taille.corps",
+        "texte.corps",
+      ]);
+    }));
+
   it("rejeter la cible d'une référence du lot répond 409, sans rien valider", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);

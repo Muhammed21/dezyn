@@ -33,3 +33,17 @@ export const fieldAliases = ({
     return name === undefined || fieldType === undefined ? [] : [{ field, name, $type: fieldType }];
   });
 };
+
+export const referencedNames = ({
+  $type,
+  $value,
+  modes = {},
+}: {
+  readonly $type: string;
+  readonly $value?: unknown;
+  readonly modes?: Readonly<Record<string, unknown>>;
+}): readonly string[] =>
+  [$value, ...Object.values(modes)].flatMap((value) => {
+    const name = aliasName(value);
+    return name === undefined ? fieldAliases({ $type, value }).map((alias) => alias.name) : [name];
+  });

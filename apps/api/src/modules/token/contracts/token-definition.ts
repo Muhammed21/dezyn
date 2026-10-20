@@ -252,4 +252,4 @@ export const parseTokenDefinition = (
 
 export type { TokenDefinition } from "../domain/token.ts";
 export { type ComparedDefinition, sameDefinition } from "../domain/same-definition.ts";
-export { referencedNames } from "../domain/reference.ts";
+export { referencedNames } from "../domain/field-references.ts";

@@ -109,6 +109,35 @@ describe("un token se valide après les tokens du lot qu'il référence", () => 
     expect("toValidate" in plan && idsOf(plan.toValidate)).toEqual(["nuit", "fond"]);
   });
 
+  it("une référence dans un champ de typographie compte aussi", () => {
+    const plan = planBatchValidation({
+      batchState: "closed",
+      proposals: [
+        {
+          ...makeProposal({ id: "texte", name: "texte.corps" }),
+          token: {
+            name: "texte.corps",
+            $type: "typography",
+            $value: {
+              fontFamily: "Inter",
+              fontSize: "{taille.corps}",
+              fontWeight: 400,
+              lineHeight: 1.5,
+              letterSpacing: { value: 0, unit: "px" },
+            },
+          },
+        },
+        {
+          ...makeProposal({ id: "taille", name: "taille.corps" }),
+          token: { name: "taille.corps", $type: "dimension", $value: { value: 16, unit: "px" } },
+        },
+      ],
+      rejected: [],
+    });
+
+    expect("toValidate" in plan && idsOf(plan.toValidate)).toEqual(["taille", "texte"]);
+  });
+
   it("une chaîne de références se valide depuis sa racine, et le reste garde l'ordre d'écriture", () => {
     const plan = planBatchValidation({
       batchState: "closed",
