@@ -17,7 +17,7 @@ Problématique : dezyn accepte-t-il `$extensions`, et ces extensions comptent-el
 ## Facteurs de décision
 
 - L'import et l'export sans perte (ADR 0010 §2) : ce que Figma a écrit dans un fichier DTCG doit ressortir.
-- Les valeurs que dezyn interprète restent dans les champs standard, lisibles par tous les outils (ADR 0010, Option G écartée).
+- Les valeurs que dezyn interprète restent dans les champs standard, lisibles par tous les outils (Option G de l'ADR 0010, écartée).
 - Une donnée de design qui change passe par la relecture (ADR 0012 §1) ; rien ne change en silence.
 - Le doublon signale deux tokens qui portent la même valeur de design (`CONTEXT.md`).
 
@@ -66,7 +66,7 @@ Par exemple `com.figma.italic` devient un champ de la typographie.
 - Inconvénient : deux typographies identiques sauf l'italique, porté par `$extensions`, sont signalées comme doublons.
 - **Retenue.**
 
-#### Option G — Oui
+#### Option H — Oui
 
 - Inconvénient : dès qu'un outil range un identifiant propre à chaque token, plus aucun token n'a de doublon.
 - **Écartée.**

@@ -34,9 +34,9 @@ Problématique : quels types de token dezyn ajoute-t-il maintenant, et lesquels 
 - Inconvénient : `number` n'est pas dans la liste de l'ADR 0010 et sort de ce qu'elle annonçait.
 - **Retenue.**
 
-### Option B — Ajouter tout le périmètre cité par l'ADR 0010 d'un coup
+### Option B — Ajouter d'un coup le reste de la liste de l'ADR 0010, et `strokeStyle`
 
-`duration`, `cubicBezier`, `transition`, `border` et `strokeStyle` en plus.
+`duration`, `cubicBezier`, `transition` et `border` en plus, que cite l'ADR 0010, et `strokeStyle`, qu'il ne cite pas.
 
 - Avantage : la liste de l'ADR 0010 est couverte en une fois.
 - Inconvénient : cinq types de plus à valider, stocker et tester, qu'aucun import n'a encore demandés.
