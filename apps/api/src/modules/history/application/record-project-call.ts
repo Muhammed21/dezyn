@@ -1,5 +1,4 @@
-import type { ProjectFinder, ProjectRef } from "#modules/project/contracts/project.ts";
-import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess, ProjectInSpace } from "#modules/space/contracts/membership.ts";
 import type { RecordFailure } from "#platform/project-call.ts";
 import { err, type Result } from "@repo/result";
 
@@ -7,13 +6,11 @@ import type { HistoryWriter } from "../domain/history-writer.ts";
 
 export const recordProjectCall =
   ({
-    projects,
-    memberships,
+    access,
     history,
     now,
   }: {
-    readonly projects: ProjectFinder;
-    readonly memberships: MembershipReader;
+    readonly access: ProjectAccess;
     readonly history: HistoryWriter;
     readonly now: () => Date;
   }) =>
@@ -32,14 +29,10 @@ export const recordProjectCall =
     readonly clientId: string;
     readonly correlationId: string;
     readonly input: Readonly<Record<string, unknown>>;
-    readonly run: (project: ProjectRef) => Promise<Result<T, E>>;
+    readonly run: (project: ProjectInSpace) => Promise<Result<T, E>>;
   }): Promise<Result<T, E | RecordFailure>> => {
-    const project = await projects.find(projectId);
+    const project = await access({ projectId, userId, action: "space.read" });
     if (project === undefined) {
-      return err("not_found");
-    }
-    const membership = await memberships.activeMembership({ spaceId: project.spaceId, userId });
-    if (!can({ membership, action: "space.read" })) {
       return err("not_found");
     }
     const outcome = await run(project);

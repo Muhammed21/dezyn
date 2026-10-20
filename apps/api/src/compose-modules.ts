@@ -32,16 +32,15 @@ export const composeModules = ({
     memberships: spaces.memberships,
     historyWriterOn: writerOn,
   });
+  const access = spaces.projectAccess(projects.finder);
   const history = historyModule({
     db,
-    memberships: spaces.memberships,
-    projects: projects.finder,
+    access,
     writerOn,
   });
   const tokens = tokenModule({
     db,
-    memberships: spaces.memberships,
-    projects: projects.finder,
+    access,
     historyWriterOn: writerOn,
     proposalReplacerOn,
     proposalWriterOn,
@@ -49,8 +48,7 @@ export const composeModules = ({
   });
   const proposals = proposalModule({
     db,
-    memberships: spaces.memberships,
-    projects: projects.finder,
+    access,
     checkTokens: tokens.checkTokens,
     validatedTokensOf: async (projectId) => (await tokens.readTokens(projectId)).tokens,
     historyWriterOn: writerOn,

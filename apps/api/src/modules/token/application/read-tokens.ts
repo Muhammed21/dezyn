@@ -1,5 +1,4 @@
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import { duplicatesOf } from "../domain/duplicates.ts";
@@ -118,12 +117,10 @@ export const readTokens =
 
 export const readProjectTokens =
   ({
-    projects,
-    memberships,
+    access,
     readTokens: read,
   }: {
-    readonly projects: ProjectFinder;
-    readonly memberships: MembershipReader;
+    readonly access: ProjectAccess;
     readonly readTokens: (projectId: string) => Promise<ProjectTokens>;
   }) =>
   async ({
@@ -133,12 +130,8 @@ export const readProjectTokens =
     readonly projectId: string;
     readonly userId: string;
   }): Promise<Result<ProjectTokens, "not_found">> => {
-    const project = await projects.find(projectId);
+    const project = await access({ projectId, userId, action: "space.read" });
     if (project === undefined) {
-      return err("not_found");
-    }
-    const membership = await memberships.activeMembership({ spaceId: project.spaceId, userId });
-    if (!can({ membership, action: "space.read" })) {
       return err("not_found");
     }
     return ok(await read(projectId));

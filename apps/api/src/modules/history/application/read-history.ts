@@ -1,5 +1,4 @@
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import { encodeCursor, type HistoryPosition } from "./history-cursor.ts";
@@ -47,15 +46,7 @@ const pageOf = (rows: readonly HistoryEntry[], limit: number): HistoryPage => {
 };
 
 export const readHistory =
-  ({
-    projects,
-    memberships,
-    history,
-  }: {
-    readonly projects: ProjectFinder;
-    readonly memberships: MembershipReader;
-    readonly history: HistoryReader;
-  }) =>
+  ({ access, history }: { readonly access: ProjectAccess; readonly history: HistoryReader }) =>
   async ({
     projectId,
     userId,
@@ -67,12 +58,8 @@ export const readHistory =
     readonly after: HistoryPosition | undefined;
     readonly limit: number;
   }): Promise<Result<HistoryPage, "not_found">> => {
-    const project = await projects.find(projectId);
+    const project = await access({ projectId, userId, action: "space.read" });
     if (project === undefined) {
-      return err("not_found");
-    }
-    const membership = await memberships.activeMembership({ spaceId: project.spaceId, userId });
-    if (!can({ membership, action: "space.read" })) {
       return err("not_found");
     }
     return ok(pageOf(await history.entriesOf(projectId, { after, take: limit + 1 }), limit));

@@ -2,8 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import type { MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type { Clock } from "#platform/clock.ts";
 
 import { addToken, type PendingProposals } from "./application/add-token.ts";
@@ -36,16 +35,14 @@ export const validatedTokenWriterOn = (tx: PostgresTransaction) =>
 
 export const tokenModule = ({
   db,
-  memberships,
-  projects,
+  access,
   historyWriterOn,
   proposalReplacerOn,
   proposalWriterOn,
   clock,
 }: {
   readonly db: PostgresDatabase;
-  readonly memberships: MembershipReader;
-  readonly projects: ProjectFinder;
+  readonly access: ProjectAccess;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
   readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
@@ -62,8 +59,7 @@ export const tokenModule = ({
   });
   return {
     addToken: addToken({
-      projects,
-      memberships,
+      access,
       modes: postgresModeReader(db.orm),
       projectTokens: postgresProjectTokenReader(db.orm),
       unitOfWork: postgresTokenUnitOfWork({
@@ -77,10 +73,9 @@ export const tokenModule = ({
     }),
     checkTokens: check,
     readTokens: read,
-    readProjectTokens: readProjectTokens({ projects, memberships, readTokens: read }),
+    readProjectTokens: readProjectTokens({ access, readTokens: read }),
     declareFigmaStates: declareFigmaStates({
-      projects,
-      memberships,
+      access,
       projectTokens: postgresProjectTokenReader(db.orm),
       validatedTokensOf: async (projectId) => (await read(projectId)).tokens,
       rejectedValues: postgresRejectedValueReader(db),

@@ -1,5 +1,4 @@
-import type { ProjectFinder } from "#modules/project/contracts/project.ts";
-import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import {
@@ -143,8 +142,7 @@ const divergencesOf = (
 
 export const declareFigmaStates =
   ({
-    projects,
-    memberships,
+    access,
     projectTokens,
     validatedTokensOf,
     rejectedValues,
@@ -153,8 +151,7 @@ export const declareFigmaStates =
     unitOfWork,
     now,
   }: {
-    readonly projects: ProjectFinder;
-    readonly memberships: MembershipReader;
+    readonly access: ProjectAccess;
     readonly projectTokens: ProjectTokenReader;
     readonly validatedTokensOf: (projectId: string) => Promise<readonly ReadToken[]>;
     readonly rejectedValues: RejectedValueReader;
@@ -174,12 +171,8 @@ export const declareFigmaStates =
     readonly clientId: string;
     readonly entries: readonly FigmaEntry[];
   }): Promise<Result<DeclaredFigmaStates, "not_found" | InvalidDeclaration>> => {
-    const project = await projects.find(projectId);
+    const project = await access({ projectId, userId, action: "token.declareFigmaState" });
     if (project === undefined) {
-      return err("not_found");
-    }
-    const membership = await memberships.activeMembership({ spaceId: project.spaceId, userId });
-    if (!can({ membership, action: "token.declareFigmaState" })) {
       return err("not_found");
     }
     const tokens = (await projectTokens.tokensOf(projectId)).filter(
