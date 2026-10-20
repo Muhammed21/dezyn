@@ -68,6 +68,26 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
       expect(tokens).toEqual({ status: 200, body: { modes: [], tokens: [] } });
     }));
 
+  it("une inscription refusée par better-auth fait échouer le seed avec sa raison", () =>
+    withIdentityApp(async (app, db) => {
+      const { projects } = composeModules({
+        db,
+        mailer: { send: () => Promise.resolve() },
+        webUrl: WEB_URL,
+      });
+
+      const seeded = seedDevData({
+        app,
+        db,
+        createProject: projects.createProject,
+        user: { ...makeDevUser(), password: "court" },
+        baseURL: BASE_URL,
+        clientIp: makeClientIp(),
+      });
+
+      await expect(seeded).rejects.toThrow(/^Inscription refusée \(400\) : .*Password too short/);
+    }));
+
   it("relancer le seed avec le même email ne crée rien de plus", () =>
     withIdentityApp(async (app, db) => {
       const user = makeDevUser();

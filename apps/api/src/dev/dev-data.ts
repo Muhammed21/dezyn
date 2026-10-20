@@ -55,6 +55,9 @@ export const seedDevData = async ({
   if (signedUp.status === 422) {
     return err("user_exists");
   }
+  if (!signedUp.ok) {
+    throw new Error(`Inscription refusée (${signedUp.status}) : ${await signedUp.text()}`);
+  }
   const {
     user: { id: userId },
   } = SignedUp.parse(await signedUp.json());
