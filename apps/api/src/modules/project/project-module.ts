@@ -5,8 +5,10 @@ import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts
 import type { MembershipReader } from "#modules/space/contracts/membership.ts";
 
 import { createProject } from "./application/create-project.ts";
+import { listProjects } from "./application/list-projects.ts";
 import {
   postgresProjectFinder,
+  postgresProjectLister,
   postgresProjectUnitOfWork,
 } from "./infrastructure/postgres-projects.ts";
 
@@ -27,5 +29,6 @@ export const projectModule = ({
     newId: randomUUID,
     now,
   }),
+  listProjects: listProjects({ memberships, projects: postgresProjectLister(db) }),
   finder: postgresProjectFinder(db),
 });

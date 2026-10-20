@@ -1,7 +1,7 @@
 import { createApp } from "#create-app";
 import type { HistoryUseCases } from "#modules/history/application/history-use-cases.ts";
 import type { Auth } from "#modules/identity/application/auth.ts";
-import type { ProjectUseCases } from "#modules/project/application/create-project.ts";
+import type { ProjectUseCases } from "#modules/project/application/project-use-cases.ts";
 import type { ProposalUseCases } from "#modules/proposal/application/proposal-use-cases.ts";
 import type { SpaceUseCases } from "#modules/space/application/spaces.ts";
 import type { TokenUseCases } from "#modules/token/application/token-use-cases.ts";
@@ -33,6 +33,7 @@ export const makeSpaces = (): SpaceUseCases => ({
 
 export const makeProjects = (): ProjectUseCases => ({
   createProject: () => Promise.resolve(err("not_found")),
+  listProjects: () => Promise.resolve(err("not_found")),
 });
 
 export const makeHistory = (): HistoryUseCases => ({
