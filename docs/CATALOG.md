@@ -8,7 +8,6 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 
 ## Charte
 
-- [Plan d'optimisation de l'architecture](ARCHITECTURE-OPTIMIZATION-PLAN.md) — _reference_ — Démarré le 2026-10-20, avec le skill `architecture-optimization`.
 - [Documentation](README.md) — _reference_ — Comment la documentation est organisée, où la lire et où écrire.
 - [Momo : synthèse du projet](synthese.md) — _reference_ — Momo construit un outil qui récupère fidèlement un design Figma pour le passer en code.
 
