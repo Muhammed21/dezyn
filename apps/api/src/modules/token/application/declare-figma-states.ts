@@ -10,8 +10,8 @@ import {
 import { type ComparedDefinition, sameDefinition } from "../domain/same-definition.ts";
 import type { CheckTokens, TokenCheckFailure } from "../domain/token-check.ts";
 import type { TokenDefinition } from "../domain/token.ts";
-import type { ProjectTokenReader } from "./add-token.ts";
 import type { ReadToken } from "./read-tokens.ts";
+import type { ProjectTokenReader } from "./token-values.ts";
 
 export type FigmaDeclaration = {
   readonly states: readonly (DeclaredState & { readonly proposalId: string | null })[];

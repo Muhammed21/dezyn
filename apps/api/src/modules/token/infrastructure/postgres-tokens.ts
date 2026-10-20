@@ -6,14 +6,7 @@ import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { schema } from "@repo/db";
 
-import type {
-  ModeReader,
-  ModeValue,
-  PendingProposals,
-  ProjectTokenReader,
-  TokenUnitOfWork,
-  TokenWriter,
-} from "../application/add-token.ts";
+import type { PendingProposals, TokenUnitOfWork } from "../application/add-token.ts";
 import type {
   FigmaProposals,
   FigmaStateWriter,
@@ -21,6 +14,12 @@ import type {
   RejectedValueReader,
 } from "../application/declare-figma-states.ts";
 import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
+import type {
+  ModeReader,
+  ModeValue,
+  ProjectTokenReader,
+  TokenWriter,
+} from "../application/token-values.ts";
 import type { ComparedDefinition } from "../domain/same-definition.ts";
 
 const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue, tokenValueReference } =

@@ -1,5 +1,5 @@
 import type { CheckTokens, TokenCheck } from "../domain/token-check.ts";
-import { checkedValues, type ModeReader, type ProjectTokenReader } from "./add-token.ts";
+import { checkedValues, type ModeReader, type ProjectTokenReader } from "./token-values.ts";
 
 export const checkTokens =
   ({

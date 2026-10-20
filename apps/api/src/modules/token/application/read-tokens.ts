@@ -3,7 +3,7 @@ import { err, ok, type Result } from "@repo/result";
 
 import { duplicatesOf } from "../domain/duplicates.ts";
 import type { FigmaState } from "../domain/figma-declaration.ts";
-import type { ModeReader } from "./add-token.ts";
+import type { ModeReader } from "./token-values.ts";
 
 export type StoredValue = {
   readonly tokenId: string;
