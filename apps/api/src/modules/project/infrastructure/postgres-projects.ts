@@ -1,10 +1,11 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { schema } from "@repo/db";
 
 import type { ProjectUnitOfWork } from "../application/create-project.ts";
+import type { ProjectLister } from "../application/list-projects.ts";
 import type { ProjectFinder } from "../domain/project.ts";
 
 const { project } = schema;
@@ -37,4 +38,13 @@ export const postgresProjectFinder = (db: PostgresDatabase): ProjectFinder => ({
       .where(eq(project.id, projectId));
     return row;
   },
+});
+
+export const postgresProjectLister = (db: PostgresDatabase): ProjectLister => ({
+  projectsOf: (spaceId) =>
+    db.orm
+      .select({ id: project.id, name: project.name, createdAt: project.createdAt })
+      .from(project)
+      .where(eq(project.spaceId, spaceId))
+      .orderBy(asc(project.name)),
 });

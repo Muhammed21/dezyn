@@ -6,7 +6,8 @@ import { registerReadHistory } from "#modules/history/presentation/read-history-
 import type { Auth } from "#modules/identity/application/auth.ts";
 import { authPages } from "#modules/identity/presentation/auth-pages.ts";
 import { registerWhoami } from "#modules/identity/presentation/whoami-tool.ts";
-import type { ProjectUseCases } from "#modules/project/application/create-project.ts";
+import type { ProjectUseCases } from "#modules/project/application/project-use-cases.ts";
+import { registerListProjects } from "#modules/project/presentation/list-projects-tool.ts";
 import { projectsRoutes } from "#modules/project/presentation/projects-routes.ts";
 import type { ProposalUseCases } from "#modules/proposal/application/proposal-use-cases.ts";
 import { registerProposalBatchTools } from "#modules/proposal/presentation/proposal-batch-tools.ts";
@@ -63,6 +64,7 @@ export const createApp = ({
     }),
   );
   const registerSpaceTools = registerListSpaces(spaces);
+  const registerProjectTools = registerListProjects(projects);
   const registerHistoryTools = registerReadHistory(history);
   const registerTokenTools = registerReadTokens({
     readTokens: tokens.readTokens,
@@ -88,6 +90,7 @@ export const createApp = ({
       registerTools: (server, call) => {
         registerWhoami(server, call);
         registerSpaceTools(server, call);
+        registerProjectTools(server, call);
         registerHistoryTools(server, call);
         registerTokenTools(server, call);
         registerFigmaTools(server, call);

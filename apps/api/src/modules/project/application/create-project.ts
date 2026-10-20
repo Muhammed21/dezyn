@@ -66,7 +66,3 @@ export const createProject =
     });
     return ok(project);
   };
-
-export type ProjectUseCases = {
-  readonly createProject: ReturnType<typeof createProject>;
-};
