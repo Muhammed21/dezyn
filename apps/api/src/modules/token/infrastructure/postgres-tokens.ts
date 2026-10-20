@@ -23,7 +23,8 @@ import type {
 import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
 import type { ComparedDefinition } from "../domain/same-definition.ts";
 
-const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue } = schema;
+const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue, tokenValueReference } =
+  schema;
 
 type Queryable = Pick<PostgresTransaction, "select" | "insert" | "update" | "delete">;
 
@@ -57,15 +58,27 @@ const insertValues = async (
     readonly values: readonly ModeValue[];
   },
 ) => {
+  const rows = values.map((stored) => ({ id: newId(), stored }));
   await tx.insert(tokenValue).values(
-    values.map(({ modeId, value, referencedTokenId }) => ({
-      id: newId(),
+    rows.map(({ id, stored: { modeId, value, referencedTokenId } }) => ({
+      id,
       tokenId,
       modeId,
       value,
       referencedTokenId,
     })),
   );
+  const references = rows.flatMap(({ id, stored }) =>
+    stored.fieldReferences.map(({ field, referencedTokenId }) => ({
+      id: newId(),
+      tokenValueId: id,
+      field,
+      referencedTokenId,
+    })),
+  );
+  if (references.length > 0) {
+    await tx.insert(tokenValueReference).values(references);
+  }
 };
 
 export const postgresTokenWriter = (

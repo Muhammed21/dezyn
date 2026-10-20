@@ -3,6 +3,7 @@ import type { ProjectFinder } from "#modules/project/contracts/project.ts";
 import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
+import { fieldAliases } from "../domain/field-references.ts";
 import { type ModeRefusal, modeRefusals } from "../domain/mode-completeness.ts";
 import {
   aliasName,
@@ -23,10 +24,13 @@ export interface ProjectTokenReader {
   tokensOf(projectId: string): Promise<readonly ProjectToken[]>;
 }
 
+export type FieldReference = { readonly field: string; readonly referencedTokenId: string };
+
 export type ModeValue = {
   readonly modeId: string | null;
   readonly value: unknown;
   readonly referencedTokenId: string | null;
+  readonly fieldReferences: readonly FieldReference[];
 };
 
 export interface TokenWriter {
@@ -65,7 +69,11 @@ export type InvalidModes = {
 
 export type InvalidReferences = {
   readonly code: "invalid_references";
-  readonly refusals: readonly { readonly mode?: string; readonly refusal: ReferenceRefusal }[];
+  readonly refusals: readonly {
+    readonly mode?: string;
+    readonly field?: string;
+    readonly refusal: ReferenceRefusal;
+  }[];
 };
 
 export type TokenAdditionFailure = "not_found" | "name_taken" | InvalidModes | InvalidReferences;
@@ -80,8 +88,11 @@ const placedValuesOf = (
     ? [{ value: $value }]
     : projectModes.map((mode) => ({ mode, value: modes[mode.name] }));
 
+type Resolution = ReturnType<typeof resolveReference>;
+
 type Resolved = PlacedValue & {
-  readonly resolution: ReturnType<typeof resolveReference> | undefined;
+  readonly resolution: Resolution | undefined;
+  readonly fields: readonly { readonly field: string; readonly resolution: Resolution }[];
 };
 
 const resolved = (
@@ -106,23 +117,38 @@ const resolved = (
         name === undefined
           ? undefined
           : resolveReference({ name, $type, tokens, written, pending }),
+      fields: fieldAliases({ $type, value: value.value }).map((alias) => ({
+        field: alias.field,
+        resolution: resolveReference({ ...alias, tokens, written, pending }),
+      })),
     };
   });
 
 const referenceRefusalsOf = (values: readonly Resolved[]): InvalidReferences["refusals"] =>
-  values.flatMap(({ mode, resolution }) =>
-    resolution !== undefined && "refusal" in resolution
-      ? [{ ...(mode === undefined ? {} : { mode: mode.name }), refusal: resolution.refusal }]
-      : [],
+  values.flatMap(({ mode, resolution, fields }) =>
+    [{ resolution }, ...fields].flatMap((placed) =>
+      placed.resolution !== undefined && "refusal" in placed.resolution
+        ? [
+            {
+              ...(mode === undefined ? {} : { mode: mode.name }),
+              ...("field" in placed ? { field: placed.field } : {}),
+              refusal: placed.resolution.refusal,
+            },
+          ]
+        : [],
+    ),
   );
 
-export const modeValueOf = ({ mode, value, resolution }: Resolved): ModeValue => {
+export const modeValueOf = ({ mode, value, resolution, fields }: Resolved): ModeValue => {
   const referencedTokenId =
     resolution !== undefined && "tokenId" in resolution ? resolution.tokenId : null;
   return {
     modeId: mode?.id ?? null,
     value: referencedTokenId === null ? value : null,
     referencedTokenId,
+    fieldReferences: fields.flatMap(({ field, resolution: fieldResolution }) =>
+      "tokenId" in fieldResolution ? [{ field, referencedTokenId: fieldResolution.tokenId }] : [],
+    ),
   };
 };
 

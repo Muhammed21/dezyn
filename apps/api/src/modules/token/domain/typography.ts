@@ -1,4 +1,5 @@
 import type { Dimension } from "./dimension.ts";
+import type { Alias } from "./reference.ts";
 
 export const FONT_WEIGHT_KEYWORDS = [
   "thin",
@@ -27,10 +28,10 @@ export type FontWeight = number | (typeof FONT_WEIGHT_KEYWORDS)[number];
 
 export type Typography = {
   readonly fontFamily: FontFamily;
-  readonly fontSize: Dimension;
-  readonly fontWeight: FontWeight;
-  readonly lineHeight: number;
-  readonly letterSpacing: Dimension;
+  readonly fontSize: Dimension | Alias;
+  readonly fontWeight: FontWeight | Alias;
+  readonly lineHeight: number | Alias;
+  readonly letterSpacing: Dimension | Alias;
 };
 
 export type FontFamilyRefusal = "empty_font_family";
@@ -47,7 +48,7 @@ export const fontFamilyRefusal = (fontFamily: FontFamily): FontFamilyRefusal | u
   return named.length === 0 || named.includes("") ? "empty_font_family" : undefined;
 };
 
-export const fontWeightRefusal = (fontWeight: FontWeight): FontWeightRefusal | undefined =>
+export const fontWeightRefusal = (fontWeight: FontWeight | Alias): FontWeightRefusal | undefined =>
   typeof fontWeight === "number" && (fontWeight < 1 || fontWeight > 1000)
     ? "font_weight_out_of_range"
     : undefined;

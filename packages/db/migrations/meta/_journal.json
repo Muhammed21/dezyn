@@ -71,6 +71,13 @@
       "when": 1792441996611,
       "tag": "0009_token_figma_state",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792496935094,
+      "tag": "0010_token_value_reference",
+      "breakpoints": true
     }
   ]
 }

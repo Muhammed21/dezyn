@@ -1,6 +1,6 @@
 # 0030 — dezyn conserve les extensions d'un token sans les interpréter
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-20
 - Décideurs : Muhammed
 

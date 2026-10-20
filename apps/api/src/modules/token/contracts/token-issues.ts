@@ -35,12 +35,17 @@ const REFERENCE_MESSAGES: Readonly<Record<ReferenceRefusal, string>> = {
 
 const referenceIssueOf = ({
   mode,
+  field,
   refusal,
 }: {
   readonly mode?: string;
+  readonly field?: string;
   readonly refusal: ReferenceRefusal;
 }) => ({
-  path: mode === undefined ? "$value" : `modes.${mode}`,
+  path: [
+    mode === undefined ? "$value" : `modes.${mode}`,
+    ...(field === undefined ? [] : [field]),
+  ].join("."),
   message: REFERENCE_MESSAGES[refusal],
 });
 

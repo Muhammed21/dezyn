@@ -16,7 +16,9 @@ export const aliasName = (value: unknown): string | undefined => {
   return name === undefined || tokenNameRefusal(name) !== undefined ? undefined : name;
 };
 
-export const isReference = (value: unknown): value is string => aliasName(value) !== undefined;
+export type Alias = `{${string}}`;
+
+export const isReference = (value: unknown): value is Alias => aliasName(value) !== undefined;
 
 export type WrittenToken = { readonly name: string; readonly $type: string };
 
@@ -53,15 +55,3 @@ export const resolveReference = ({
   }
   return target.$type === $type ? { tokenId: target.id } : { refusal: "type_mismatch" };
 };
-
-export const referencedNames = ({
-  $value,
-  modes = {},
-}: {
-  readonly $value?: unknown;
-  readonly modes?: Readonly<Record<string, unknown>>;
-}): readonly string[] =>
-  [$value, ...Object.values(modes)].flatMap((value) => {
-    const name = aliasName(value);
-    return name === undefined ? [] : [name];
-  });

@@ -76,6 +76,23 @@ export const tokenValue = pgTable(
   ],
 );
 
+export const tokenValueReference = pgTable(
+  "token_value_reference",
+  {
+    id: uuid("id").primaryKey(),
+    tokenValueId: uuid("token_value_id")
+      .notNull()
+      .references(() => tokenValue.id, { onDelete: "cascade" }),
+    field: text("field").notNull(),
+    referencedTokenId: uuid("referenced_token_id")
+      .notNull()
+      .references(() => token.id),
+  },
+  (table) => [
+    unique("token_value_reference_token_value_id_field_key").on(table.tokenValueId, table.field),
+  ],
+);
+
 export const tokenFigmaState = pgTable("token_figma_state", {
   tokenId: uuid("token_id")
     .primaryKey()
