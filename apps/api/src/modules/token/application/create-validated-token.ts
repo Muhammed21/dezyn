@@ -5,7 +5,7 @@ import {
   modeValueOf,
   type ProjectTokenReader,
   type TokenWriter,
-} from "./add-token.ts";
+} from "./token-values.ts";
 
 const checkedFor = async (
   {
