@@ -1,6 +1,6 @@
 import type { PlanRequired } from "../domain/invitation.ts";
 
-export type { Plan } from "../domain/space.ts";
+export { type Plan, PLANS } from "../domain/space.ts";
 export { type ProjectLimitReached, projectLimitRefusal } from "../domain/project-limit.ts";
 
 export type PlanRequiredProblem = {

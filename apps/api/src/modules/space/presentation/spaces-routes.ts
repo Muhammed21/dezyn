@@ -10,12 +10,13 @@ import type { InvitationFailure } from "../application/invite-member.ts";
 import type { DepartureFailure } from "../application/leave-space.ts";
 import type { RemovalFailure, RoleChangeFailure } from "../application/manage-members.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";
+import { ROLES } from "../domain/space.ts";
 import { alreadyMemberProblem } from "./already-member-problem.ts";
 import { planRequiredProblem } from "./plan-required-problem.ts";
 
 const InvitationRequest = z.object({ email: z.email() });
 
-const RoleRequest = z.object({ role: z.enum(["owner", "editor"]) });
+const RoleRequest = z.object({ role: z.enum(ROLES) });
 
 const spaceIdOf = (c: Context<AuthenticatedEnv>) => Uuid.safeParse(c.req.param("spaceId")).data;
 

@@ -1,8 +1,10 @@
 import { z } from "zod";
 
-const StoredPlan = z.enum(["free", "team"]);
+import { PLANS, ROLES } from "../domain/space.ts";
 
-const StoredRole = z.enum(["owner", "editor"]);
+const StoredPlan = z.enum(PLANS);
+
+const StoredRole = z.enum(ROLES);
 
 export const StoredSpace = z.object({ id: z.string(), name: z.string(), plan: StoredPlan });
 
