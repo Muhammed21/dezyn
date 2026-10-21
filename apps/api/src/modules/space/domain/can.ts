@@ -5,6 +5,7 @@ export type Action =
   | "project.create"
   | "member.invite"
   | "member.leave"
+  | "member.manage"
   | "token.create"
   | "token.declareFigmaState"
   | "proposal.review";
@@ -21,6 +22,7 @@ const PERMISSIONS: Readonly<Record<Role, ReadonlySet<Action>>> = {
     "project.create",
     "member.invite",
     "member.leave",
+    "member.manage",
     "token.create",
     "token.declareFigmaState",
     "proposal.review",
