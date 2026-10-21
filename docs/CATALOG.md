@@ -13,6 +13,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [Performance](PERFORMANCE.md) — _reference_ — Outil de mesure : les logs `request` de l'API (`durationMs`, `src/platform/request-context.ts`), capturés pendant un import réel.
 - [Documentation](README.md) — _reference_ — Comment la documentation est organisée, où la lire et où écrire.
 - [Muhammed : synthèse du projet](synthese.md) — _reference_ — Muhammed construit un outil qui récupère fidèlement un design Figma pour le passer en code.
+- [Fiabilité](RELIABILITY.md) — _reference_ — Les migrations tournent hors du démarrage (`pnpm migrate`, ADR 0009) ; l'API vérifie au démarrage la version du schéma.
 - [Dette technique](TECH-DEBT.md) — _reference_
 - [Tests](TESTING.md) — _reference_
 
