@@ -42,7 +42,16 @@ export const projectsRoutes = ({ createProject, listProjects }: ProjectUseCases)
       if (created.ok) {
         return c.json(created.value, 201);
       }
-      return created.error === "not_found"
-        ? c.notFound()
-        : problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+      if (created.error === "not_found") {
+        return c.notFound();
+      }
+      if (created.error === "forbidden") {
+        return problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+      }
+      return problemResponse(c, {
+        type: "https://dezyn.app/problems/plan-required",
+        title: "Plan Team requis",
+        status: 403,
+        extensions: { requiredPlan: created.error.requiredPlan, limit: created.error.limit },
+      });
     });

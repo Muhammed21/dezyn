@@ -1,23 +1,31 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { can, type MembershipReader } from "#modules/space/contracts/membership.ts";
+import {
+  type Plan,
+  type ProjectLimitReached,
+  projectLimitRefusal,
+} from "#modules/space/contracts/plan.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import type { Project } from "../domain/project.ts";
 
+export type SpaceProjects = { readonly plan: Plan; readonly projects: number };
+
 export interface ProjectWriter {
+  lockSpace(spaceId: string): Promise<SpaceProjects>;
   create(project: Project): Promise<void>;
 }
 
 export interface ProjectUnitOfWork {
-  run(
+  run<T>(
     work: (unit: {
       readonly projects: ProjectWriter;
       readonly history: HistoryWriter;
-    }) => Promise<void>,
-  ): Promise<void>;
+    }) => Promise<T>,
+  ): Promise<T>;
 }
 
-export type ProjectCreationFailure = "not_found" | "forbidden";
+export type ProjectCreationFailure = "not_found" | "forbidden" | ProjectLimitReached;
 
 export const createProject =
   ({
@@ -50,7 +58,11 @@ export const createProject =
       return err("forbidden");
     }
     const project = { id: newId(), spaceId, name, createdAt: now() };
-    await unitOfWork.run(async ({ projects, history }) => {
+    return unitOfWork.run(async ({ projects, history }) => {
+      const refusal = projectLimitRefusal(await projects.lockSpace(spaceId));
+      if (refusal !== undefined) {
+        return err(refusal);
+      }
       await projects.create(project);
       await history.append({
         spaceId,
@@ -63,6 +75,6 @@ export const createProject =
         correlationId,
         occurredAt: project.createdAt,
       });
+      return ok(project);
     });
-    return ok(project);
   };

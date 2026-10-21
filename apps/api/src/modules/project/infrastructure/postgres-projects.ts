@@ -1,4 +1,5 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
+import { z } from "zod";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
@@ -8,7 +9,9 @@ import type { ProjectUnitOfWork } from "../application/create-project.ts";
 import type { ProjectLister } from "../application/list-projects.ts";
 import type { ProjectFinder } from "../domain/project.ts";
 
-const { project } = schema;
+const { project, space } = schema;
+
+const StoredPlan = z.enum(["free", "team"]);
 
 export const postgresProjectUnitOfWork = ({
   db,
@@ -21,6 +24,18 @@ export const postgresProjectUnitOfWork = ({
     db.orm.transaction((tx) =>
       work({
         projects: {
+          lockSpace: async (spaceId) => {
+            const [locked] = await tx
+              .select({ plan: space.plan })
+              .from(space)
+              .where(eq(space.id, spaceId))
+              .for("update");
+            const [counted] = await tx
+              .select({ projects: count() })
+              .from(project)
+              .where(eq(project.spaceId, spaceId));
+            return { plan: StoredPlan.parse(locked?.plan), projects: counted?.projects ?? 0 };
+          },
           create: async (created) => {
             await tx.insert(project).values(created);
           },
