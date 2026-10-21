@@ -5,6 +5,11 @@
     "test:integration": {
       "cache": false,
       "passThroughEnv": ["DATABASE_URL", "DATABASE_URL_MIGRATOR", "DATABASE_URL_HISTORY_MAINTAINER"]
+    },
+    "bench": {
+      "cache": false,
+      "outputs": ["bench-results.json"],
+      "passThroughEnv": ["DATABASE_URL", "DATABASE_URL_MIGRATOR", "DATABASE_URL_HISTORY_MAINTAINER"]
     }
   }
 }

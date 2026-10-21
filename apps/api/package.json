@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "bench": "vitest bench --run --config vitest.bench.config.ts --outputJson bench-results.json",
     "check-types": "tsc --noEmit",
     "mutation": "stryker run",
     "seed": "node --env-file-if-exists=../../.env scripts/seed.ts",
