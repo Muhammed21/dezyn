@@ -177,7 +177,7 @@ export const postgresProposalReader = (db: PostgresDatabase): ProposalReader => 
       .select()
       .from(proposal)
       .where(eq(proposal.batchId, batchId))
-      .orderBy(asc(proposal.createdAt), asc(proposal.id));
+      .orderBy(asc(proposal.position));
     return { ...storedBatchOf(batch), proposals: rows.map(proposalOf) };
   },
   pendingTokensOf: async (projectId) => {

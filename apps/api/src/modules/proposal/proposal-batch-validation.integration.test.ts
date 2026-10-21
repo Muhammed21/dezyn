@@ -548,3 +548,62 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
       },
     ));
 });
+
+describe("un lot rend ses propositions dans l'ordre d'écriture", () => {
+  const WRITE_ORDER = [
+    "couleur.h",
+    "couleur.c",
+    "couleur.f",
+    "couleur.a",
+    "couleur.g",
+    "couleur.b",
+    "couleur.e",
+    "couleur.d",
+  ];
+
+  it("la lecture du lot suit l'ordre d'un même write_tokens", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const { batch } = await seedClosedBatch(app, {
+        accessToken,
+        projectId,
+        tokens: WRITE_ORDER.map((name) => makeColorToken({ name })),
+      });
+
+      const { proposals } = await batchOf(app, { accessToken, batchId: batch.id });
+
+      expect(proposals.map(({ name }: { name: string }) => name)).toEqual(WRITE_ORDER);
+    }));
+
+  it("une proposition remplacée garde sa place dans le lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const { batch } = await seedClosedBatch(app, {
+        accessToken,
+        projectId,
+        tokens: WRITE_ORDER.map((name) => makeColorToken({ name })),
+      });
+      await addToken(app, { accessToken, projectId, token: makeColorToken({ name: "couleur.h" }) });
+
+      const { proposals } = await batchOf(app, { accessToken, batchId: batch.id });
+
+      expect(proposals.map(({ name }: { name: string }) => name)).toEqual(WRITE_ORDER);
+      expect(proposals[0]).toMatchObject({ name: "couleur.h", status: "replaced" });
+    }));
+
+  it("la validation du lot garde l'ordre d'écriture des tokens indépendants", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const { batch, proposals } = await seedClosedBatch(app, {
+        accessToken,
+        projectId,
+        tokens: WRITE_ORDER.map((name) => makeColorToken({ name })),
+      });
+
+      const response = await validateBatch(app, { accessToken, batchId: batch.id });
+
+      expect((await response.json()).validated).toEqual(
+        proposals.map(({ id }: { id: string }) => id),
+      );
+    }));
+});

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { bigint, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { identityUser } from "./identity.ts";
 import { project } from "./project.ts";
@@ -42,6 +42,7 @@ export const proposal = pgTable(
     payload: jsonb("payload").notNull(),
     status: text("status").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    position: bigint("position", { mode: "number" }).generatedAlwaysAsIdentity(),
   },
   (table) => [
     uniqueIndex("proposal_pending_key")
