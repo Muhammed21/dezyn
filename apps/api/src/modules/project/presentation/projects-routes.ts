@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { planRequired } from "#modules/space/contracts/plan.ts";
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
-import { problemResponse } from "#platform/problem.ts";
+import { FORBIDDEN, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
@@ -47,7 +47,7 @@ export const projectsRoutes = ({ createProject, listProjects }: ProjectUseCases)
         return c.notFound();
       }
       if (created.error === "forbidden") {
-        return problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+        return problemResponse(c, FORBIDDEN);
       }
       return problemResponse(c, planRequired(created.error));
     });

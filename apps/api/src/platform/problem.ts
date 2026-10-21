@@ -21,14 +21,24 @@ export const INTERNAL_ERROR: Problem = {
   status: 500,
 };
 
+export const FORBIDDEN: Problem = {
+  type: "about:blank",
+  title: "Accès refusé",
+  status: 403,
+};
+
+export const invalidRequest = (errors: NonNullable<Problem["errors"]>): Problem => ({
+  type: "about:blank",
+  title: "Requête invalide",
+  status: 400,
+  errors,
+});
+
 export const clientProblem = (error: Error): Problem | undefined => {
   if (error instanceof InvalidRequest) {
-    return {
-      type: "about:blank",
-      title: "Requête invalide",
-      status: 400,
-      errors: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
-    };
+    return invalidRequest(
+      error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+    );
   }
   if (error instanceof HTTPException && error.status < 500) {
     return {
