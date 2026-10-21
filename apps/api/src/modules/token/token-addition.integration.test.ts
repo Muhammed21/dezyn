@@ -227,12 +227,12 @@ describe("un token invalide répond 400 problem+json, en nommant le champ", () =
       const response = await addToken(app, {
         accessToken,
         projectId,
-        token: makeColorToken({ $extensions: {} }),
+        token: makeColorToken({ $opacite: 0.5 }),
       });
 
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({
-        errors: [{ message: expect.stringContaining("$extensions") }],
+        errors: [{ message: expect.stringContaining("$opacite") }],
       });
     }));
 });

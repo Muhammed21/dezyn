@@ -43,7 +43,7 @@ export interface FigmaProposals {
   }>;
 }
 
-export type RejectedValue = Omit<ComparedDefinition, "$description">;
+export type RejectedValue = Omit<ComparedDefinition, "$description" | "$extensions">;
 
 export interface RejectedValueReader {
   rejectedValuesOf(
@@ -135,6 +135,7 @@ const divergencesOf = (
           name: declared.name,
           $type: token?.$type,
           ...(current?.$description === undefined ? {} : { $description: current.$description }),
+          ...(current?.$extensions === undefined ? {} : { $extensions: current.$extensions }),
         })
       : { issues: [{ path: "", message: "Objet attendu, avec $value ou modes" }] };
     return [{ index, tokenId: declared.tokenId, validated: current, parsed }];

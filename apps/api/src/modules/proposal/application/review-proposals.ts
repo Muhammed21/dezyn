@@ -102,12 +102,20 @@ export const listBatches =
     );
   };
 
-const definitionOf = ({ name, $type, $value, modes, $description }: ValidatedDefinition) => ({
+const definitionOf = ({
   name,
   $type,
   $value,
   modes,
   $description,
+  $extensions,
+}: ValidatedDefinition) => ({
+  name,
+  $type,
+  $value,
+  modes,
+  $description,
+  $extensions,
 });
 
 const validatedOf = (

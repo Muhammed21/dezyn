@@ -2,6 +2,7 @@ export type ComparedDefinition = {
   readonly $value?: unknown;
   readonly modes?: Readonly<Record<string, unknown>>;
   readonly $description?: string;
+  readonly $extensions?: Readonly<Record<string, unknown>>;
 };
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -26,4 +27,5 @@ const sameValue = (left: unknown, right: unknown): boolean => {
 export const sameDefinition = (left: ComparedDefinition, right: ComparedDefinition): boolean =>
   sameValue(left.$value, right.$value) &&
   sameValue(left.modes, right.modes) &&
-  left.$description === right.$description;
+  left.$description === right.$description &&
+  sameValue(left.$extensions, right.$extensions);

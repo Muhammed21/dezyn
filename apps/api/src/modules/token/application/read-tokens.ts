@@ -2,6 +2,7 @@ import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import { duplicatesOf } from "../domain/duplicates.ts";
+import { type Extensions, isExtensions } from "../domain/extensions.ts";
 import type { FigmaState } from "../domain/figma-declaration.ts";
 import type { ModeReader } from "./token-values.ts";
 
@@ -10,6 +11,7 @@ export type StoredValue = {
   readonly name: string;
   readonly $type: string;
   readonly $description: string | null;
+  readonly $extensions: unknown;
   readonly mode: string | null;
   readonly value: unknown;
   readonly referencedName: string | null;
@@ -39,6 +41,7 @@ export type ReadToken = {
   readonly $value?: unknown;
   readonly modes?: Readonly<Record<string, unknown>>;
   readonly $description?: string;
+  readonly $extensions?: Extensions;
   readonly status: "validated";
   readonly duplicates?: readonly string[];
   readonly figma?: Omit<TokenFigmaState, "tokenId">;
@@ -67,7 +70,7 @@ const figmaOf = (
 };
 
 const tokenOf = (values: TokenValues, figmaStates: readonly TokenFigmaState[]): ReadToken => {
-  const { tokenId, name, $type, $description, mode } = values[0];
+  const { tokenId, name, $type, $description, $extensions, mode } = values[0];
   return {
     id: tokenId,
     name,
@@ -76,6 +79,7 @@ const tokenOf = (values: TokenValues, figmaStates: readonly TokenFigmaState[]): 
       ? { $value: renderedValue(values[0]) }
       : { modes: Object.fromEntries(values.map((value) => [value.mode, renderedValue(value)])) }),
     ...($description === null ? {} : { $description }),
+    ...(isExtensions($extensions) ? { $extensions } : {}),
     status: "validated",
     ...figmaOf(tokenId, figmaStates),
   };

@@ -93,6 +93,7 @@ export const postgresTokenWriter = (
         name: added.name,
         type: added.$type,
         description: added.$description ?? null,
+        extensions: added.$extensions ?? null,
         status: added.status,
         createdAt: added.createdAt,
       })
@@ -107,7 +108,10 @@ export const postgresTokenWriter = (
   replace: async (replaced, values) => {
     const [updated] = await tx
       .update(token)
-      .set({ description: replaced.$description ?? null })
+      .set({
+        description: replaced.$description ?? null,
+        extensions: replaced.$extensions ?? null,
+      })
       .where(and(eq(token.projectId, replaced.projectId), eq(token.name, replaced.name)))
       .returning({ id: token.id });
     if (updated === undefined) {
@@ -149,6 +153,7 @@ export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTok
         name: token.name,
         $type: token.type,
         $description: token.description,
+        $extensions: token.extensions,
         mode: mode.name,
         value: tokenValue.value,
         referencedName: referenced.name,
