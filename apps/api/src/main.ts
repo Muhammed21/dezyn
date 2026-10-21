@@ -1,4 +1,5 @@
 import { createJsonLineSink } from "#platform/json-line-sink.ts";
+import { superviseProcess } from "#platform/process-supervision.ts";
 import { LATEST_MIGRATION } from "@repo/db";
 
 import { startApi } from "./start-api.ts";
@@ -31,3 +32,4 @@ const api = await startApi({
   log,
 });
 log({ level: "info", msg: "listening", url: api.url });
+superviseProcess({ host: process, api, log });
