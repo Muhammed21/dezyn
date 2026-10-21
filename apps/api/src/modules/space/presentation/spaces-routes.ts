@@ -8,11 +8,14 @@ import { Uuid } from "@repo/contracts";
 
 import type { InvitationFailure } from "../application/invite-member.ts";
 import type { DepartureFailure } from "../application/leave-space.ts";
+import type { RemovalFailure, RoleChangeFailure } from "../application/manage-members.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";
 import { alreadyMemberProblem } from "./already-member-problem.ts";
 import { planRequiredProblem } from "./plan-required-problem.ts";
 
 const InvitationRequest = z.object({ email: z.email() });
+
+const RoleRequest = z.object({ role: z.enum(["owner", "editor"]) });
 
 const spaceIdOf = (c: Context<AuthenticatedEnv>) => Uuid.safeParse(c.req.param("spaceId")).data;
 
@@ -21,7 +24,7 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
     return c.notFound();
   }
   if (failure === "forbidden") {
-    return problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+    return forbiddenProblem(c);
   }
   if (failure === "already_member") {
     return alreadyMemberProblem(c);
@@ -36,20 +39,46 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
   return planRequiredProblem(c, failure);
 };
 
+const lastOwnerProblem = (c: Context<AuthenticatedEnv>) =>
+  problemResponse(c, {
+    type: "https://dezyn.app/problems/last-owner",
+    title: "Dernier propriétaire de l'espace",
+    status: 409,
+  });
+
+const forbiddenProblem = (c: Context<AuthenticatedEnv>) =>
+  problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+
 const departureProblem = (c: Context<AuthenticatedEnv>, failure: DepartureFailure) =>
-  failure === "not_found"
-    ? c.notFound()
+  failure === "not_found" ? c.notFound() : lastOwnerProblem(c);
+
+const roleChangeProblem = (c: Context<AuthenticatedEnv>, failure: RoleChangeFailure) => {
+  if (failure === "not_found") {
+    return c.notFound();
+  }
+  return failure === "forbidden" ? forbiddenProblem(c) : lastOwnerProblem(c);
+};
+
+const removalProblem = (c: Context<AuthenticatedEnv>, failure: RemovalFailure) => {
+  if (failure === "not_found") {
+    return c.notFound();
+  }
+  return failure === "forbidden"
+    ? forbiddenProblem(c)
     : problemResponse(c, {
-        type: "https://dezyn.app/problems/last-owner",
-        title: "Dernier propriétaire de l'espace",
+        type: "https://dezyn.app/problems/self-removal",
+        title: "Un membre quitte l'espace par son départ",
         status: 409,
       });
+};
 
 export const spacesRoutes = ({
   listMySpaces,
   readSpace,
   inviteMember,
   leaveSpace,
+  changeRole,
+  removeMember,
 }: SpaceUseCases) =>
   new Hono<AuthenticatedEnv>()
     .get("/", async (c) => c.json({ spaces: await listMySpaces(c.get("identity").userId) }))
@@ -80,4 +109,27 @@ export const spacesRoutes = ({
       }
       const left = await leaveSpace({ spaceId, userId: c.get("identity").userId });
       return left.ok ? c.body(null, 204) : departureProblem(c, left.error);
+    })
+    .patch("/:spaceId/members/:memberId", validate("json", RoleRequest), async (c) => {
+      const spaceId = spaceIdOf(c);
+      if (spaceId === undefined) {
+        return c.notFound();
+      }
+      const memberId = c.req.param("memberId");
+      const changed = await changeRole({
+        spaceId,
+        userId: c.get("identity").userId,
+        memberId,
+        role: c.req.valid("json").role,
+      });
+      return changed.ok ? c.json(changed.value) : roleChangeProblem(c, changed.error);
+    })
+    .delete("/:spaceId/members/:memberId", async (c) => {
+      const spaceId = spaceIdOf(c);
+      if (spaceId === undefined) {
+        return c.notFound();
+      }
+      const memberId = c.req.param("memberId");
+      const removed = await removeMember({ spaceId, userId: c.get("identity").userId, memberId });
+      return removed.ok ? c.body(null, 204) : removalProblem(c, removed.error);
     });

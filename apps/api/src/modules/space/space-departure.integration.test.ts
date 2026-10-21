@@ -1,23 +1,20 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import type { PostgresDatabase } from "#db";
 import {
   type App,
   BASE_URL,
-  GRACE,
   obtainAccessToken,
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
 import {
-  invite,
   makeOutbox,
+  membershipsOf,
+  openOwnersOf,
   personalSpaceOf,
+  promoteToOwner,
+  seedSpaceWithInvitedEditor,
   seedTeamSpace,
-  switchToTeam,
-  tokenOf,
 } from "#testing/space-fixtures.ts";
-import { schema } from "@repo/db";
 
 const LAST_OWNER = "https://dezyn.app/problems/last-owner";
 
@@ -32,63 +29,12 @@ const readSpace = (app: App, { accessToken, spaceId }: { accessToken: string; sp
     headers: { authorization: `Bearer ${accessToken}` },
   });
 
-const seedAdaSpaceWithGrace = async (
-  app: App,
-  db: PostgresDatabase,
-  outbox: ReturnType<typeof makeOutbox>,
-) => {
-  const ada = await obtainAccessToken(app);
-  const spaceId = await personalSpaceOf(db, ada.userId);
-  await switchToTeam(db, spaceId);
-  await invite(app, { accessToken: ada.accessToken, spaceId });
-  const grace = await obtainAccessToken(app, { user: GRACE });
-  await app.request(`${BASE_URL}/v1/invitations/${tokenOf(outbox.sent.at(-1))}/accept`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${grace.accessToken}` },
-  });
-  return { ada, grace, spaceId };
-};
-
-const promoteToOwner = (
-  db: PostgresDatabase,
-  { spaceId, userId }: { spaceId: string; userId: string },
-) =>
-  db.orm
-    .update(schema.spaceMember)
-    .set({ role: "owner" })
-    .where(and(eq(schema.spaceMember.spaceId, spaceId), eq(schema.spaceMember.userId, userId)));
-
-const membershipsOf = (
-  db: PostgresDatabase,
-  { spaceId, userId }: { spaceId: string; userId: string },
-) =>
-  db.orm
-    .select({
-      role: schema.spaceMember.role,
-      closedAt: schema.spaceMember.closedAt,
-      closedReason: schema.spaceMember.closedReason,
-    })
-    .from(schema.spaceMember)
-    .where(and(eq(schema.spaceMember.spaceId, spaceId), eq(schema.spaceMember.userId, userId)));
-
-const openOwnersOf = (db: PostgresDatabase, spaceId: string) =>
-  db.orm
-    .select({ userId: schema.spaceMember.userId })
-    .from(schema.spaceMember)
-    .where(
-      and(
-        eq(schema.spaceMember.spaceId, spaceId),
-        eq(schema.spaceMember.role, "owner"),
-        isNull(schema.spaceMember.closedAt),
-      ),
-    );
-
 describe("un membre quitte l'espace, sauf le dernier propriétaire (ADR 0011 §5, ADR 0017 §2)", () => {
   it("un éditeur qui part garde sa ligne, fermée avec la raison left, et perd l'accès", () => {
     const outbox = makeOutbox();
     return withIdentityApp(
       async (app, db) => {
-        const { grace, spaceId } = await seedAdaSpaceWithGrace(app, db, outbox);
+        const { grace, spaceId } = await seedSpaceWithInvitedEditor(app, db, outbox);
         const before = Date.now();
 
         const response = await leave(app, { accessToken: grace.accessToken, spaceId });
@@ -110,7 +56,7 @@ describe("un membre quitte l'espace, sauf le dernier propriétaire (ADR 0011 §5
     const outbox = makeOutbox();
     return withIdentityApp(
       async (app, db) => {
-        const { grace, spaceId } = await seedAdaSpaceWithGrace(app, db, outbox);
+        const { grace, spaceId } = await seedSpaceWithInvitedEditor(app, db, outbox);
         await leave(app, { accessToken: grace.accessToken, spaceId });
 
         const again = await leave(app, { accessToken: grace.accessToken, spaceId });
@@ -145,7 +91,7 @@ describe("un membre quitte l'espace, sauf le dernier propriétaire (ADR 0011 §5
     const outbox = makeOutbox();
     return withIdentityApp(
       async (app, db) => {
-        const { ada, spaceId } = await seedAdaSpaceWithGrace(app, db, outbox);
+        const { ada, spaceId } = await seedSpaceWithInvitedEditor(app, db, outbox);
 
         const response = await leave(app, { accessToken: ada.accessToken, spaceId });
 
@@ -160,7 +106,7 @@ describe("un membre quitte l'espace, sauf le dernier propriétaire (ADR 0011 §5
     const outbox = makeOutbox();
     return withIdentityApp(
       async (app, db) => {
-        const { ada, grace, spaceId } = await seedAdaSpaceWithGrace(app, db, outbox);
+        const { ada, grace, spaceId } = await seedSpaceWithInvitedEditor(app, db, outbox);
         await promoteToOwner(db, { spaceId, userId: grace.userId });
 
         const response = await leave(app, { accessToken: ada.accessToken, spaceId });
@@ -197,7 +143,7 @@ describe("deux départs simultanés des deux derniers propriétaires (ADR 0017 �
     const outbox = makeOutbox();
     return withIdentityApp(
       async (app, db) => {
-        const { ada, grace, spaceId } = await seedAdaSpaceWithGrace(app, db, outbox);
+        const { ada, grace, spaceId } = await seedSpaceWithInvitedEditor(app, db, outbox);
         await promoteToOwner(db, { spaceId, userId: grace.userId });
 
         const responses = await Promise.all([

@@ -29,6 +29,8 @@ export const makeSpaces = (): SpaceUseCases => ({
   inviteMember: () => Promise.resolve(err("not_found")),
   acceptInvitation: () => Promise.resolve(err("gone")),
   leaveSpace: () => Promise.resolve(err("not_found")),
+  changeRole: () => Promise.resolve(err("not_found")),
+  removeMember: () => Promise.resolve(err("not_found")),
 });
 
 export const makeProjects = (): ProjectUseCases => ({
