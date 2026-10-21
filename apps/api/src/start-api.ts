@@ -70,7 +70,7 @@ export const startApi = async ({
   readonly webUrl: string;
 }): Promise<RunningApi> => {
   await assertSchemaVersion({ connectionString: databaseUrl, migration });
-  const db = createPostgresDatabase({ url: databaseUrl });
+  const db = createPostgresDatabase({ url: databaseUrl, log });
   const { app } = await buildApi({
     db,
     mailer: createSmtpMailer(smtp),
