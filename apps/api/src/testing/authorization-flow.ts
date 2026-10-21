@@ -8,7 +8,7 @@ import { createIdentityAuth } from "#modules/identity/infrastructure/better-auth
 import type { Clock } from "#platform/clock.ts";
 import type { Mailer } from "#platform/mailer.ts";
 import { migrate } from "@repo/db";
-import { withThrowawayDatabase } from "@repo/db/testing";
+import { createThrowawayDatabase } from "@repo/db/testing";
 import { ok } from "@repo/result";
 
 export const BASE_URL = "http://127.0.0.1:3000";
@@ -32,54 +32,84 @@ export type App = ReturnType<typeof createApp>;
 
 type UserCreated = (user: { readonly id: string; readonly name: string }) => Promise<void>;
 
-export const withIdentityApp = (
+type IdentityAppOptions = {
+  readonly baseURL?: string;
+  readonly wrapUserCreated?: (created: UserCreated) => UserCreated;
+  readonly mailer?: Mailer;
+  readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
+  readonly clock?: Clock;
+};
+
+export type IdentityApp = {
+  readonly app: App;
+  readonly db: PostgresDatabase;
+  readonly migratorUrl: string;
+  readonly close: () => Promise<void>;
+};
+
+export const startIdentityApp = async ({
+  baseURL = BASE_URL,
+  wrapUserCreated = (created) => created,
+  mailer = { send: async () => ok(undefined) },
+  wrapHistoryWriter,
+  clock,
+}: IdentityAppOptions = {}): Promise<IdentityApp> => {
+  const database = await createThrowawayDatabase();
+  await migrate({ connectionString: database.migratorUrl });
+  const db = createPostgresDatabase({ url: database.appUrl });
+  const { spaces, projects, history, tokens, proposals } = composeModules({
+    db,
+    mailer,
+    webUrl: WEB_URL,
+    wrapHistoryWriter,
+    clock,
+  });
+  const auth = await createIdentityAuth({
+    db,
+    secret: "secret-de-test-de-32-caracteres-au-moins",
+    baseURL,
+    trustedIpHeader: "x-forwarded-for",
+    log: () => undefined,
+    onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
+  });
+  return {
+    app: createApp({
+      db,
+      auth,
+      log: () => undefined,
+      spaces,
+      projects,
+      history,
+      tokens,
+      proposals,
+    }),
+    db,
+    migratorUrl: database.migratorUrl,
+    close: async () => {
+      try {
+        await db.close();
+      } finally {
+        await database.drop();
+      }
+    },
+  };
+};
+
+export const withIdentityApp = async (
   run: (
     app: App,
     db: PostgresDatabase,
     database: { readonly migratorUrl: string },
   ) => Promise<void>,
-  {
-    baseURL = BASE_URL,
-    wrapUserCreated = (created) => created,
-    mailer = { send: async () => ok(undefined) },
-    wrapHistoryWriter,
-    clock,
-  }: {
-    readonly baseURL?: string;
-    readonly wrapUserCreated?: (created: UserCreated) => UserCreated;
-    readonly mailer?: Mailer;
-    readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
-    readonly clock?: Clock;
-  } = {},
-) =>
-  withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
-    await migrate({ connectionString: migratorUrl });
-    const db = createPostgresDatabase({ url: appUrl });
-    try {
-      const { spaces, projects, history, tokens, proposals } = composeModules({
-        db,
-        mailer,
-        webUrl: WEB_URL,
-        wrapHistoryWriter,
-        clock,
-      });
-      const auth = await createIdentityAuth({
-        db,
-        secret: "secret-de-test-de-32-caracteres-au-moins",
-        baseURL,
-        trustedIpHeader: "x-forwarded-for",
-        log: () => undefined,
-        onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
-      });
-      await run(
-        createApp({ db, auth, log: () => undefined, spaces, projects, history, tokens, proposals }),
-        db,
-        { migratorUrl },
-      );
-    } finally {
-      await db.close();
-    }
-  });
+  options: IdentityAppOptions = {},
+) => {
+  const { app, db, migratorUrl, close } = await startIdentityApp(options);
+  try {
+    await run(app, db, { migratorUrl });
+  } finally {
+    await close();
+  }
+};
 
 export const makeClientIp = () =>
   `198.${randomInt(18, 20)}.${randomInt(0, 256)}.${randomInt(0, 256)}`;
