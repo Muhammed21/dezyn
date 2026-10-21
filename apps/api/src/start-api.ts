@@ -73,7 +73,7 @@ export const startApi = async ({
   const db = createPostgresDatabase({ url: databaseUrl, log });
   const { app } = await buildApi({
     db,
-    mailer: createSmtpMailer(smtp),
+    mailer: createSmtpMailer({ ...smtp, log }),
     log,
     authSecret,
     baseURL,

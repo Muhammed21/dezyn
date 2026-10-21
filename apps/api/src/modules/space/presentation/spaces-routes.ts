@@ -26,6 +26,13 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
   if (failure === "already_member") {
     return alreadyMemberProblem(c);
   }
+  if (failure === "mail_unavailable") {
+    return problemResponse(c, {
+      type: "about:blank",
+      title: "Email d'invitation non envoyé",
+      status: 503,
+    });
+  }
   return planRequiredProblem(c, failure);
 };
 

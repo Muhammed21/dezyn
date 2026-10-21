@@ -12,6 +12,7 @@ import {
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
 import { schema } from "@repo/db";
+import { ok } from "@repo/result";
 
 import { resetDevData, seedDevData } from "./dev-data.ts";
 
@@ -34,7 +35,7 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
       const user = makeDevUser();
       const { projects } = composeModules({
         db,
-        mailer: { send: () => Promise.resolve() },
+        mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
       });
 
@@ -72,7 +73,7 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
     withIdentityApp(async (app, db) => {
       const { projects } = composeModules({
         db,
-        mailer: { send: () => Promise.resolve() },
+        mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
       });
 
@@ -93,7 +94,7 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
       const user = makeDevUser();
       const { projects } = composeModules({
         db,
-        mailer: { send: () => Promise.resolve() },
+        mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
       });
       await seedDevData({
@@ -128,7 +129,7 @@ describe("le vidage de dev supprime les utilisateurs et tout ce qui leur est li�
       const user = makeDevUser();
       const { projects } = composeModules({
         db,
-        mailer: { send: () => Promise.resolve() },
+        mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
       });
       await seedDevData({
@@ -195,7 +196,7 @@ describe("le vidage de dev supprime les utilisateurs et tout ce qui leur est li�
     withIdentityApp(async (app, db, { migratorUrl }) => {
       const { projects } = composeModules({
         db,
-        mailer: { send: () => Promise.resolve() },
+        mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
       });
       await seedDevData({

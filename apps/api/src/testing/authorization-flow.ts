@@ -9,6 +9,7 @@ import type { Clock } from "#platform/clock.ts";
 import type { Mailer } from "#platform/mailer.ts";
 import { migrate } from "@repo/db";
 import { withThrowawayDatabase } from "@repo/db/testing";
+import { ok } from "@repo/result";
 
 export const BASE_URL = "http://127.0.0.1:3000";
 export const RESOURCE = `${BASE_URL}/v1`;
@@ -40,7 +41,7 @@ export const withIdentityApp = (
   {
     baseURL = BASE_URL,
     wrapUserCreated = (created) => created,
-    mailer = { send: () => Promise.resolve() },
+    mailer = { send: async () => ok(undefined) },
     wrapHistoryWriter,
     clock,
   }: {

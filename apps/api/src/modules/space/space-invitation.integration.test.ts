@@ -14,6 +14,7 @@ import {
   tokenOf,
 } from "#testing/space-fixtures.ts";
 import { schema } from "@repo/db";
+import { err } from "@repo/result";
 
 const DAY_MS = 86_400_000;
 const PLAN_REQUIRED = "https://dezyn.app/problems/plan-required";
@@ -205,4 +206,28 @@ describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 00
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ errors: [{ path: "email" }] });
     }));
+});
+
+describe("un email d'invitation qui ne part pas ne laisse pas d'invitation", () => {
+  it("répond 503 et ne garde aucune invitation", () =>
+    withIdentityApp(
+      async (app, db) => {
+        const { accessToken, userId } = await obtainAccessToken(app);
+        const spaceId = await personalSpaceOf(db, userId);
+        await switchToTeam(db, spaceId);
+
+        const response = await invite(app, { accessToken, spaceId });
+        const stored = await db.orm
+          .select({ id: schema.spaceInvitation.id })
+          .from(schema.spaceInvitation);
+
+        expect(response.status).toBe(503);
+        expect(await response.json()).toMatchObject({
+          title: "Email d'invitation non envoyé",
+          status: 503,
+        });
+        expect(stored).toEqual([]);
+      },
+      { mailer: { send: async () => err("mail_unavailable") } },
+    ));
 });
