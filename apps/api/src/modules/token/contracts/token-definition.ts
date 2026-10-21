@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
+import { type Gradient, type GradientRefusal, gradientRefusals } from "../domain/gradient.ts";
 import { pendingTypeOf } from "../domain/pending-type.ts";
 import { type Alias, isReference } from "../domain/reference.ts";
 import { type Shadow, type ShadowRefusal, shadowRefusals } from "../domain/shadow.ts";
@@ -95,6 +96,26 @@ const shadowIssues = (shadow: Shadow): readonly ValueIssue[] =>
     return { path: layer === undefined ? path : [layer, ...path], message };
   });
 
+const gradientIssueOf = (refusal: GradientRefusal): ValueIssue => {
+  switch (refusal) {
+    case "no_stop":
+      return { path: [], message: "Dégradé sans arrêt" };
+    case "position_out_of_range":
+      return { path: ["position"], message: "Position hors de l'intervalle 0 à 1" };
+    default:
+      return {
+        path: ["color", COLOR_ISSUES[refusal].field],
+        message: COLOR_ISSUES[refusal].message,
+      };
+  }
+};
+
+const gradientIssues = (gradient: Gradient): readonly ValueIssue[] =>
+  gradientRefusals(gradient).map(({ stop, refusal }) => {
+    const { path, message } = gradientIssueOf(refusal);
+    return { path: stop === undefined ? path : [stop, ...path], message };
+  });
+
 const sentValues = <Value>({
   $value,
   modes = {},
@@ -128,6 +149,8 @@ const valueIssues = (token: TokenDefinition): readonly ValueIssue[] => {
       return issuesIn(token, typographyIssues);
     case "shadow":
       return issuesIn(token, shadowIssues);
+    case "gradient":
+      return issuesIn(token, gradientIssues);
     case "fontFamily":
       return issuesIn(token, fontFamilyIssues);
     case "fontWeight":
@@ -203,6 +226,13 @@ const oneOrMany = <Item extends z.ZodType>(item: Item) => {
 
 const ShadowRequest = oneOrMany(ShadowLayerRequest);
 
+const GradientRequest = z.array(
+  z.strictObject({
+    color: SrgbColorRequest,
+    position: z.number(),
+  }),
+);
+
 const typed = <Type extends string, Value extends z.ZodType>(
   type: Type,
   value: Value,
@@ -232,6 +262,7 @@ export const TokenDefinitionInput = z
       typed("dimension", DimensionRequest),
       typed("typography", TypographyRequest),
       typed("shadow", ShadowRequest),
+      typed("gradient", GradientRequest),
       typed("fontFamily", FontFamilyRequest),
       typed("fontWeight", FontWeightRequest, FONT_WEIGHT_MESSAGE),
       typed("number", z.number(), NUMBER_MESSAGE),

@@ -9,6 +9,7 @@ const DefinitionOutput = z.looseObject({
     "dimension",
     "typography",
     "shadow",
+    "gradient",
     "fontFamily",
     "fontWeight",
     "number",
