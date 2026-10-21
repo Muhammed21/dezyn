@@ -55,44 +55,55 @@ export const startIdentityApp = async ({
   clock,
 }: IdentityAppOptions = {}): Promise<IdentityApp> => {
   const database = await createThrowawayDatabase();
-  await migrate({ connectionString: database.migratorUrl });
+  try {
+    await migrate({ connectionString: database.migratorUrl });
+  } catch (error) {
+    await database.drop();
+    throw error;
+  }
   const db = createPostgresDatabase({ url: database.appUrl });
-  const { spaces, projects, history, tokens, proposals } = composeModules({
-    db,
-    mailer,
-    webUrl: WEB_URL,
-    wrapHistoryWriter,
-    clock,
-  });
-  const auth = await createIdentityAuth({
-    db,
-    secret: "secret-de-test-de-32-caracteres-au-moins",
-    baseURL,
-    trustedIpHeader: "x-forwarded-for",
-    log: () => undefined,
-    onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
-  });
-  return {
-    app: createApp({
-      db,
-      auth,
-      log: () => undefined,
-      spaces,
-      projects,
-      history,
-      tokens,
-      proposals,
-    }),
-    db,
-    migratorUrl: database.migratorUrl,
-    close: async () => {
-      try {
-        await db.close();
-      } finally {
-        await database.drop();
-      }
-    },
+  const close = async () => {
+    try {
+      await db.close();
+    } finally {
+      await database.drop();
+    }
   };
+  try {
+    const { spaces, projects, history, tokens, proposals } = composeModules({
+      db,
+      mailer,
+      webUrl: WEB_URL,
+      wrapHistoryWriter,
+      clock,
+    });
+    const auth = await createIdentityAuth({
+      db,
+      secret: "secret-de-test-de-32-caracteres-au-moins",
+      baseURL,
+      trustedIpHeader: "x-forwarded-for",
+      log: () => undefined,
+      onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
+    });
+    return {
+      app: createApp({
+        db,
+        auth,
+        log: () => undefined,
+        spaces,
+        projects,
+        history,
+        tokens,
+        proposals,
+      }),
+      db,
+      migratorUrl: database.migratorUrl,
+      close,
+    };
+  } catch (error) {
+    await close();
+    throw error;
+  }
 };
 
 export const withIdentityApp = async (
