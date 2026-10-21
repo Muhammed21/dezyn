@@ -8,6 +8,13 @@ const FIELD_TYPES: Readonly<Record<string, Readonly<Record<string, string>>>> = 
     lineHeight: "number",
     letterSpacing: "dimension",
   },
+  shadow: {
+    color: "color",
+    offsetX: "dimension",
+    offsetY: "dimension",
+    blur: "dimension",
+    spread: "dimension",
+  },
 };
 
 export type FieldAlias = {
@@ -15,6 +22,19 @@ export type FieldAlias = {
   readonly name: string;
   readonly $type: string;
 };
+
+const aliasesOfFields = (
+  fieldTypes: Readonly<Record<string, string>>,
+  value: object,
+  prefix: string,
+): readonly FieldAlias[] =>
+  Object.entries(value).flatMap(([field, fieldValue]) => {
+    const name = aliasName(fieldValue);
+    const fieldType = fieldTypes[field];
+    return name === undefined || fieldType === undefined
+      ? []
+      : [{ field: `${prefix}${field}`, name, $type: fieldType }];
+  });
 
 export const fieldAliases = ({
   $type,
@@ -27,11 +47,14 @@ export const fieldAliases = ({
   if (fieldTypes === undefined || typeof value !== "object" || value === null) {
     return [];
   }
-  return Object.entries(value).flatMap(([field, fieldValue]) => {
-    const name = aliasName(fieldValue);
-    const fieldType = fieldTypes[field];
-    return name === undefined || fieldType === undefined ? [] : [{ field, name, $type: fieldType }];
-  });
+  if (Array.isArray(value)) {
+    return value.flatMap((layer: unknown, index) =>
+      typeof layer === "object" && layer !== null
+        ? aliasesOfFields(fieldTypes, layer, `${index}.`)
+        : [],
+    );
+  }
+  return aliasesOfFields(fieldTypes, value, "");
 };
 
 export const referencedNames = ({

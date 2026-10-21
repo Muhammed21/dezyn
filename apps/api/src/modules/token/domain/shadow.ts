@@ -1,12 +1,13 @@
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "./color.ts";
 import type { Dimension } from "./dimension.ts";
+import { type Alias, isReference } from "./reference.ts";
 
 export type ShadowLayer = {
-  readonly color: SrgbColor;
-  readonly offsetX: Dimension;
-  readonly offsetY: Dimension;
-  readonly blur: Dimension;
-  readonly spread: Dimension;
+  readonly color: SrgbColor | Alias;
+  readonly offsetX: Dimension | Alias;
+  readonly offsetY: Dimension | Alias;
+  readonly blur: Dimension | Alias;
+  readonly spread: Dimension | Alias;
   readonly inset?: boolean;
 };
 
@@ -18,10 +19,11 @@ export type ShadowLayerRefusal = { readonly layer?: number; readonly refusal: Sh
 
 const isLayered = (shadow: Shadow): shadow is readonly ShadowLayer[] => Array.isArray(shadow);
 
-const layerRefusals = (layer: ShadowLayer): readonly ShadowRefusal[] => {
-  const color = colorRefusal(layer.color);
-  const colorRefusals: readonly ShadowRefusal[] = color === undefined ? [] : [color];
-  const blurRefusals: readonly ShadowRefusal[] = layer.blur.value < 0 ? ["negative_blur"] : [];
+const layerRefusals = ({ color, blur }: ShadowLayer): readonly ShadowRefusal[] => {
+  const colorRefused = isReference(color) ? undefined : colorRefusal(color);
+  const colorRefusals: readonly ShadowRefusal[] = colorRefused === undefined ? [] : [colorRefused];
+  const blurRefusals: readonly ShadowRefusal[] =
+    !isReference(blur) && blur.value < 0 ? ["negative_blur"] : [];
   return [...colorRefusals, ...blurRefusals];
 };
 

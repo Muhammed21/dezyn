@@ -181,11 +181,11 @@ const TypographyRequest = z.strictObject({
 });
 
 const ShadowLayerRequest = z.strictObject({
-  color: SrgbColorRequest,
-  offsetX: DimensionRequest,
-  offsetY: DimensionRequest,
-  blur: DimensionRequest,
-  spread: DimensionRequest,
+  color: aliasOr(SrgbColorRequest, ALIAS_FORMAT),
+  offsetX: aliasOr(DimensionRequest, ALIAS_FORMAT),
+  offsetY: aliasOr(DimensionRequest, ALIAS_FORMAT),
+  blur: aliasOr(DimensionRequest, ALIAS_FORMAT),
+  spread: aliasOr(DimensionRequest, ALIAS_FORMAT),
   inset: z.boolean().optional(),
 });
 

@@ -293,3 +293,125 @@ describe("une typographie qui contient une référence de champ n'est pas un dou
       expect(tokens.filter((token: object) => "duplicates" in token)).toEqual([]);
     }));
 });
+
+const SHADOW_BLACK = { colorSpace: "srgb", components: [0, 0, 0], alpha: 0.25 };
+
+const SHADOW_LAYER = {
+  color: SHADOW_BLACK,
+  offsetX: { value: 0, unit: "px" },
+  offsetY: { value: 2, unit: "px" },
+  blur: { value: 4, unit: "px" },
+  spread: { value: 0, unit: "px" },
+};
+
+const makeShadowToken = ($value: unknown) => ({ name: "ombre.carte", $type: "shadow", $value });
+
+const seedShadowBase = async (app: App, db: PostgresDatabase) => {
+  const seeded = await seedBaseTokens(app, db);
+  await addToken(app, {
+    ...seeded,
+    token: { name: "couleur.ombre", $type: "color", $value: SHADOW_BLACK },
+  });
+  return seeded;
+};
+
+describe("un champ d'une couche d'ombre référence un token validé du type du champ (ADR 0029 §1)", () => {
+  it.each([
+    ["simple", { ...SHADOW_LAYER, color: "{couleur.ombre}", offsetY: "{taille.corps}" }],
+    [
+      "multicouche",
+      [SHADOW_LAYER, { ...SHADOW_LAYER, color: "{couleur.ombre}", blur: "{taille.corps}" }],
+    ],
+  ])("une ombre %s se relit avec ses alias de champ tels qu'écrits", (_case, $value) =>
+    withIdentityApp(async (app, db) => {
+      const seeded = await seedShadowBase(app, db);
+      const token = makeShadowToken($value);
+
+      const response = await addToken(app, { ...seeded, token });
+
+      expect(response.status).toBe(201);
+      expect(await tokensOf(app, seeded)).toContainEqual(
+        expect.objectContaining({ ...token, status: "validated" }),
+      );
+    }),
+  );
+
+  it.each(["offsetX", "offsetY", "blur", "spread"])(
+    "le champ %s accepte une référence vers une dimension validée",
+    (field) =>
+      withIdentityApp(async (app, db) => {
+        const seeded = await seedShadowBase(app, db);
+
+        const response = await addToken(app, {
+          ...seeded,
+          token: makeShadowToken({ ...SHADOW_LAYER, [field]: "{taille.corps}" }),
+        });
+
+        expect(response.status).toBe(201);
+      }),
+  );
+
+  it.each([
+    [
+      "inconnu, sur une ombre simple",
+      { ...SHADOW_LAYER, color: "{couleur.absente}" },
+      "$value.color",
+      "Référence vers un token inexistant",
+    ],
+    [
+      "d'un autre type, sur la deuxième couche",
+      [SHADOW_LAYER, { ...SHADOW_LAYER, color: "{taille.corps}" }],
+      "$value.1.color",
+      "Référence vers un token d'un autre type",
+    ],
+    [
+      "non validé, sur la première couche",
+      [{ ...SHADOW_LAYER, spread: "{espacement.propose}" }, SHADOW_LAYER],
+      "$value.0.spread",
+      "Référence vers un token non validé",
+    ],
+  ])(
+    "une référence de champ vers un token %s répond 400 en nommant la couche et le champ",
+    (_case, $value, path, message) =>
+      withIdentityApp(async (app, db) => {
+        const seeded = await seedShadowBase(app, db);
+        await seedProposedToken(db, { projectId: seeded.projectId, name: "espacement.propose" });
+
+        const response = await addToken(app, { ...seeded, token: makeShadowToken($value) });
+
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({ errors: [{ path, message }] });
+      }),
+  );
+
+  it("une ombre dont un champ référence un token n'est pas un doublon", () =>
+    withIdentityApp(async (app, db) => {
+      const seeded = await seedShadowBase(app, db);
+      const $value = [SHADOW_LAYER, { ...SHADOW_LAYER, color: "{couleur.ombre}" }];
+      await addToken(app, { ...seeded, token: makeShadowToken($value) });
+      await addToken(app, {
+        ...seeded,
+        token: { ...makeShadowToken($value), name: "ombre.copie" },
+      });
+
+      const tokens = await tokensOf(app, seeded);
+
+      expect(tokens.map(({ name }: { name: string }) => name)).toEqual(
+        expect.arrayContaining(["ombre.carte", "ombre.copie"]),
+      );
+      expect(tokens.filter((token: object) => "duplicates" in token)).toEqual([]);
+    }));
+
+  it("un token référencé par un champ d'ombre ne se supprime pas", () =>
+    withIdentityApp(async (app, db, { migratorUrl }) => {
+      const seeded = await seedShadowBase(app, db);
+      await addToken(app, {
+        ...seeded,
+        token: makeShadowToken([SHADOW_LAYER, { ...SHADOW_LAYER, color: "{couleur.ombre}" }]),
+      });
+
+      await expect(deleteTokenAsMigrator({ migratorUrl, name: "couleur.ombre" })).rejects.toThrow(
+        /token_value_reference_referenced_token_id_token_id_fk/,
+      );
+    }));
+});

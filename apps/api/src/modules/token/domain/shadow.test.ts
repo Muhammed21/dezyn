@@ -25,6 +25,12 @@ describe("une ombre a une ou plusieurs couches valides (ADR 0010 §1)", () => {
     expect(shadowRefusals([])).toEqual([{ refusal: "no_layer" }]);
   });
 
+  it("ne contrôle pas une couleur ni un flou qui référencent un token", () => {
+    expect(shadowRefusals(makeLayer({ color: "{couleur.ombre}", blur: "{flou.carte}" }))).toEqual(
+      [],
+    );
+  });
+
   it("accepte un flou nul", () => {
     expect(shadowRefusals(makeLayer({ blur: { value: 0, unit: "px" } }))).toEqual([]);
   });
