@@ -24,6 +24,8 @@ type MalformedStates = { readonly code: "malformed_states"; readonly issues: rea
 
 type DeclarationFailure = RecordFailure | MalformedStates | InvalidDeclaration;
 
+const MAX_STATES_PER_CALL = 500;
+
 const StatesInput = z
   .array(
     z.object({
@@ -33,7 +35,8 @@ const StatesInput = z
       figmaValue: z.unknown().optional(),
     }),
   )
-  .min(1);
+  .min(1)
+  .max(MAX_STATES_PER_CALL, `${MAX_STATES_PER_CALL} états au plus par appel`);
 
 const REFUSAL_ISSUES: Readonly<Record<FigmaRefusal, string>> = {
   unknown_token: "name : Token inconnu du projet",

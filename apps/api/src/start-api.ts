@@ -9,6 +9,10 @@ import type { Mailer } from "#platform/mailer.ts";
 import { createSmtpMailer } from "#platform/smtp-mailer.ts";
 import { assertSchemaVersion, type Migration } from "@repo/db";
 
+const REQUEST_TIMEOUT_MS = 30_000;
+const HEADERS_TIMEOUT_MS = 10_000;
+const CONNECTIONS_CHECKING_INTERVAL_MS = 1_000;
+
 export type RunningApi = {
   readonly url: string;
   readonly close: () => Promise<void>;
@@ -82,14 +86,25 @@ export const startApi = async ({
   });
 
   return new Promise((resolve) => {
-    const server = serve({ fetch: app.fetch, port }, (info) => {
-      resolve({
-        url: `http://127.0.0.1:${info.port}`,
-        close: async () => {
-          await closeServer(server);
-          await db.close();
+    const server = serve(
+      {
+        fetch: app.fetch,
+        port,
+        serverOptions: {
+          requestTimeout: REQUEST_TIMEOUT_MS,
+          headersTimeout: HEADERS_TIMEOUT_MS,
+          connectionsCheckingInterval: CONNECTIONS_CHECKING_INTERVAL_MS,
         },
-      });
-    });
+      },
+      (info) => {
+        resolve({
+          url: `http://127.0.0.1:${info.port}`,
+          close: async () => {
+            await closeServer(server);
+            await db.close();
+          },
+        });
+      },
+    );
   });
 };

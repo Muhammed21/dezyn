@@ -20,7 +20,12 @@ type InvalidTokens = { readonly code: "invalid_tokens"; readonly issues: readonl
 
 type WriteFailure = RecordFailure | InvalidTokens | UncheckedTokens;
 
-const TokensInput = z.array(TokenDefinitionInput).min(1);
+const MAX_TOKENS_PER_CALL = 500;
+
+const TokensInput = z
+  .array(TokenDefinitionInput)
+  .min(1)
+  .max(MAX_TOKENS_PER_CALL, `${MAX_TOKENS_PER_CALL} tokens au plus par appel`);
 
 const pathOf = (path: readonly PropertyKey[]): string =>
   path.reduce<string>((joined, key) => {

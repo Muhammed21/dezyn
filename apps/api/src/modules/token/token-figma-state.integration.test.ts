@@ -265,6 +265,54 @@ describe("une déclaration invalide est refusée en entier, avec la liste des en
   );
 });
 
+describe("un appel declare_figma_states porte 500 états au plus", () => {
+  it("501 états refusent l'appel, sans rien changer", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedComparedProject(app, db);
+
+      const result = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: Array.from({ length: 501 }, () => ({
+          name: "couleur.fond",
+          state: "synced",
+        })),
+      });
+      const { body } = await readTokensOverHttp(app, {
+        accessToken,
+        projectId,
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [{ type: "text", text: "states : 500 états au plus par appel" }],
+      });
+      expect(body.tokens).toEqual([
+        expect.not.objectContaining({ figma: expect.anything() }),
+        expect.not.objectContaining({ figma: expect.anything() }),
+        expect.not.objectContaining({ figma: expect.anything() }),
+      ]);
+    }));
+
+  it("500 états passent la limite et ne butent que sur les règles de la déclaration", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedComparedProject(app, db);
+
+      const result = await declareFigmaStates(app, {
+        token: accessToken,
+        projectId,
+        states: Array.from({ length: 500 }, () => ({
+          name: "couleur.fond",
+          state: "synced",
+        })),
+      });
+
+      expect(result.content[0].text.split("\n")[0]).toBe(
+        "states[1].name : Token déjà nommé dans cette déclaration",
+      );
+    }));
+});
+
 describe("seuls les membres du projet déclarent et lisent l'état Figma (ADR 0017)", () => {
   it("un éditeur déclare l'état Figma", () =>
     withIdentityApp(async (app, db) => {

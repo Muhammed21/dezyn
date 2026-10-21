@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import type { HistoryUseCases } from "#modules/history/application/history-use-cases.ts";
 import { historyRoutes } from "#modules/history/presentation/history-routes.ts";
@@ -32,6 +33,8 @@ import { mcpEndpoint } from "#platform/mcp.ts";
 import { clientProblem, INTERNAL_ERROR, problemResponse } from "#platform/problem.ts";
 import { requestContext } from "#platform/request-context.ts";
 
+const MAX_BODY_BYTES = 1024 * 1024;
+
 export const createApp = ({
   db,
   auth,
@@ -54,6 +57,17 @@ export const createApp = ({
   const app = new Hono<AppEnv>();
 
   app.use(requestContext(log));
+  app.use(
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: (c) =>
+        problemResponse(c, {
+          type: "about:blank",
+          title: "Corps de requête trop volumineux",
+          status: 413,
+        }),
+    }),
+  );
 
   app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
   app.route("/", authPages({ auth, baseURL: auth.baseURL }));

@@ -221,6 +221,41 @@ describe("write_tokens entre dans l'historique et refuse ce qui ne lui revient p
     }));
 });
 
+const colorTokens = (count: number) =>
+  Array.from({ length: count }, (_, index) => makeColorToken({ name: `couleur.${index}` }));
+
+describe("un appel write_tokens porte 500 tokens au plus", () => {
+  it("500 tokens deviennent 500 propositions", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: colorTokens(500),
+      });
+
+      expect(result.structuredContent.proposals).toHaveLength(500);
+    }));
+
+  it("501 tokens refusent l'appel, sans lot ni proposition", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await writeTokens(app, {
+        token: accessToken,
+        projectId,
+        tokens: colorTokens(501),
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+        content: [{ type: "text", text: "tokens : 500 tokens au plus par appel" }],
+      });
+      expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
+    }));
+});
+
 describe("write_tokens s'annonce à l'IA", () => {
   it("tools/list annonce write_tokens, son entrée et sa sortie", () =>
     withIdentityApp(async (app) => {
