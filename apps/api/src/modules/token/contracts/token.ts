@@ -17,6 +17,7 @@ const DefinitionOutput = z.looseObject({
   $value: z.unknown().optional(),
   modes: z.record(z.string(), z.unknown()).optional(),
   $description: z.string().optional(),
+  $extensions: z.record(z.string(), z.unknown()).optional(),
 });
 
 const FigmaStateEnum = openEnum(["synced", "missing_in_figma", "duplicate_in_figma", "diverged"]);

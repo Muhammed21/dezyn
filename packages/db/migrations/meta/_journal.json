@@ -85,6 +85,13 @@
       "when": 1792586835312,
       "tag": "0011_proposal_position",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792600894639,
+      "tag": "0012_token_extensions",
+      "breakpoints": true
     }
   ]
 }

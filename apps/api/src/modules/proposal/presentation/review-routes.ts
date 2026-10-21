@@ -12,18 +12,26 @@ import type { BatchValidationFailure, ReviewFailure } from "../application/revie
 import type { ValidatedDefinition } from "../application/write-tokens.ts";
 import type { Decision, Proposal } from "../domain/proposal.ts";
 
-const proposedOf = ({ token: { $type, $value, modes, $description } }: Proposal) => ({
+const proposedOf = ({ token: { $type, $value, modes, $description, $extensions } }: Proposal) => ({
   $type,
   $value,
   modes,
   $description,
+  $extensions,
 });
 
-const validatedOutputOf = ({ $type, $value, modes, $description }: ValidatedDefinition) => ({
+const validatedOutputOf = ({
   $type,
   $value,
   modes,
   $description,
+  $extensions,
+}: ValidatedDefinition) => ({
+  $type,
+  $value,
+  modes,
+  $description,
+  $extensions,
 });
 
 const proposalOutputOf = (

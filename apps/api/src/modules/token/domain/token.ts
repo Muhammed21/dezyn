@@ -1,5 +1,6 @@
 import type { SrgbColor } from "./color.ts";
 import type { Dimension } from "./dimension.ts";
+import type { Extensions } from "./extensions.ts";
 import type { Gradient } from "./gradient.ts";
 import type { Alias } from "./reference.ts";
 import type { Shadow } from "./shadow.ts";
@@ -11,6 +12,7 @@ type Typed<Type extends string, Value> = {
   readonly $value?: Value | Alias;
   readonly modes?: Readonly<Record<string, Value | Alias>>;
   readonly $description?: string;
+  readonly $extensions?: Extensions;
 };
 
 export type TokenDefinition =

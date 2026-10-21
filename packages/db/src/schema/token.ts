@@ -50,6 +50,7 @@ export const token = pgTable(
     name: text("name").notNull(),
     type: text("type").notNull(),
     description: text("description"),
+    extensions: jsonb("extensions"),
     status: text("status").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },

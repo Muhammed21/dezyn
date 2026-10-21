@@ -18,6 +18,7 @@ const tokenOutputOf = ({
   $value,
   modes,
   $description,
+  $extensions,
   status,
   replaced,
 }: AddedToken) => ({
@@ -27,6 +28,7 @@ const tokenOutputOf = ({
   $value,
   modes,
   $description,
+  $extensions,
   status,
   replaced,
 });

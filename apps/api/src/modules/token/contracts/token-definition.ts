@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
+import { type ExtensionsRefusal, extensionsRefusals } from "../domain/extensions.ts";
 import { type Gradient, type GradientRefusal, gradientRefusals } from "../domain/gradient.ts";
 import { pendingTypeOf } from "../domain/pending-type.ts";
 import { type Alias, isReference } from "../domain/reference.ts";
@@ -115,6 +116,17 @@ const gradientIssues = (gradient: Gradient): readonly ValueIssue[] =>
     const { path, message } = gradientIssueOf(refusal);
     return { path: stop === undefined ? path : [stop, ...path], message };
   });
+
+const EXTENSION_KEY_MESSAGE =
+  "Clé d'extension attendue en notation de domaine inversé, par exemple com.figma";
+
+const extensionIssueOf = (refusal: ExtensionsRefusal): ValueIssue =>
+  refusal.refusal === "malformed_key"
+    ? { path: ["$extensions", refusal.key], message: EXTENSION_KEY_MESSAGE }
+    : { path: ["$extensions"], message: "Extensions limitées à 16 Ko sérialisés" };
+
+const extensionIssues = ({ $extensions }: TokenDefinition): readonly ValueIssue[] =>
+  $extensions === undefined ? [] : extensionsRefusals($extensions).map(extensionIssueOf);
 
 const sentValues = <Value>({
   $value,
@@ -244,6 +256,7 @@ const typed = <Type extends string, Value extends z.ZodType>(
     $value: aliasOr(value, unbracedMessage).optional(),
     modes: z.record(z.string(), aliasOr(value, unbracedMessage)).optional(),
     $description: z.string().optional(),
+    $extensions: z.record(z.string(), z.unknown()).optional(),
   });
 
 const typeOf = (input: unknown): unknown =>
@@ -274,7 +287,7 @@ export const TokenDefinitionInput = z
     if (nameRefusal !== undefined) {
       context.addIssue({ code: "custom", path: ["name"], message: NAME_MESSAGES[nameRefusal] });
     }
-    valueIssues(token).forEach(({ path, message }) => {
+    [...valueIssues(token), ...extensionIssues(token)].forEach(({ path, message }) => {
       context.addIssue({ code: "custom", path: [...path], message });
     });
   });

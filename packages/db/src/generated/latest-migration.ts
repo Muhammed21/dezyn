@@ -1,1 +1,1 @@
-export const LATEST_MIGRATION = { tag: "0011_proposal_position", when: 1792586835312 };
+export const LATEST_MIGRATION = { tag: "0012_token_extensions", when: 1792600894639 };
