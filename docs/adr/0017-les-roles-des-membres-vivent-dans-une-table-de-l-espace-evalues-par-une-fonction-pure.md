@@ -1,6 +1,6 @@
 # 0017 — Les rôles des membres vivent dans une table de l'espace et sont évalués par une fonction pure
 
-- Statut : Accepté
+- Statut : Accepté — §2 (raisons de fermeture) complété par [0031](0031-un-membre-retire-par-un-proprietaire-est-ferme-avec-la-raison-removed.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 

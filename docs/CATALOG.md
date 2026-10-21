@@ -49,6 +49,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0028 — Types de token `gradient`, `fontFamily`, `fontWeight` et `number`](adr/0028-types-de-token-gradient-fontfamily-fontweight-et-number.md) — _explanation · Accepté_ — Quels types de token dezyn ajoute-t-il maintenant, et lesquels attendent ?
 - [0029 — Un champ d'une valeur composée peut référencer un token](adr/0029-un-champ-d-une-valeur-composee-peut-referencer-un-token.md) — _explanation · Accepté_ — Un champ d'une valeur composée peut-il référencer un token, et qu'est-ce que cela change aux règles des références, aux doublons et au stockage ?
 - [0030 — dezyn conserve les extensions d'un token sans les interpréter](adr/0030-dezyn-conserve-les-extensions-d-un-token-sans-les-interpreter.md) — _explanation · Accepté_ — Dezyn accepte-t-il `$extensions`, et ces extensions comptent-elles pour l'écriture identique et pour le doublon ?
+- [0031 — Un membre retiré par un propriétaire est fermé avec la raison `removed`, et l'historique le dit parti](adr/0031-un-membre-retire-par-un-proprietaire-est-ferme-avec-la-raison-removed.md) — _explanation · Accepté_ — Avec quelle raison se ferme la ligne d'un membre retiré par un propriétaire, et que dit l'historique de ce membre ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée
