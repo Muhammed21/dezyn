@@ -228,8 +228,8 @@ const ShadowRequest = oneOrMany(ShadowLayerRequest);
 
 const GradientRequest = z.array(
   z.strictObject({
-    color: SrgbColorRequest,
-    position: z.number(),
+    color: aliasOr(SrgbColorRequest, ALIAS_FORMAT),
+    position: aliasOr(z.number(), NUMBER_MESSAGE),
   }),
 );
 

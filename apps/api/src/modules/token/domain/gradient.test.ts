@@ -16,6 +16,12 @@ describe("un dégradé a au moins un arrêt, chacun placé de 0 à 1 (ADR 0028 �
     expect(gradientRefusals([makeStop({ position: 0 }), makeStop({ position: 1 })])).toEqual([]);
   });
 
+  it("ne juge pas un champ d'arrêt qui référence un token", () => {
+    expect(
+      gradientRefusals([makeStop({ color: "{couleur.marque}", position: "{nombre.debut}" })]),
+    ).toEqual([]);
+  });
+
   it("refuse un dégradé sans arrêt", () => {
     expect(gradientRefusals([])).toEqual([{ refusal: "no_stop" }]);
   });

@@ -15,6 +15,10 @@ const FIELD_TYPES: Readonly<Record<string, Readonly<Record<string, string>>>> = 
     blur: "dimension",
     spread: "dimension",
   },
+  gradient: {
+    color: "color",
+    position: "number",
+  },
 };
 
 export type FieldAlias = {
