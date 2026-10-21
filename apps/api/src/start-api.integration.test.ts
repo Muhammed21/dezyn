@@ -1,3 +1,5 @@
+import { connect } from "node:net";
+
 import { describe, expect, it } from "vitest";
 
 import { LATEST_MIGRATION, migrate } from "@repo/db";
@@ -64,4 +66,87 @@ describe("startApi", () => {
 
       await expect(fetch(new URL("/health", api.url))).rejects.toThrow("fetch failed");
     }));
+
+  it(
+    "ferme en 408 une connexion dont les en-têtes n'arrivent pas en entier en 10 s",
+    () =>
+      withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
+        await migrate({ connectionString: migratorUrl });
+        const api = await startApi({
+          databaseUrl: appUrl,
+          migration: LATEST_MIGRATION,
+          port: 0,
+          log: () => undefined,
+          ...CONFIG,
+        });
+        try {
+          const { port } = new URL(api.url);
+          const startedAt = Date.now();
+
+          const reply = await new Promise<string>((done, fail) => {
+            const socket = connect({ host: "127.0.0.1", port: Number(port) }, () => {
+              socket.write("GET /health HTTP/1.1\r\nhost: 127.0.0.1\r\n");
+            });
+            socket.setEncoding("utf8");
+            socket.once("data", (data: string) => {
+              socket.destroy();
+              done(data);
+            });
+            socket.once("error", fail);
+          });
+
+          expect(reply).toMatch(/^HTTP\/1\.1 408 /);
+          expect(Date.now() - startedAt).toBeGreaterThanOrEqual(10_000);
+        } finally {
+          await api.close();
+        }
+      }),
+    20_000,
+  );
+
+  it(
+    "ferme en 408 une requête dont le corps n'arrive pas en entier en 30 s",
+    () =>
+      withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
+        await migrate({ connectionString: migratorUrl });
+        const api = await startApi({
+          databaseUrl: appUrl,
+          migration: LATEST_MIGRATION,
+          port: 0,
+          log: () => undefined,
+          ...CONFIG,
+        });
+        try {
+          const { port } = new URL(api.url);
+          const startedAt = Date.now();
+
+          const reply = await new Promise<string>((done, fail) => {
+            const socket = connect({ host: "127.0.0.1", port: Number(port) }, () => {
+              socket.write(
+                [
+                  "POST /auth/sign-in/email HTTP/1.1",
+                  "host: 127.0.0.1",
+                  "content-type: application/json",
+                  "content-length: 10",
+                  "",
+                  "{",
+                ].join("\r\n"),
+              );
+            });
+            socket.setEncoding("utf8");
+            socket.once("data", (data: string) => {
+              socket.destroy();
+              done(data);
+            });
+            socket.once("error", fail);
+          });
+
+          expect(reply).toMatch(/^HTTP\/1\.1 408 /);
+          expect(Date.now() - startedAt).toBeGreaterThanOrEqual(30_000);
+        } finally {
+          await api.close();
+        }
+      }),
+    40_000,
+  );
 });
