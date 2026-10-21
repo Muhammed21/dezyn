@@ -74,17 +74,22 @@ describe("un signal d'arrêt arrête l'API proprement", () => {
     ]);
   });
 
-  it("un second signal pendant l'arrêt ne ferme pas l'API deux fois", async () => {
+  it("un second signal pendant un arrêt bloqué force la sortie avec le code 1", async () => {
     const { host, emit, exits } = makeHost();
-    const { api, calls } = makeApi();
-    superviseProcess({ host, api, log: makeLog().log });
+    const { api, calls } = makeApi(() => makeGate().opened);
+    const { log, records } = makeLog();
+    superviseProcess({ host, api, log });
 
     emit("SIGTERM");
     emit("SIGINT");
     await settle();
 
     expect(calls.close).toBe(1);
-    expect(exits).toEqual([0]);
+    expect(exits).toEqual([1]);
+    expect(records).toEqual([
+      { level: "info", msg: "shutting down", signal: "SIGTERM" },
+      { level: "warn", msg: "forced exit", signal: "SIGINT" },
+    ]);
   });
 
   it("un arrêt qui échoue est journalisé et quitte avec le code 1", async () => {

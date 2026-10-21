@@ -24,6 +24,8 @@ export const superviseProcess = ({
   const state = { stopping: false };
   const stop = async (signal: string) => {
     if (state.stopping) {
+      log({ level: "warn", msg: "forced exit", signal });
+      host.exit(1);
       return;
     }
     state.stopping = true;
