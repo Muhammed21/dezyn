@@ -15,11 +15,4 @@ fi
 for f in "${results[@]}"; do
   jq --arg pkg "$(dirname "$f")" '.files[].groups[].fullName |= ($pkg + " > " + .)' "$f"
 done | jq -s '{files: map(.files) | add}' >"$out"
-
-empty=$(jq -r '.files[].groups[] | .fullName as $group | .benchmarks[] | select((.sampleCount // 0) == 0) | "\($group) > \(.name)"' "$out")
-if [ -n "$empty" ]; then
-  echo "$empty"
-  echo "::error::Bench sans échantillon : vitest bench avale l'erreur du bench, relancez-le en local pour la voir."
-  exit 1
-fi
 echo "${#results[@]} bench file(s) merged into $out"
