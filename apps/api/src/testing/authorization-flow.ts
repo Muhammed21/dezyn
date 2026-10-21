@@ -8,7 +8,7 @@ import { createIdentityAuth } from "#modules/identity/infrastructure/better-auth
 import type { Clock } from "#platform/clock.ts";
 import type { Mailer } from "#platform/mailer.ts";
 import { migrate } from "@repo/db";
-import { createThrowawayDatabase } from "@repo/db/testing";
+import { createThrowawayDatabase, type ThrowawayDatabase } from "@repo/db/testing";
 import { ok } from "@repo/result";
 
 export const BASE_URL = "http://127.0.0.1:3000";
@@ -38,6 +38,7 @@ type IdentityAppOptions = {
   readonly mailer?: Mailer;
   readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
   readonly clock?: Clock;
+  readonly createDatabase?: () => Promise<ThrowawayDatabase>;
 };
 
 export type IdentityApp = {
@@ -53,8 +54,9 @@ export const startIdentityApp = async ({
   mailer = { send: async () => ok(undefined) },
   wrapHistoryWriter,
   clock,
+  createDatabase = createThrowawayDatabase,
 }: IdentityAppOptions = {}): Promise<IdentityApp> => {
-  const database = await createThrowawayDatabase();
+  const database = await createDatabase();
   try {
     await migrate({ connectionString: database.migratorUrl });
   } catch (error) {
