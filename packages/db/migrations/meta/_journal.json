@@ -78,6 +78,13 @@
       "when": 1792496935094,
       "tag": "0010_token_value_reference",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792586835312,
+      "tag": "0011_proposal_position",
+      "breakpoints": true
     }
   ]
 }
