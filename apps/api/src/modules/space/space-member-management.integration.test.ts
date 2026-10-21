@@ -46,6 +46,12 @@ const removeMember = (
     headers: { authorization: `Bearer ${accessToken}` },
   });
 
+const leave = (app: App, { accessToken, spaceId }: { accessToken: string; spaceId: string }) =>
+  app.request(`${BASE_URL}/v1/spaces/${spaceId}/members/me`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+
 const readSpace = (app: App, { accessToken, spaceId }: { accessToken: string; spaceId: string }) =>
   app.request(`${BASE_URL}/v1/spaces/${spaceId}`, {
     headers: { authorization: `Bearer ${accessToken}` },
@@ -276,6 +282,58 @@ describe("un propriétaire change le rôle d'un membre (ADR 0011 §5, ADR 0017 �
           responses.map(({ status }) => status).toSorted((left, right) => left - right),
         ).toEqual([200, 403]);
         expect(await openOwnersOf(db, spaceId)).toHaveLength(1);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+});
+
+describe("un départ et un changement de rôle simultanés s'excluent (ADR 0017 §4)", () => {
+  it("un propriétaire part pendant que l'autre se rétrograde : il reste un propriétaire", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, grace, spaceId } = await seedSpaceWithInvitedEditor(app, db, outbox);
+        await promoteToOwner(db, { spaceId, userId: grace.userId });
+
+        await Promise.all([
+          leave(app, { accessToken: grace.accessToken, spaceId }),
+          changeRole(app, {
+            accessToken: ada.accessToken,
+            spaceId,
+            memberId: ada.userId,
+            role: "editor",
+          }),
+        ]);
+
+        expect(await openOwnersOf(db, spaceId)).toHaveLength(1);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("un propriétaire rétrograde un membre qui part au même moment : le membre parti ne retrouve pas de ligne ouverte", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, grace, spaceId } = await seedSpaceWithInvitedEditor(app, db, outbox);
+        await promoteToOwner(db, { spaceId, userId: grace.userId });
+
+        await Promise.all([
+          leave(app, { accessToken: grace.accessToken, spaceId }),
+          changeRole(app, {
+            accessToken: ada.accessToken,
+            spaceId,
+            memberId: grace.userId,
+            role: "editor",
+          }),
+        ]);
+
+        expect(
+          (await membershipsOf(db, { spaceId, userId: grace.userId })).filter(
+            ({ closedAt }) => closedAt === null,
+          ),
+        ).toEqual([]);
       },
       { mailer: outbox.mailer },
     );
