@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
+import { planRequired } from "#modules/space/contracts/plan.ts";
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
 import { problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
@@ -42,7 +43,11 @@ export const projectsRoutes = ({ createProject, listProjects }: ProjectUseCases)
       if (created.ok) {
         return c.json(created.value, 201);
       }
-      return created.error === "not_found"
-        ? c.notFound()
-        : problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+      if (created.error === "not_found") {
+        return c.notFound();
+      }
+      if (created.error === "forbidden") {
+        return problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+      }
+      return problemResponse(c, planRequired(created.error));
     });
