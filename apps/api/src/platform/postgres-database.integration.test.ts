@@ -70,9 +70,7 @@ describe("une connexion bloquée se libère seule", () => {
     await db.orm.execute(sql`SELECT pg_terminate_backend(${backend?.pid})`);
     await wait(200);
 
-    expect(restarted).toContainEqual(
-      expect.objectContaining({ level: "error", msg: "postgres connection lost" }),
-    );
+    expect(restarted.filter(({ msg }) => msg === "postgres connection lost")).toHaveLength(1);
     await idle.close();
   });
 });

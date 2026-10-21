@@ -32,7 +32,7 @@ export const createPostgresDatabase = ({
   });
   const connectionLost = (error: Error) =>
     log({ level: "error", msg: "postgres connection lost", ...errorDetails(error) });
-  pool.on("error", connectionLost);
+  pool.on("error", () => undefined);
   pool.on("connect", (client) => client.on("error", connectionLost));
 
   return {
