@@ -37,3 +37,6 @@ yarn-error.log*
 .DS_Store
 *.pem
 .idea/
+
+# vitest bench --outputJson
+bench-results.json
