@@ -43,7 +43,11 @@ export const superviseProcess = ({
     host.exit(1);
   };
 
-  SIGNALS.forEach((signal) => host.on(signal, () => stop(signal)));
+  SIGNALS.forEach((signal) =>
+    host.on(signal, () => {
+      void stop(signal);
+    }),
+  );
   host.on("unhandledRejection", crash("unhandled rejection"));
   host.on("uncaughtException", crash("uncaught exception"));
 };
