@@ -8,7 +8,7 @@ Plateforme centrale de design pensée pour l'IA : la source de vérité du desig
 
 **dezyn** :
 La plateforme elle-même, source de vérité du design de ses projets. « La plateforme » est accepté comme synonyme.
-_À éviter_ : Momo (désigne la personne), outil Figma → code, pont
+_À éviter_ : Muhammed (désigne la personne), outil Figma → code, pont
 
 ### Organisation
 
