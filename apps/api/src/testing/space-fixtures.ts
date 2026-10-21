@@ -5,12 +5,21 @@ import { eq } from "drizzle-orm";
 import type { PostgresDatabase } from "#db";
 import type { OutgoingEmail } from "#platform/mailer.ts";
 import { schema } from "@repo/db";
+import { ok } from "@repo/result";
 
 import { type App, BASE_URL, GRACE, WEB_URL } from "./authorization-flow.ts";
 
 export const makeOutbox = () => {
   const sent: OutgoingEmail[] = [];
-  return { sent, mailer: { send: async (email: OutgoingEmail) => void sent.push(email) } };
+  return {
+    sent,
+    mailer: {
+      send: async (email: OutgoingEmail) => {
+        sent.push(email);
+        return ok(undefined);
+      },
+    },
+  };
 };
 
 export const invite = (

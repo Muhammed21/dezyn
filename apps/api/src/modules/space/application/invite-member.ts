@@ -19,7 +19,12 @@ export interface InvitationStore {
   create(invitation: Invitation): Promise<void>;
 }
 
-export type InvitationFailure = "not_found" | "forbidden" | "already_member" | PlanRequired;
+export type InvitationFailure =
+  | "not_found"
+  | "forbidden"
+  | "already_member"
+  | "mail_unavailable"
+  | PlanRequired;
 
 export type SentInvitation = {
   readonly id: string;
@@ -104,13 +109,16 @@ export const inviteMember =
       invitedBy: userId,
       now: now(),
     });
-    await invitations.create(invitation);
-    await mailer.send(
+    const sent = await mailer.send(
       invitationEmail({
         to: email,
         spaceName: space.name,
         link: new URL(`/invitations/${token}`, webUrl).href,
       }),
     );
+    if (!sent.ok) {
+      return sent;
+    }
+    await invitations.create(invitation);
     return ok({ id: invitation.id, email, expiresAt: invitation.expiresAt });
   };

@@ -2,6 +2,7 @@ import { parseArgs } from "node:util";
 
 import { createPostgresDatabase } from "#db";
 import { assertSchemaVersion, LATEST_MIGRATION } from "@repo/db";
+import { ok } from "@repo/result";
 
 import { seedDevData } from "../src/dev/dev-data.ts";
 import { buildApi } from "../src/start-api.ts";
@@ -30,7 +31,7 @@ const db = createPostgresDatabase({ url: databaseUrl });
 try {
   const { app, modules } = await buildApi({
     db,
-    mailer: { send: () => Promise.resolve() },
+    mailer: { send: async () => ok(undefined) },
     log: () => undefined,
     authSecret: required("BETTER_AUTH_SECRET"),
     baseURL,

@@ -1,3 +1,5 @@
+import type { Result } from "@repo/result";
+
 export type OutgoingEmail = {
   readonly to: string;
   readonly subject: string;
@@ -5,5 +7,5 @@ export type OutgoingEmail = {
 };
 
 export interface Mailer {
-  send(email: OutgoingEmail): Promise<void>;
+  send(email: OutgoingEmail): Promise<Result<undefined, "mail_unavailable">>;
 }
