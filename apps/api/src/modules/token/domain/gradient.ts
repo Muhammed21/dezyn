@@ -1,8 +1,9 @@
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "./color.ts";
+import { type Alias, isReference } from "./reference.ts";
 
 export type GradientStop = {
-  readonly color: SrgbColor;
-  readonly position: number;
+  readonly color: SrgbColor | Alias;
+  readonly position: number | Alias;
 };
 
 export type Gradient = readonly GradientStop[];
@@ -12,11 +13,11 @@ export type GradientRefusal = "no_stop" | "position_out_of_range" | ColorRefusal
 export type GradientStopRefusal = { readonly stop?: number; readonly refusal: GradientRefusal };
 
 const stopRefusals = ({ color, position }: GradientStop): readonly GradientRefusal[] => {
-  const colorRefused = colorRefusal(color);
+  const colorRefused = isReference(color) ? undefined : colorRefusal(color);
   const colorRefusals: readonly GradientRefusal[] =
     colorRefused === undefined ? [] : [colorRefused];
   const positionRefusals: readonly GradientRefusal[] =
-    position < 0 || position > 1 ? ["position_out_of_range"] : [];
+    !isReference(position) && (position < 0 || position > 1) ? ["position_out_of_range"] : [];
   return [...colorRefusals, ...positionRefusals];
 };
 

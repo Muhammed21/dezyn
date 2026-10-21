@@ -415,3 +415,130 @@ describe("un champ d'une couche d'ombre référence un token validé du type du 
       );
     }));
 });
+
+const GRADIENT_BLUE = { colorSpace: "srgb", components: [0, 0.4, 1] };
+
+const makeGradientToken = ($value: unknown) => ({
+  name: "degrade.hero",
+  $type: "gradient",
+  $value,
+});
+
+const seedGradientBase = async (app: App, db: PostgresDatabase) => {
+  const seeded = await seedBaseTokens(app, db);
+  await addToken(app, {
+    ...seeded,
+    token: { name: "couleur.marque", $type: "color", $value: GRADIENT_BLUE },
+  });
+  return seeded;
+};
+
+describe("un arrêt de dégradé référence un token validé du type du champ (ADR 0029 §1)", () => {
+  it("le dégradé se relit avec ses alias d'arrêt tels qu'écrits", () =>
+    withIdentityApp(async (app, db) => {
+      const seeded = await seedGradientBase(app, db);
+      const token = makeGradientToken([
+        { color: "{couleur.marque}", position: 0 },
+        { color: GRADIENT_BLUE, position: "{interligne.corps}" },
+      ]);
+
+      const response = await addToken(app, { ...seeded, token });
+
+      expect(response.status).toBe(201);
+      expect(await tokensOf(app, seeded)).toContainEqual(
+        expect.objectContaining({ ...token, status: "validated" }),
+      );
+    }));
+
+  it.each([
+    [
+      "inconnu",
+      [{ color: "{couleur.absente}", position: 0 }],
+      "$value.0.color",
+      "Référence vers un token inexistant",
+    ],
+    [
+      "d'un autre type",
+      [
+        { color: GRADIENT_BLUE, position: 0 },
+        { color: GRADIENT_BLUE, position: "{taille.corps}" },
+      ],
+      "$value.1.position",
+      "Référence vers un token d'un autre type",
+    ],
+    [
+      "non validé",
+      [{ color: "{espacement.propose}", position: 0 }],
+      "$value.0.color",
+      "Référence vers un token non validé",
+    ],
+  ])(
+    "une référence d'arrêt vers un token %s répond 400 en nommant l'arrêt et le champ",
+    (_case, $value, path, message) =>
+      withIdentityApp(async (app, db) => {
+        const seeded = await seedGradientBase(app, db);
+        await seedProposedToken(db, { projectId: seeded.projectId, name: "espacement.propose" });
+
+        const response = await addToken(app, { ...seeded, token: makeGradientToken($value) });
+
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({ errors: [{ path, message }] });
+      }),
+  );
+
+  it("sur un projet à modes, le refus nomme le mode, l'arrêt et le champ", () =>
+    withIdentityApp(async (app, db) => {
+      const seeded = await seedGradientBase(app, db);
+      await seedModes(db, { projectId: seeded.projectId, modes: ["clair", "sombre"] });
+      const stops = [{ color: GRADIENT_BLUE, position: 0 }];
+      const token = {
+        name: "degrade.hero",
+        $type: "gradient",
+        modes: { clair: stops, sombre: [{ color: "{couleur.absente}", position: 0 }] },
+      };
+
+      const response = await addToken(app, { ...seeded, token });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        errors: [{ path: "modes.sombre.0.color", message: "Référence vers un token inexistant" }],
+      });
+    }));
+
+  it("un dégradé dont un arrêt référence un token n'est pas un doublon", () =>
+    withIdentityApp(async (app, db) => {
+      const seeded = await seedGradientBase(app, db);
+      const $value = [
+        { color: GRADIENT_BLUE, position: 0 },
+        { color: "{couleur.marque}", position: 1 },
+      ];
+      await addToken(app, { ...seeded, token: makeGradientToken($value) });
+      await addToken(app, {
+        ...seeded,
+        token: { ...makeGradientToken($value), name: "degrade.copie" },
+      });
+
+      const tokens = await tokensOf(app, seeded);
+
+      expect(tokens.map(({ name }: { name: string }) => name)).toEqual(
+        expect.arrayContaining(["degrade.hero", "degrade.copie"]),
+      );
+      expect(tokens.filter((token: object) => "duplicates" in token)).toEqual([]);
+    }));
+
+  it("un token référencé par un arrêt ne se supprime pas", () =>
+    withIdentityApp(async (app, db, { migratorUrl }) => {
+      const seeded = await seedGradientBase(app, db);
+      await addToken(app, {
+        ...seeded,
+        token: makeGradientToken([
+          { color: GRADIENT_BLUE, position: 0 },
+          { color: "{couleur.marque}", position: 1 },
+        ]),
+      });
+
+      await expect(deleteTokenAsMigrator({ migratorUrl, name: "couleur.marque" })).rejects.toThrow(
+        /token_value_reference_referenced_token_id_token_id_fk/,
+      );
+    }));
+});

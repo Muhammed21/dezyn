@@ -27,6 +27,18 @@ describe("les références de champ d'une valeur composée (ADR 0029 §1)", () =
     ]);
   });
 
+  it("un dégradé préfixe chaque champ par son arrêt", () => {
+    expect(
+      fieldAliases({
+        $type: "gradient",
+        value: [{ color: "{couleur.marque}", position: 0 }, { position: "{nombre.milieu}" }],
+      }),
+    ).toEqual([
+      { field: "0.color", name: "couleur.marque", $type: "color" },
+      { field: "1.position", name: "nombre.milieu", $type: "number" },
+    ]);
+  });
+
   it("une couche qui n'est pas un objet ne porte aucune référence", () => {
     expect(
       fieldAliases({
