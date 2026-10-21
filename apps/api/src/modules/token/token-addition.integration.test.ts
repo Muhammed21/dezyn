@@ -193,7 +193,6 @@ describe("un token invalide répond 400 problem+json, en nommant le champ", () =
     }));
 
   it.each([
-    ["un type non pris en charge", { $type: "duration" }, "$type"],
     [
       "un autre espace colorimétrique",
       { $value: { ...PRIMARY_BLUE, colorSpace: "display-p3" } },
@@ -234,6 +233,43 @@ describe("un token invalide répond 400 problem+json, en nommant le champ", () =
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({
         errors: [{ message: expect.stringContaining("$extensions") }],
+      });
+    }));
+});
+
+describe("un type DTCG en attente est refusé en le nommant (ADR 0028 §3)", () => {
+  it.each(["duration", "cubicBezier", "transition", "border", "strokeStyle"])(
+    "un token %s répond 400 en nommant son type",
+    ($type) =>
+      withIdentityApp(async (app, db) => {
+        const { accessToken, projectId } = await seedProject(app, db);
+
+        const response = await addToken(app, {
+          accessToken,
+          projectId,
+          token: makeColorToken({ $type }),
+        });
+
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({
+          errors: [{ path: "$type", message: `Le type ${$type} n'est pas encore pris en charge` }],
+        });
+      }),
+  );
+
+  it("un type inconnu de DTCG garde le refus de forme", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await addToken(app, {
+        accessToken,
+        projectId,
+        token: makeColorToken({ $type: "pigment" }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        errors: [{ path: "$type", message: expect.stringMatching(/^Invalid discriminator value/) }],
       });
     }));
 });

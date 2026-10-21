@@ -224,6 +224,55 @@ describe("write_tokens entre dans l'historique et refuse ce qui ne lui revient p
 const colorTokens = (count: number) =>
   Array.from({ length: count }, (_, index) => makeColorToken({ name: `couleur.${index}` }));
 
+describe("write_tokens refuse un type DTCG en attente en le nommant (ADR 0028 §3)", () => {
+  it.each(["duration", "cubicBezier", "transition", "border", "strokeStyle"])(
+    "un token %s refuse tout l'appel, sans lot",
+    ($type) =>
+      withIdentityApp(async (app, db) => {
+        const { accessToken, projectId } = await seedProject(app, db);
+
+        const result = await writeTokens(app, {
+          token: accessToken,
+          projectId,
+          tokens: [
+            makeColorToken({ name: "couleur.fond" }),
+            makeColorToken({ name: "duree", $type }),
+          ],
+        });
+
+        expect(result).toMatchObject({
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `tokens[1].$type : Le type ${$type} n'est pas encore pris en charge`,
+            },
+          ],
+        });
+        expect(await db.orm.select().from(schema.proposalBatch)).toEqual([]);
+      }),
+  );
+});
+
+describe("une entrée de write_tokens qui n'est pas un objet garde le refus de forme", () => {
+  it("null et un texte sont refusés chacun sur sa ligne", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const result = await callTool(app, {
+        token: accessToken,
+        name: "write_tokens",
+        args: { projectId, tokens: [null, "couleur.fond"] },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text.split("\n")).toEqual([
+        expect.stringMatching(/^tokens\[0\] : /),
+        expect.stringMatching(/^tokens\[1\] : /),
+      ]);
+    }));
+});
+
 describe("un appel write_tokens porte 500 tokens au plus", () => {
   it("500 tokens deviennent 500 propositions", () =>
     withIdentityApp(async (app, db) => {

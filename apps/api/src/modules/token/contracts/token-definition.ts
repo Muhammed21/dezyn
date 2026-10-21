@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { type ColorRefusal, colorRefusal, type SrgbColor } from "../domain/color.ts";
+import { pendingTypeOf } from "../domain/pending-type.ts";
 import { type Alias, isReference } from "../domain/reference.ts";
 import { type Shadow, type ShadowRefusal, shadowRefusals } from "../domain/shadow.ts";
 import { type TokenNameRefusal, tokenNameRefusal } from "../domain/token-name.ts";
@@ -215,16 +216,28 @@ const typed = <Type extends string, Value extends z.ZodType>(
     $description: z.string().optional(),
   });
 
+const typeOf = (input: unknown): unknown =>
+  typeof input === "object" && input !== null && "$type" in input ? input.$type : undefined;
+
+const pendingTypeMessage = ({ input }: { readonly input?: unknown }): string | undefined => {
+  const pending = pendingTypeOf(typeOf(input));
+  return pending === undefined ? undefined : `Le type ${pending} n'est pas encore pris en charge`;
+};
+
 export const TokenDefinitionInput = z
-  .discriminatedUnion("$type", [
-    typed("color", SrgbColorRequest),
-    typed("dimension", DimensionRequest),
-    typed("typography", TypographyRequest),
-    typed("shadow", ShadowRequest),
-    typed("fontFamily", FontFamilyRequest),
-    typed("fontWeight", FontWeightRequest, FONT_WEIGHT_MESSAGE),
-    typed("number", z.number(), NUMBER_MESSAGE),
-  ])
+  .discriminatedUnion(
+    "$type",
+    [
+      typed("color", SrgbColorRequest),
+      typed("dimension", DimensionRequest),
+      typed("typography", TypographyRequest),
+      typed("shadow", ShadowRequest),
+      typed("fontFamily", FontFamilyRequest),
+      typed("fontWeight", FontWeightRequest, FONT_WEIGHT_MESSAGE),
+      typed("number", z.number(), NUMBER_MESSAGE),
+    ],
+    { error: pendingTypeMessage },
+  )
   .superRefine((token, context) => {
     const nameRefusal = tokenNameRefusal(token.name);
     if (nameRefusal !== undefined) {
