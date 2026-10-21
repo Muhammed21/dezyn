@@ -57,27 +57,26 @@ export const createApp = ({
   const app = new Hono<AppEnv>();
 
   app.use(requestContext(log));
+  app.use(
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: (c) =>
+        problemResponse(c, {
+          type: "about:blank",
+          title: "Corps de requête trop volumineux",
+          status: 413,
+        }),
+    }),
+  );
 
   app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
   app.route("/", authPages({ auth, baseURL: auth.baseURL }));
-  const v1 = new Hono<AuthenticatedEnv>()
-    .use(
-      bodyLimit({
-        maxSize: MAX_BODY_BYTES,
-        onError: (c) =>
-          problemResponse(c, {
-            type: "about:blank",
-            title: "Corps de requête trop volumineux",
-            status: 413,
-          }),
-      }),
-    )
-    .use(
-      requireAccessToken({
-        verifyAccessToken: auth.verifyAccessToken,
-        resourceMetadataUrl: new URL("/.well-known/oauth-protected-resource/v1", auth.baseURL).href,
-      }),
-    );
+  const v1 = new Hono<AuthenticatedEnv>().use(
+    requireAccessToken({
+      verifyAccessToken: auth.verifyAccessToken,
+      resourceMetadataUrl: new URL("/.well-known/oauth-protected-resource/v1", auth.baseURL).href,
+    }),
+  );
   const registerSpaceTools = registerListSpaces(spaces);
   const registerProjectTools = registerListProjects(projects);
   const registerHistoryTools = registerReadHistory(history);

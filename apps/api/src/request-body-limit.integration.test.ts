@@ -33,7 +33,7 @@ const inviteWithBody = (
     body,
   });
 
-describe("un corps de requête sur /v1 pèse 1 Mo au plus", () => {
+describe("un corps de requête pèse 1 Mo au plus", () => {
   it("un corps de 1 Mo est traité", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, userId } = await obtainAccessToken(app);
@@ -70,4 +70,18 @@ describe("un corps de requête sur /v1 pèse 1 Mo au plus", () => {
       });
       expect(await db.orm.select().from(schema.spaceInvitation)).toEqual([]);
     }));
+
+  it.each(["/auth/sign-in/email", "/login", "/consent"])(
+    "une route sans jeton, comme %s, répond 413 au-delà de 1 Mo",
+    (path) =>
+      withIdentityApp(async (app) => {
+        const response = await app.request(`${BASE_URL}${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: invitationOfSize(ONE_MEGABYTE + 1),
+        });
+
+        expect(response.status).toBe(413);
+      }),
+  );
 });
