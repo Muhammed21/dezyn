@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
+import { planRequired } from "#modules/space/contracts/plan.ts";
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
 import { problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
@@ -48,10 +49,5 @@ export const projectsRoutes = ({ createProject, listProjects }: ProjectUseCases)
       if (created.error === "forbidden") {
         return problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
       }
-      return problemResponse(c, {
-        type: "https://dezyn.app/problems/plan-required",
-        title: "Plan Team requis",
-        status: 403,
-        extensions: { requiredPlan: created.error.requiredPlan, limit: created.error.limit },
-      });
+      return problemResponse(c, planRequired(created.error));
     });
