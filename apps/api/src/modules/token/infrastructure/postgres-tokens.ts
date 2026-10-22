@@ -114,19 +114,37 @@ export const postgresTokenWriter = (
     return "created";
   },
   replace: async (replaced, values) => {
-    const [updated] = await tx
+    const [before] = await tx
+      .select()
+      .from(token)
+      .where(and(eq(token.projectId, replaced.projectId), eq(token.name, replaced.name)));
+    if (before === undefined) {
+      return;
+    }
+    const updated = await tx
       .update(token)
       .set({
         description: replaced.$description ?? null,
         extensions: replaced.$extensions ?? null,
       })
-      .where(and(eq(token.projectId, replaced.projectId), eq(token.name, replaced.name)))
-      .returning({ id: token.id });
-    if (updated === undefined) {
-      return;
-    }
-    await tx.delete(tokenValue).where(eq(tokenValue.tokenId, updated.id));
-    await insertValues(tx, { newId, tokenId: updated.id, values });
+      .where(eq(token.id, before.id))
+      .returning();
+    const removedReferences = await tx
+      .select({ row: tokenValueReference })
+      .from(tokenValueReference)
+      .innerJoin(tokenValue, eq(tokenValue.id, tokenValueReference.tokenValueId))
+      .where(eq(tokenValue.tokenId, before.id));
+    const removedValues = await tx
+      .delete(tokenValue)
+      .where(eq(tokenValue.tokenId, before.id))
+      .returning();
+    const written = await insertValues(tx, { newId, tokenId: before.id, values });
+    await meter.remove(replaced.projectId, [
+      before,
+      ...removedValues,
+      ...removedReferences.map(({ row }) => row),
+    ]);
+    await meter.add(replaced.projectId, [...updated, ...written]);
   },
 });
 

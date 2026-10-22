@@ -78,6 +78,7 @@ export const proposalModule = ({
     historyWriterOn,
     validatedTokenWriterOn,
     figmaStateOn,
+    storageMeterOn,
   });
   return {
     writeTokens: writeTokens({
