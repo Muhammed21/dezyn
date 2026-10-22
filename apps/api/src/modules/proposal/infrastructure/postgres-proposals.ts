@@ -289,9 +289,11 @@ export const postgresReviewUnitOfWork = ({
   validatedTokenWriterOn,
   figmaStateOn,
   storageMeterOn,
+  storageAlertOn,
 }: {
   readonly db: PostgresDatabase;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
   readonly figmaStateOn: (tx: PostgresTransaction) => FigmaStateSynchronizer;
@@ -341,6 +343,7 @@ export const postgresReviewUnitOfWork = ({
           tokens: validatedTokenWriterOn(tx),
           figmaStates: figmaStateOn(tx),
           history: historyWriterOn(tx),
+          storageAlert: storageAlertOn(tx),
         });
         if (!outcome.ok) {
           throw new RolledBack(outcome);

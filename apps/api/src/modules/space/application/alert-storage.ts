@@ -17,6 +17,7 @@ export type SpaceStorage = {
 export interface StorageAlerts {
   storageOf(spaceId: string): Promise<SpaceStorage>;
   markAlerted(request: { readonly spaceId: string; readonly at: Date }): Promise<boolean>;
+  clearAlert(spaceId: string): Promise<void>;
   openOwnerEmailsOf(spaceId: string): Promise<readonly string[]>;
 }
 
@@ -26,6 +27,7 @@ export const decideStorageAlert =
     const { name, plan, projects } = await alerts.storageOf(spaceId);
     const warning = storageWarningOf({ spaceName: name, plan, projects });
     if (warning === undefined) {
+      await alerts.clearAlert(spaceId);
       return undefined;
     }
     if (!(await alerts.markAlerted({ spaceId, at: now() }))) {

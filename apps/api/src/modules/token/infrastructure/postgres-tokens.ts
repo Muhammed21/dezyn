@@ -276,16 +276,19 @@ export const postgresFigmaUnitOfWork = ({
   db,
   proposalWriterOn,
   storageMeterOn,
+  storageAlertOn,
 }: {
   readonly db: PostgresDatabase;
   readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
 }): FigmaUnitOfWork => ({
   run: (work) =>
     db.orm.transaction((tx) =>
       work({
         figmaStates: postgresFigmaStateWriter(tx, storageMeterOn(tx)),
         proposals: proposalWriterOn(tx),
+        storageAlert: storageAlertOn(tx),
       }),
     ),
 });
