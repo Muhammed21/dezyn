@@ -51,6 +51,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0030 — dezyn conserve les extensions d'un token sans les interpréter](adr/0030-dezyn-conserve-les-extensions-d-un-token-sans-les-interpreter.md) — _explanation · Accepté_ — Dezyn accepte-t-il `$extensions`, et ces extensions comptent-elles pour l'écriture identique et pour le doublon ?
 - [0031 — Un membre retiré par un propriétaire est fermé avec la raison `removed`, et l'historique le dit parti](adr/0031-un-membre-retire-par-un-proprietaire-est-ferme-avec-la-raison-removed.md) — _explanation · Accepté_ — Avec quelle raison se ferme la ligne d'un membre retiré par un propriétaire, et que dit l'historique de ce membre ?
 - [0032 — Le stockage d'un projet se compte par un compteur d'octets tenu à chaque écriture](adr/0032-le-stockage-d-un-projet-se-compte-par-un-compteur-d-octets-tenu-a-chaque-ecriture.md) — _explanation · Accepté_ — Comment se compte le stockage d'un projet, et quand part l'alerte à 80 % ?
+- [0033 — L'API de production est servie derrière Cloudflare, qui porte l'IP du client](adr/0033-l-api-de-production-est-servie-derriere-cloudflare-qui-porte-l-ip-du-client.md) — _explanation · Proposé_ — Quel proxy sert l'API en production, et quel en-tête porte l'IP du client ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée

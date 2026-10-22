@@ -22,7 +22,7 @@ describe("l'API lit sa configuration dans l'environnement", () => {
         databaseUrl: "postgresql://app@127.0.0.1:5432/dezyn",
         authSecret: "secret-de-test-de-32-caracteres-au-moins",
         baseURL: "http://127.0.0.1:3000",
-        trustedIpHeader: "x-forwarded-for",
+        trustedIpHeader: "cf-connecting-ip",
         smtp: { host: "127.0.0.1", port: 1025, from: "dezyn <no-reply@dezyn.test>" },
         webUrl: "http://127.0.0.1:5173",
         port: 3000,
@@ -31,9 +31,9 @@ describe("l'API lit sa configuration dans l'environnement", () => {
   });
 
   it("TRUSTED_IP_HEADER et PORT remplacent les valeurs par défaut", () => {
-    const config = readApiConfig(makeEnv({ TRUSTED_IP_HEADER: "cf-connecting-ip", PORT: "8080" }));
+    const config = readApiConfig(makeEnv({ TRUSTED_IP_HEADER: "x-forwarded-for", PORT: "8080" }));
 
-    expect(config).toMatchObject(ok({ trustedIpHeader: "cf-connecting-ip", port: 8080 }));
+    expect(config).toMatchObject(ok({ trustedIpHeader: "x-forwarded-for", port: 8080 }));
   });
 
   it("chaque variable manquante est nommée, toutes en une fois", () => {

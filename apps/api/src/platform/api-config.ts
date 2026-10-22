@@ -26,7 +26,7 @@ const ApiEnv = z.object({
   SMTP_PORT: port(),
   MAIL_FROM: text(),
   WEB_URL: httpUrl(),
-  TRUSTED_IP_HEADER: text().default("x-forwarded-for"),
+  TRUSTED_IP_HEADER: text().default("cf-connecting-ip"),
   PORT: port().default(3000),
 });
 
