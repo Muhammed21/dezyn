@@ -2,7 +2,7 @@ import { type Context, Hono } from "hono";
 import { z } from "zod";
 
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
-import { problemResponse } from "#platform/problem.ts";
+import { FORBIDDEN, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
@@ -10,12 +10,13 @@ import type { InvitationFailure } from "../application/invite-member.ts";
 import type { DepartureFailure } from "../application/leave-space.ts";
 import type { RemovalFailure, RoleChangeFailure } from "../application/manage-members.ts";
 import type { SpaceUseCases } from "../application/spaces.ts";
+import { ROLES } from "../domain/space.ts";
 import { alreadyMemberProblem } from "./already-member-problem.ts";
 import { planRequiredProblem } from "./plan-required-problem.ts";
 
 const InvitationRequest = z.object({ email: z.email() });
 
-const RoleRequest = z.object({ role: z.enum(["owner", "editor"]) });
+const RoleRequest = z.object({ role: z.enum(ROLES) });
 
 const spaceIdOf = (c: Context<AuthenticatedEnv>) => Uuid.safeParse(c.req.param("spaceId")).data;
 
@@ -46,8 +47,7 @@ const lastOwnerProblem = (c: Context<AuthenticatedEnv>) =>
     status: 409,
   });
 
-const forbiddenProblem = (c: Context<AuthenticatedEnv>) =>
-  problemResponse(c, { type: "about:blank", title: "Accès refusé", status: 403 });
+const forbiddenProblem = (c: Context<AuthenticatedEnv>) => problemResponse(c, FORBIDDEN);
 
 const departureProblem = (c: Context<AuthenticatedEnv>, failure: DepartureFailure) =>
   failure === "not_found" ? c.notFound() : lastOwnerProblem(c);

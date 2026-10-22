@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
-import { type Problem, problemResponse } from "#platform/problem.ts";
+import { invalidRequest, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
@@ -31,13 +31,6 @@ const tokenOutputOf = ({
   $extensions,
   status,
   replaced,
-});
-
-const invalidRequest = (errors: readonly { path: string; message: string }[]): Problem => ({
-  type: "about:blank",
-  title: "Requête invalide",
-  status: 400,
-  errors,
 });
 
 export const tokensRoutes = ({ addToken, readProjectTokens }: TokenUseCases) =>

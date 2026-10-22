@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { issuesOfCheck } from "#modules/token/contracts/token-issues.ts";
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
-import { type Problem, problemResponse } from "#platform/problem.ts";
+import { invalidRequest, type Problem, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
@@ -65,16 +65,13 @@ const batchProblemOf = (
     return { type: "about:blank", title: "Lot ouvert", status: 409 };
   }
   if (failure.code === "unknown_propositions") {
-    return {
-      type: "about:blank",
-      title: "Requête invalide",
-      status: 400,
-      errors: rejected.flatMap((id, index) =>
+    return invalidRequest(
+      rejected.flatMap((id, index) =>
         failure.ids.includes(id)
           ? [{ path: `rejected.${index}`, message: "Proposition hors du lot" }]
           : [],
       ),
-    };
+    );
   }
   return {
     type: "about:blank",

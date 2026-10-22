@@ -1,6 +1,10 @@
-export type Plan = "free" | "team";
+export const PLANS = ["free", "team"] as const;
 
-export type Role = "owner" | "editor";
+export type Plan = (typeof PLANS)[number];
+
+export const ROLES = ["owner", "editor"] as const;
+
+export type Role = (typeof ROLES)[number];
 
 export type MySpace = {
   readonly id: string;
