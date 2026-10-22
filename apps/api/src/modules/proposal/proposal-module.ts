@@ -4,6 +4,10 @@ import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
+import type {
+  StorageAlertDecision,
+  StorageAlertSender,
+} from "#modules/space/contracts/storage-alert.ts";
 import type { CheckTokens, ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
 import type { Clock } from "#platform/clock.ts";
 
@@ -46,6 +50,8 @@ export const proposalModule = ({
   validatedTokenWriterOn,
   figmaStateOn,
   storageMeterOn,
+  storageAlertOn,
+  sendStorageAlert,
   clock: now,
 }: {
   readonly db: PostgresDatabase;
@@ -56,6 +62,8 @@ export const proposalModule = ({
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
   readonly figmaStateOn: (tx: PostgresTransaction) => FigmaStateSynchronizer;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
+  readonly sendStorageAlert: StorageAlertSender;
   readonly clock: Clock;
 }) => {
   const reading = {
@@ -64,7 +72,7 @@ export const proposalModule = ({
     proposals: postgresProposalReader(db),
     now,
   };
-  const unitOfWork = postgresProposalUnitOfWork({ db, storageMeterOn });
+  const unitOfWork = postgresProposalUnitOfWork({ db, storageMeterOn, storageAlertOn });
   const reviewUnitOfWork = postgresReviewUnitOfWork({
     db,
     historyWriterOn,
@@ -76,6 +84,7 @@ export const proposalModule = ({
       checkTokens,
       validatedTokensOf,
       unitOfWork,
+      sendStorageAlert,
       newId: randomUUID,
       now,
     }),

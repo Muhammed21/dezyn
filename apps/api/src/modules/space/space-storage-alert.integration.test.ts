@@ -9,7 +9,7 @@ import type { OutgoingEmail } from "#platform/mailer.ts";
 import { ADA, type App, GRACE } from "#testing/authorization-flow.ts";
 import { withIdentityApp } from "#testing/authorization-flow.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
-import { storedBytesOf } from "#testing/project-storage.ts";
+import { seedStoredBytes, storedBytesOf } from "#testing/project-storage.ts";
 import { makeOutbox, promoteToOwner, seedSpaceWithInvitedEditor } from "#testing/space-fixtures.ts";
 import { addToken, makeColorToken } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
@@ -22,11 +22,6 @@ const JUST_UNDER_FREE_ALERT = 399_999_999;
 const ABOVE_FREE_ALERT = 450_000_000;
 
 const JUST_UNDER_TEAM_ALERT = 15_999_999_999;
-
-const seedStoredBytes = (
-  db: PostgresDatabase,
-  { projectId, bytes }: { readonly projectId: string; readonly bytes: number },
-) => db.orm.update(project).set({ storedBytes: bytes }).where(eq(project.id, projectId));
 
 const seedProjectIn = async (
   db: PostgresDatabase,

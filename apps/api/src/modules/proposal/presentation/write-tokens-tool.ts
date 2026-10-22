@@ -74,7 +74,7 @@ export const registerWriteTokens =
           clientId: identity.clientId,
           correlationId,
           input: { tokens },
-          run: async (): Promise<Result<Written, InvalidTokens | UncheckedTokens>> => {
+          run: async (project): Promise<Result<Written, InvalidTokens | UncheckedTokens>> => {
             const parsed = TokensInput.safeParse(tokens);
             if (!parsed.success) {
               return err({
@@ -86,6 +86,7 @@ export const registerWriteTokens =
             }
             return writeTokens({
               projectId,
+              spaceId: project.spaceId,
               userId: identity.userId,
               clientId: identity.clientId,
               tokens: parsed.data,

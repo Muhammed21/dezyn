@@ -1,3 +1,7 @@
+import type {
+  StorageAlertDecision,
+  StorageAlertSender,
+} from "#modules/space/contracts/storage-alert.ts";
 import {
   type ComparedDefinition,
   sameDefinition,
@@ -35,7 +39,9 @@ export interface ProposalStore {
 }
 
 export interface ProposalUnitOfWork {
-  run<T>(work: (store: ProposalStore) => Promise<T>): Promise<T>;
+  run<T>(
+    work: (store: ProposalStore, storageAlert: StorageAlertDecision) => Promise<T>,
+  ): Promise<T>;
 }
 
 export type Written = {
@@ -123,27 +129,42 @@ export const writeTokens =
     checkTokens,
     validatedTokensOf,
     unitOfWork,
+    sendStorageAlert,
     newId,
     now,
   }: {
     readonly checkTokens: CheckTokens;
     readonly validatedTokensOf: ValidatedTokensOf;
     readonly unitOfWork: ProposalUnitOfWork;
+    readonly sendStorageAlert: StorageAlertSender;
     readonly newId: () => string;
     readonly now: () => Date;
   }) =>
   async ({
     tokens,
+    spaceId,
     ...writer
-  }: Writer & { readonly tokens: readonly TokenDefinition[] }): Promise<
-    Result<Written, UncheckedTokens>
-  > => {
+  }: Writer & {
+    readonly spaceId: string;
+    readonly tokens: readonly TokenDefinition[];
+  }): Promise<Result<Written, UncheckedTokens>> => {
     const checks = await checkTokens({ projectId: writer.projectId, tokens });
     if (checks.length > 0) {
       return err({ code: "unchecked_tokens", checks });
     }
     const validated = await validatedTokensOf(writer.projectId);
-    return unitOfWork.run(async (store) =>
-      ok(await proposeTokens(store, { ...writer, tokens, validated, createdAt: now(), newId })),
-    );
+    const { written, alert } = await unitOfWork.run(async (store, storageAlert) => ({
+      written: await proposeTokens(store, {
+        ...writer,
+        tokens,
+        validated,
+        createdAt: now(),
+        newId,
+      }),
+      alert: await storageAlert(spaceId),
+    }));
+    if (alert !== undefined) {
+      await sendStorageAlert(alert);
+    }
+    return ok(written);
   };

@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
+import type { StorageAlertDecision } from "#modules/space/contracts/storage-alert.ts";
 import { TokenDefinitionInput } from "#modules/token/contracts/token-definition.ts";
 import type { ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
 import { schema } from "@repo/db";
@@ -172,11 +173,16 @@ export const postgresProposalStore = (
 export const postgresProposalUnitOfWork = ({
   db,
   storageMeterOn,
+  storageAlertOn,
 }: {
   readonly db: PostgresDatabase;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
 }): ProposalUnitOfWork => ({
-  run: (work) => db.orm.transaction((tx) => work(postgresProposalStore(tx, storageMeterOn(tx)))),
+  run: (work) =>
+    db.orm.transaction((tx) =>
+      work(postgresProposalStore(tx, storageMeterOn(tx)), storageAlertOn(tx)),
+    ),
 });
 
 const BatchState = z.enum(["open", "closed"]);

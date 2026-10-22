@@ -62,6 +62,8 @@ export const composeModules = ({
     validatedTokenWriterOn: (tx) => validatedTokenWriterOn(tx, storageMeterOn(tx)),
     figmaStateOn,
     storageMeterOn,
+    storageAlertOn: spaces.storageAlertOn,
+    sendStorageAlert: spaces.sendStorageAlert,
     clock,
   });
   return { spaces, projects, history, tokens, proposals };

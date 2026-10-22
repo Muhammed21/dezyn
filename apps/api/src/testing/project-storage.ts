@@ -7,6 +7,11 @@ import { schema } from "@repo/db";
 const { historyEntry, project, proposal, proposalBatch, token, tokenValue, tokenValueReference } =
   schema;
 
+export const seedStoredBytes = (
+  db: PostgresDatabase,
+  { projectId, bytes }: { readonly projectId: string; readonly bytes: number },
+) => db.orm.update(project).set({ storedBytes: bytes }).where(eq(project.id, projectId));
+
 export const storedBytesOf = async (db: PostgresDatabase, projectId: string) => {
   const [row] = await db.orm
     .select({ storedBytes: project.storedBytes })

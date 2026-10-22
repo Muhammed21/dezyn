@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { type App, callMcp, withIdentityApp } from "#testing/authorization-flow.ts";
+import type { LogRecord } from "#platform/logging.ts";
+import type { OutgoingEmail } from "#platform/mailer.ts";
+import { ADA, type App, callMcp, withIdentityApp } from "#testing/authorization-flow.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
-import { bytesOfProjectRows, storedBytesOf } from "#testing/project-storage.ts";
+import { bytesOfProjectRows, seedStoredBytes, storedBytesOf } from "#testing/project-storage.ts";
+import { makeOutbox } from "#testing/space-fixtures.ts";
 import { makeColorToken } from "#testing/token-fixtures.ts";
+import { err } from "@repo/result";
 
 const START = new Date("2026-10-22T09:00:00Z");
 
@@ -18,6 +22,13 @@ const makeClock = () => {
     },
   };
 };
+
+const JUST_UNDER_FREE_ALERT = 399_999_999;
+
+const ABOVE_FREE_ALERT = 450_000_000;
+
+const storageAlertsOf = (sent: readonly OutgoingEmail[]) =>
+  sent.filter(({ subject }) => subject.includes("stockage"));
 
 const RED = { colorSpace: "srgb", components: [0.8, 0.1, 0.1], alpha: 1, hex: "#cc1a1a" };
 
@@ -102,4 +113,62 @@ describe("le compteur d'un projet suit les propositions et les lots de write_tok
         await bytesOfProjectRows(db, seeded.projectId),
       );
     }));
+});
+
+describe("un write_tokens qui porte l'espace à 80 % prévient ses propriétaires (ADR 0006 §4, ADR 0032 §4)", () => {
+  it("le write_tokens qui franchit 80 % réussit et envoie l'alerte à la propriétaire", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const seeded = await seedProject(app, db);
+        await seedStoredBytes(db, { projectId: seeded.projectId, bytes: JUST_UNDER_FREE_ALERT });
+
+        const written = await writeTokens(app, { ...seeded, tokens: [makeColorToken()] });
+
+        expect(written.proposals).toHaveLength(1);
+        expect(storageAlertsOf(outbox.sent).map(({ to }) => to)).toEqual([ADA.email]);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("le write_tokens qui franchit 80 % réussit même si le SMTP est en panne, et journalise l'échec", () => {
+    const records: LogRecord[] = [];
+    return withIdentityApp(
+      async (app, db) => {
+        const seeded = await seedProject(app, db);
+        await seedStoredBytes(db, { projectId: seeded.projectId, bytes: JUST_UNDER_FREE_ALERT });
+
+        const written = await writeTokens(app, { ...seeded, tokens: [makeColorToken()] });
+
+        expect(written.proposals).toHaveLength(1);
+        expect(records).toContainEqual(
+          expect.objectContaining({ msg: "storage_alert_unsent", to: ADA.email }),
+        );
+      },
+      {
+        mailer: { send: async () => err("mail_unavailable") },
+        log: (record) => {
+          records.push(record);
+        },
+      },
+    );
+  });
+
+  it("un write_tokens sans changement sur un espace déjà au-dessus de 80 % et jamais alerté l'alerte", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const seeded = await seedProject(app, db);
+        await writeTokens(app, { ...seeded, tokens: [makeColorToken()] });
+        await seedStoredBytes(db, { projectId: seeded.projectId, bytes: ABOVE_FREE_ALERT });
+
+        const written = await writeTokens(app, { ...seeded, tokens: [makeColorToken()] });
+
+        expect(written.unchanged).toEqual([makeColorToken().name]);
+        expect(storageAlertsOf(outbox.sent).map(({ to }) => to)).toEqual([ADA.email]);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
 });
