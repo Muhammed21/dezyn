@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import type { PostgresTransaction } from "#db";
 import { schema } from "@repo/db";
@@ -29,6 +29,12 @@ export const postgresStorageAlerts = (
       .where(and(eq(space.id, spaceId), isNull(space.storageAlertedAt)))
       .returning({ id: space.id });
     return marked.length > 0;
+  },
+  clearAlert: async (spaceId) => {
+    await tx
+      .update(space)
+      .set({ storageAlertedAt: null })
+      .where(and(eq(space.id, spaceId), isNotNull(space.storageAlertedAt)));
   },
   openOwnerEmailsOf: async (spaceId) => {
     const rows = await tx

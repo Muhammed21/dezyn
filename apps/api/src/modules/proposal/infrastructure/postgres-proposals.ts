@@ -288,8 +288,12 @@ export const postgresReviewUnitOfWork = ({
   historyWriterOn,
   validatedTokenWriterOn,
   figmaStateOn,
+  storageMeterOn,
+  storageAlertOn,
 }: {
   readonly db: PostgresDatabase;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
   readonly figmaStateOn: (tx: PostgresTransaction) => FigmaStateSynchronizer;
@@ -327,12 +331,19 @@ export const postgresReviewUnitOfWork = ({
               }));
             },
             settle: async (proposalId, status) => {
-              await tx.update(proposal).set({ status }).where(eq(proposal.id, proposalId));
+              const before = await tx.select().from(proposal).where(eq(proposal.id, proposalId));
+              const after = await tx
+                .update(proposal)
+                .set({ status })
+                .where(eq(proposal.id, proposalId))
+                .returning();
+              await resize(storageMeterOn(tx), { before, after });
             },
           },
           tokens: validatedTokenWriterOn(tx),
           figmaStates: figmaStateOn(tx),
           history: historyWriterOn(tx),
+          storageAlert: storageAlertOn(tx),
         });
         if (!outcome.ok) {
           throw new RolledBack(outcome);

@@ -2,10 +2,21 @@ import { eq } from "drizzle-orm";
 
 import type { PostgresDatabase } from "#db";
 import { storedSize } from "#modules/project/domain/storage.ts";
+import { storageMeterOn } from "#modules/project/project-module.ts";
 import { schema } from "@repo/db";
 
-const { historyEntry, project, proposal, proposalBatch, token, tokenValue, tokenValueReference } =
-  schema;
+const {
+  historyEntry,
+  project,
+  proposal,
+  proposalBatch,
+  token,
+  tokenFigmaState,
+  tokenValue,
+  tokenValueReference,
+} = schema;
+
+export { storageMeterOn };
 
 export const seedStoredBytes = (
   db: PostgresDatabase,
@@ -23,7 +34,7 @@ export const storedBytesOf = async (db: PostgresDatabase, projectId: string) => 
 const sizeOfRows = (rows: readonly object[]) =>
   rows.reduce((total, row) => total + storedSize(row), 0);
 
-export const bytesOfProjectRows = async (db: PostgresDatabase, projectId: string) => {
+export const bytesOfTokenRows = async (db: PostgresDatabase, projectId: string) => {
   const tokens = await db.orm.select().from(token).where(eq(token.projectId, projectId));
   const values = await db.orm
     .select({ row: tokenValue })
@@ -36,6 +47,20 @@ export const bytesOfProjectRows = async (db: PostgresDatabase, projectId: string
     .innerJoin(tokenValue, eq(tokenValue.id, tokenValueReference.tokenValueId))
     .innerJoin(token, eq(token.id, tokenValue.tokenId))
     .where(eq(token.projectId, projectId));
+  const figmaStates = await db.orm
+    .select({ row: tokenFigmaState })
+    .from(tokenFigmaState)
+    .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+    .where(eq(token.projectId, projectId));
+  return (
+    sizeOfRows(tokens) +
+    sizeOfRows(values.map(({ row }) => row)) +
+    sizeOfRows(references.map(({ row }) => row)) +
+    sizeOfRows(figmaStates.map(({ row }) => row))
+  );
+};
+
+export const bytesOfProjectRows = async (db: PostgresDatabase, projectId: string) => {
   const batches = await db.orm
     .select()
     .from(proposalBatch)
@@ -46,9 +71,7 @@ export const bytesOfProjectRows = async (db: PostgresDatabase, projectId: string
     .from(historyEntry)
     .where(eq(historyEntry.projectId, projectId));
   return (
-    sizeOfRows(tokens) +
-    sizeOfRows(values.map(({ row }) => row)) +
-    sizeOfRows(references.map(({ row }) => row)) +
+    (await bytesOfTokenRows(db, projectId)) +
     sizeOfRows(batches) +
     sizeOfRows(proposals) +
     sizeOfRows(entries)

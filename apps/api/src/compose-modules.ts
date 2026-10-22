@@ -60,7 +60,7 @@ export const composeModules = ({
     validatedTokensOf: async (projectId) => (await tokens.readTokens(projectId)).tokens,
     historyWriterOn: writerOn,
     validatedTokenWriterOn: (tx) => validatedTokenWriterOn(tx, storageMeterOn(tx)),
-    figmaStateOn,
+    figmaStateOn: (tx) => figmaStateOn(tx, storageMeterOn(tx)),
     storageMeterOn,
     storageAlertOn: spaces.storageAlertOn,
     sendStorageAlert: spaces.sendStorageAlert,

@@ -95,7 +95,8 @@ export const tokenModule = ({
       rejectedValues: postgresRejectedValueReader(db),
       parseFigmaValue: parseTokenDefinition,
       checkTokens: check,
-      unitOfWork: postgresFigmaUnitOfWork({ db, proposalWriterOn }),
+      unitOfWork: postgresFigmaUnitOfWork({ db, proposalWriterOn, storageMeterOn, storageAlertOn }),
+      sendStorageAlert,
       now: clock,
     }),
   };

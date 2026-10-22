@@ -1,4 +1,8 @@
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
+import type {
+  StorageAlertDecision,
+  StorageAlertSender,
+} from "#modules/space/contracts/storage-alert.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import {
@@ -14,6 +18,7 @@ import type { ReadToken } from "./read-tokens.ts";
 import type { ProjectTokenReader } from "./token-values.ts";
 
 export type FigmaDeclaration = {
+  readonly projectId: string;
   readonly states: readonly (DeclaredState & { readonly proposalId: string | null })[];
   readonly declaredAt: Date;
   readonly userId: string;
@@ -56,6 +61,7 @@ export interface FigmaUnitOfWork {
     work: (unit: {
       readonly figmaStates: FigmaStateWriter;
       readonly proposals: FigmaProposals;
+      readonly storageAlert: StorageAlertDecision;
     }) => Promise<T>,
   ): Promise<T>;
 }
@@ -150,6 +156,7 @@ export const declareFigmaStates =
     parseFigmaValue,
     checkTokens,
     unitOfWork,
+    sendStorageAlert,
     now,
   }: {
     readonly access: ProjectAccess;
@@ -159,6 +166,7 @@ export const declareFigmaStates =
     readonly parseFigmaValue: ParseFigmaValue;
     readonly checkTokens: CheckTokens;
     readonly unitOfWork: FigmaUnitOfWork;
+    readonly sendStorageAlert: StorageAlertSender;
     readonly now: () => Date;
   }) =>
   async ({
@@ -232,29 +240,35 @@ export const declareFigmaStates =
       );
     });
     const declaredAt = now();
-    const proposed = await unitOfWork.run(async ({ figmaStates, proposals }) => {
-      const written =
-        proposable.length === 0
-          ? { batch: null, proposals: [] }
-          : await proposals.propose({
-              projectId,
-              userId,
-              clientId,
-              tokens: proposable.map(({ definition }) => definition),
-              validated,
-              createdAt: declaredAt,
-            });
-      await figmaStates.declare({
-        states: checked.states.map((declared) => ({
-          ...declared,
-          proposalId: written.proposals.find(({ name }) => name === declared.name)?.id ?? null,
-        })),
-        declaredAt,
-        userId,
-        clientId,
-      });
-      return written;
-    });
+    const { proposed, alert } = await unitOfWork.run(
+      async ({ figmaStates, proposals, storageAlert }) => {
+        const written =
+          proposable.length === 0
+            ? { batch: null, proposals: [] }
+            : await proposals.propose({
+                projectId,
+                userId,
+                clientId,
+                tokens: proposable.map(({ definition }) => definition),
+                validated,
+                createdAt: declaredAt,
+              });
+        await figmaStates.declare({
+          projectId,
+          states: checked.states.map((declared) => ({
+            ...declared,
+            proposalId: written.proposals.find(({ name }) => name === declared.name)?.id ?? null,
+          })),
+          declaredAt,
+          userId,
+          clientId,
+        });
+        return { proposed: written, alert: await storageAlert(project.spaceId) };
+      },
+    );
+    if (alert !== undefined) {
+      await sendStorageAlert(alert);
+    }
     const proposalOf = (name: string): FigmaProposal | null => {
       const found = proposed.proposals.find((proposal) => proposal.name === name);
       return found === undefined || proposed.batch === null

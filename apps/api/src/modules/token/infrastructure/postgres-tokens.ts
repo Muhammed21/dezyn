@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -114,19 +114,37 @@ export const postgresTokenWriter = (
     return "created";
   },
   replace: async (replaced, values) => {
-    const [updated] = await tx
+    const [before] = await tx
+      .select()
+      .from(token)
+      .where(and(eq(token.projectId, replaced.projectId), eq(token.name, replaced.name)));
+    if (before === undefined) {
+      return;
+    }
+    const updated = await tx
       .update(token)
       .set({
         description: replaced.$description ?? null,
         extensions: replaced.$extensions ?? null,
       })
-      .where(and(eq(token.projectId, replaced.projectId), eq(token.name, replaced.name)))
-      .returning({ id: token.id });
-    if (updated === undefined) {
-      return;
-    }
-    await tx.delete(tokenValue).where(eq(tokenValue.tokenId, updated.id));
-    await insertValues(tx, { newId, tokenId: updated.id, values });
+      .where(eq(token.id, before.id))
+      .returning();
+    const removedReferences = await tx
+      .select({ row: tokenValueReference })
+      .from(tokenValueReference)
+      .innerJoin(tokenValue, eq(tokenValue.id, tokenValueReference.tokenValueId))
+      .where(eq(tokenValue.tokenId, before.id));
+    const removedValues = await tx
+      .delete(tokenValue)
+      .where(eq(tokenValue.tokenId, before.id))
+      .returning();
+    const written = await insertValues(tx, { newId, tokenId: before.id, values });
+    await meter.remove(replaced.projectId, [
+      before,
+      ...removedValues,
+      ...removedReferences.map(({ row }) => row),
+    ]);
+    await meter.add(replaced.projectId, [...updated, ...written]);
   },
 });
 
@@ -179,9 +197,20 @@ export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTok
       .orderBy(asc(token.name), asc(mode.position)),
 });
 
-export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
-  declare: async ({ states, declaredAt, userId, clientId }) => {
+export const postgresFigmaStateWriter = (tx: Queryable, meter: StorageMeter): FigmaStateWriter => ({
+  declare: async ({ projectId, states, declaredAt, userId, clientId }) => {
+    const tokenIds = states.map(({ tokenId }) => tokenId);
     await tx
+      .select({ id: token.id })
+      .from(token)
+      .where(inArray(token.id, tokenIds))
+      .for("no key update");
+    const before = await tx
+      .select()
+      .from(tokenFigmaState)
+      .where(inArray(tokenFigmaState.tokenId, tokenIds))
+      .for("update");
+    const after = await tx
       .insert(tokenFigmaState)
       .values(
         states.map((declared) => ({
@@ -204,7 +233,10 @@ export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
           clientId: sql`excluded.client_id`,
           proposalId: sql`case when excluded.state = 'diverged' then coalesce(excluded.proposal_id, ${tokenFigmaState.proposalId}) end`,
         },
-      });
+      })
+      .returning();
+    await meter.remove(projectId, before);
+    await meter.add(projectId, after);
   },
 });
 
@@ -245,22 +277,65 @@ export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader
 export const postgresFigmaUnitOfWork = ({
   db,
   proposalWriterOn,
+  storageMeterOn,
+  storageAlertOn,
 }: {
   readonly db: PostgresDatabase;
   readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
 }): FigmaUnitOfWork => ({
   run: (work) =>
     db.orm.transaction((tx) =>
-      work({ figmaStates: postgresFigmaStateWriter(tx), proposals: proposalWriterOn(tx) }),
+      work({
+        figmaStates: postgresFigmaStateWriter(tx, storageMeterOn(tx)),
+        proposals: proposalWriterOn(tx),
+        storageAlert: storageAlertOn(tx),
+      }),
     ),
 });
 
-export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
+const resizeFigmaStateOf = async (
+  tx: Queryable,
+  {
+    meter,
+    proposalId,
+    change,
+  }: {
+    readonly meter: StorageMeter;
+    readonly proposalId: string;
+    readonly change: Partial<typeof tokenFigmaState.$inferInsert>;
+  },
+) => {
+  const before = await tx
+    .select({ row: tokenFigmaState, projectId: token.projectId })
+    .from(tokenFigmaState)
+    .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+    .where(eq(tokenFigmaState.proposalId, proposalId))
+    .for("update", { of: tokenFigmaState });
+  const after = await tx
+    .update(tokenFigmaState)
+    .set(change)
+    .where(eq(tokenFigmaState.proposalId, proposalId))
+    .returning();
+  const [changed] = before;
+  if (changed === undefined) {
+    return;
+  }
+  await meter.remove(
+    changed.projectId,
+    before.map(({ row }) => row),
+  );
+  await meter.add(changed.projectId, after);
+};
+
+export const postgresFigmaStateSynchronizer = (tx: Queryable, meter: StorageMeter) => ({
   proposalValidated: async (proposalId: string) => {
-    await tx
-      .update(tokenFigmaState)
-      .set({ state: "synced", proposalId: null })
-      .where(eq(tokenFigmaState.proposalId, proposalId));
+    await resizeFigmaStateOf(tx, {
+      meter,
+      proposalId,
+      change: { state: "synced", proposalId: null },
+    });
   },
   proposalRejected: async ({
     proposalId,
@@ -269,10 +344,11 @@ export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
     readonly proposalId: string;
     readonly token: ComparedDefinition;
   }) => {
-    await tx
-      .update(tokenFigmaState)
-      .set({ rejectedValue: { $value, modes }, proposalId: null })
-      .where(eq(tokenFigmaState.proposalId, proposalId));
+    await resizeFigmaStateOf(tx, {
+      meter,
+      proposalId,
+      change: { rejectedValue: { $value, modes }, proposalId: null },
+    });
   },
 });
 

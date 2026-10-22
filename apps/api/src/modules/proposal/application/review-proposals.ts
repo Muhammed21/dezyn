@@ -1,5 +1,10 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
+import type {
+  StorageAlertDecision,
+  StorageAlertSender,
+  WithStorageAlert,
+} from "#modules/space/contracts/storage-alert.ts";
 import type { TokenDefinition } from "#modules/token/contracts/token-definition.ts";
 import type {
   ValidatedTokenFailure,
@@ -67,6 +72,7 @@ export type ReviewUnit = {
   readonly tokens: ValidatedTokenWriter;
   readonly figmaStates: FigmaStateSynchronizer;
   readonly history: HistoryWriter;
+  readonly storageAlert: StorageAlertDecision;
 };
 
 export interface ReviewUnitOfWork {
@@ -159,17 +165,31 @@ export const batchOf =
     });
   };
 
+const sendingStorageAlert =
+  (send: StorageAlertSender) =>
+  async <T, E>(outcome: Result<WithStorageAlert<T>, E>): Promise<Result<T, E>> => {
+    if (!outcome.ok) {
+      return outcome;
+    }
+    if (outcome.value.alert !== undefined) {
+      await send(outcome.value.alert);
+    }
+    return ok(outcome.value.value);
+  };
+
 export const reviewProposal =
   ({
     proposals,
     validatedTokensOf,
     unitOfWork,
+    sendStorageAlert,
     now,
     access,
   }: Access & {
     readonly proposals: ProposalReader;
     readonly validatedTokensOf: ValidatedTokensOf;
     readonly unitOfWork: ReviewUnitOfWork;
+    readonly sendStorageAlert: StorageAlertSender;
     readonly now: () => Date;
   }) =>
   async ({
@@ -193,45 +213,51 @@ export const reviewProposal =
       return err("not_found");
     }
     const { proposal, projectId } = found;
-    return unitOfWork.run(async (unit): Promise<Result<Proposal, ReviewFailure>> => {
-      const reviewed = review({ status: await unit.proposals.lock(proposalId), decision });
-      if ("refusal" in reviewed) {
-        return err("already_reviewed");
-      }
-      const occurredAt = now();
-      const before = validatedOf(await validatedTokensOf(projectId), proposal);
-      if (reviewed.status === "validated") {
-        const validated = {
-          projectId,
-          token: proposal.token,
-          pending: await proposals.pendingTokensOf(projectId),
-          createdAt: occurredAt,
-        };
-        const failure =
-          proposal.kind === "create"
-            ? await unit.tokens.create(validated)
-            : await unit.tokens.replace(validated);
-        if (failure !== undefined) {
-          return err(failure);
+    const outcome = await unitOfWork.run(
+      async (unit): Promise<Result<WithStorageAlert<Proposal>, ReviewFailure>> => {
+        const reviewed = review({ status: await unit.proposals.lock(proposalId), decision });
+        if ("refusal" in reviewed) {
+          return err("already_reviewed");
         }
-        await unit.figmaStates.proposalValidated(proposalId);
-      } else {
-        await unit.figmaStates.proposalRejected({ proposalId, token: proposal.token });
-      }
-      await unit.proposals.settle(proposalId, reviewed.status);
-      await unit.history.append({
-        spaceId,
-        projectId,
-        action: `proposal.${reviewed.status}`,
-        userId,
-        clientId: null,
-        before: before === null ? null : definitionOf(before),
-        after: { proposalId, token: proposal.token },
-        correlationId,
-        occurredAt,
-      });
-      return ok({ ...proposal, status: reviewed.status });
-    });
+        const occurredAt = now();
+        const before = validatedOf(await validatedTokensOf(projectId), proposal);
+        if (reviewed.status === "validated") {
+          const validated = {
+            projectId,
+            token: proposal.token,
+            pending: await proposals.pendingTokensOf(projectId),
+            createdAt: occurredAt,
+          };
+          const failure =
+            proposal.kind === "create"
+              ? await unit.tokens.create(validated)
+              : await unit.tokens.replace(validated);
+          if (failure !== undefined) {
+            return err(failure);
+          }
+          await unit.figmaStates.proposalValidated(proposalId);
+        } else {
+          await unit.figmaStates.proposalRejected({ proposalId, token: proposal.token });
+        }
+        await unit.proposals.settle(proposalId, reviewed.status);
+        await unit.history.append({
+          spaceId,
+          projectId,
+          action: `proposal.${reviewed.status}`,
+          userId,
+          clientId: null,
+          before: before === null ? null : definitionOf(before),
+          after: { proposalId, token: proposal.token },
+          correlationId,
+          occurredAt,
+        });
+        return ok({
+          value: { ...proposal, status: reviewed.status },
+          alert: await unit.storageAlert(spaceId),
+        });
+      },
+    );
+    return sendingStorageAlert(sendStorageAlert)(outcome);
   };
 
 export type InvalidProposal = {
@@ -272,12 +298,14 @@ export const validateBatch =
     proposals,
     validatedTokensOf,
     unitOfWork,
+    sendStorageAlert,
     now,
     access,
   }: Access & {
     readonly proposals: ProposalReader;
     readonly validatedTokensOf: ValidatedTokensOf;
     readonly unitOfWork: ReviewUnitOfWork;
+    readonly sendStorageAlert: StorageAlertSender;
     readonly now: () => Date;
   }) =>
   async ({
@@ -304,74 +332,80 @@ export const validateBatch =
     const occurredAt = now();
     const validated = await validatedTokensOf(projectId);
     const pending = await proposals.pendingTokensOf(projectId);
-    return unitOfWork.run(async (unit): Promise<Result<ValidatedBatch, BatchValidationFailure>> => {
-      const locked = await unit.proposals.lockBatch(batchId);
-      const plan = planBatchValidation({
-        batchState: batchStateAt({ batch: batch, now: occurredAt }),
-        proposals: batch.proposals.map((proposal) => ({
-          ...proposal,
-          status: locked.find(({ id }) => id === proposal.id)?.status ?? proposal.status,
-        })),
-        rejected,
-      });
-      if ("refusal" in plan) {
-        return err(
-          plan.refusal === "batch_open"
-            ? "batch_open"
-            : { code: "unknown_propositions", ids: plan.ids },
-        );
-      }
-      const invalid = await inSequence(
-        plan.toValidate,
-        async (proposal): Promise<InvalidProposal | undefined> => {
-          const written = { projectId, token: proposal.token, pending, createdAt: occurredAt };
-          const failure =
-            proposal.kind === "create"
-              ? await unit.tokens.create(written)
-              : await unit.tokens.replace(written);
-          return failure === undefined
-            ? undefined
-            : { code: "invalid_proposition", proposalId: proposal.id, failure };
-        },
-      );
-      if (invalid !== undefined) {
-        return err(invalid);
-      }
-      const decided = [
-        ...plan.toValidate.map((proposal): Decided => ({ proposal, status: "validated" })),
-        ...plan.toReject.map((proposal): Decided => ({ proposal, status: "rejected" })),
-      ];
-      await inSequence(decided, async ({ proposal, status }) => {
-        const before = validatedOf(validated, proposal);
-        await unit.proposals.settle(proposal.id, status);
-        if (status === "validated") {
-          await unit.figmaStates.proposalValidated(proposal.id);
-        } else {
-          await unit.figmaStates.proposalRejected({
-            proposalId: proposal.id,
-            token: proposal.token,
-          });
-        }
-        await unit.history.append({
-          spaceId,
-          projectId,
-          action: `proposal.${status}`,
-          userId,
-          clientId: null,
-          before: before === null ? null : definitionOf(before),
-          after: { proposalId: proposal.id, token: proposal.token },
-          correlationId,
-          occurredAt,
+    const validatedBatch = await unitOfWork.run(
+      async (unit): Promise<Result<WithStorageAlert<ValidatedBatch>, BatchValidationFailure>> => {
+        const locked = await unit.proposals.lockBatch(batchId);
+        const plan = planBatchValidation({
+          batchState: batchStateAt({ batch: batch, now: occurredAt }),
+          proposals: batch.proposals.map((proposal) => ({
+            ...proposal,
+            status: locked.find(({ id }) => id === proposal.id)?.status ?? proposal.status,
+          })),
+          rejected,
         });
-        return undefined;
-      });
-      return ok({
-        id: batchId,
-        state: "closed",
-        validated: plan.toValidate.map(({ id }) => id),
-        rejected: plan.toReject.map(({ id }) => id),
-      });
-    });
+        if ("refusal" in plan) {
+          return err(
+            plan.refusal === "batch_open"
+              ? "batch_open"
+              : { code: "unknown_propositions", ids: plan.ids },
+          );
+        }
+        const invalid = await inSequence(
+          plan.toValidate,
+          async (proposal): Promise<InvalidProposal | undefined> => {
+            const written = { projectId, token: proposal.token, pending, createdAt: occurredAt };
+            const failure =
+              proposal.kind === "create"
+                ? await unit.tokens.create(written)
+                : await unit.tokens.replace(written);
+            return failure === undefined
+              ? undefined
+              : { code: "invalid_proposition", proposalId: proposal.id, failure };
+          },
+        );
+        if (invalid !== undefined) {
+          return err(invalid);
+        }
+        const decided = [
+          ...plan.toValidate.map((proposal): Decided => ({ proposal, status: "validated" })),
+          ...plan.toReject.map((proposal): Decided => ({ proposal, status: "rejected" })),
+        ];
+        await inSequence(decided, async ({ proposal, status }) => {
+          const before = validatedOf(validated, proposal);
+          await unit.proposals.settle(proposal.id, status);
+          if (status === "validated") {
+            await unit.figmaStates.proposalValidated(proposal.id);
+          } else {
+            await unit.figmaStates.proposalRejected({
+              proposalId: proposal.id,
+              token: proposal.token,
+            });
+          }
+          await unit.history.append({
+            spaceId,
+            projectId,
+            action: `proposal.${status}`,
+            userId,
+            clientId: null,
+            before: before === null ? null : definitionOf(before),
+            after: { proposalId: proposal.id, token: proposal.token },
+            correlationId,
+            occurredAt,
+          });
+          return undefined;
+        });
+        return ok({
+          value: {
+            id: batchId,
+            state: "closed",
+            validated: plan.toValidate.map(({ id }) => id),
+            rejected: plan.toReject.map(({ id }) => id),
+          },
+          alert: await unit.storageAlert(spaceId),
+        });
+      },
+    );
+    return sendingStorageAlert(sendStorageAlert)(validatedBatch);
   };
 
 export const pendingProposalsOf =

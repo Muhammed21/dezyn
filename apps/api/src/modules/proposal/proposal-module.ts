@@ -78,6 +78,8 @@ export const proposalModule = ({
     historyWriterOn,
     validatedTokenWriterOn,
     figmaStateOn,
+    storageMeterOn,
+    storageAlertOn,
   });
   return {
     writeTokens: writeTokens({
@@ -92,8 +94,12 @@ export const proposalModule = ({
     closeBatch: closeBatch({ unitOfWork, now }),
     listBatches: listBatches(reading),
     batchOf: batchOf(reading),
-    reviewProposal: reviewProposal({ ...reading, unitOfWork: reviewUnitOfWork }),
-    validateBatch: validateBatch({ ...reading, unitOfWork: reviewUnitOfWork }),
+    reviewProposal: reviewProposal({
+      ...reading,
+      unitOfWork: reviewUnitOfWork,
+      sendStorageAlert,
+    }),
+    validateBatch: validateBatch({ ...reading, unitOfWork: reviewUnitOfWork, sendStorageAlert }),
     pendingProposalsOf: pendingProposalsOf(reading),
   };
 };
