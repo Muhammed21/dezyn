@@ -1,7 +1,7 @@
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { historyModule, historyWriterOn } from "#modules/history/history-module.ts";
-import { projectModule } from "#modules/project/project-module.ts";
+import { projectModule, storageMeterOn } from "#modules/project/project-module.ts";
 import {
   proposalModule,
   proposalReplacerOn,
@@ -26,7 +26,8 @@ export const composeModules = ({
   readonly clock?: Clock;
 }) => {
   const spaces = spaceModule({ db, mailer, webUrl });
-  const writerOn = (tx: PostgresTransaction) => wrapHistoryWriter(historyWriterOn(tx));
+  const writerOn = (tx: PostgresTransaction) =>
+    wrapHistoryWriter(historyWriterOn(tx, storageMeterOn(tx)));
   const projects = projectModule({
     db,
     memberships: spaces.memberships,
@@ -44,6 +45,7 @@ export const composeModules = ({
     historyWriterOn: writerOn,
     proposalReplacerOn,
     proposalWriterOn,
+    storageMeterOn,
     clock,
   });
   const proposals = proposalModule({
@@ -52,7 +54,7 @@ export const composeModules = ({
     checkTokens: tokens.checkTokens,
     validatedTokensOf: async (projectId) => (await tokens.readTokens(projectId)).tokens,
     historyWriterOn: writerOn,
-    validatedTokenWriterOn,
+    validatedTokenWriterOn: (tx) => validatedTokenWriterOn(tx, storageMeterOn(tx)),
     figmaStateOn,
     clock,
   });

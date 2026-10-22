@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
+import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 
 import { readHistory } from "./application/read-history.ts";
@@ -9,8 +10,8 @@ import type { HistoryWriter } from "./domain/history-writer.ts";
 import { postgresHistoryReader } from "./infrastructure/postgres-history-reader.ts";
 import { postgresHistoryWriter } from "./infrastructure/postgres-history-writer.ts";
 
-export const historyWriterOn = (tx: PostgresTransaction) =>
-  postgresHistoryWriter(tx, { newId: randomUUID });
+export const historyWriterOn = (tx: PostgresTransaction, meter: StorageMeter) =>
+  postgresHistoryWriter(tx, { newId: randomUUID, meter });
 
 const now = () => new Date();
 

@@ -10,6 +10,7 @@ export const space = pgTable("space", {
   name: text("name").notNull(),
   plan: text("plan").notNull(),
   createdAt: at("created_at").notNull(),
+  storageAlertedAt: at("storage_alerted_at"),
 });
 
 export const spaceMember = pgTable(
