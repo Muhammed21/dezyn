@@ -2,7 +2,11 @@ import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
 
 import type { Plan } from "../domain/space.ts";
-import { type ProjectStorage, storageWarningOf } from "../domain/storage-warning.ts";
+import {
+  type DecidedStorageAlert,
+  type ProjectStorage,
+  storageWarningOf,
+} from "../domain/storage-warning.ts";
 
 export type SpaceStorage = {
   readonly name: string;
@@ -16,28 +20,23 @@ export interface StorageAlerts {
   openOwnerEmailsOf(spaceId: string): Promise<readonly string[]>;
 }
 
-export const alertStorage =
-  ({
-    alerts,
-    mailer,
-    now,
-    log,
-  }: {
-    readonly alerts: StorageAlerts;
-    readonly mailer: Mailer;
-    readonly now: () => Date;
-    readonly log: LogSink;
-  }) =>
-  async (spaceId: string): Promise<void> => {
+export const decideStorageAlert =
+  ({ alerts, now }: { readonly alerts: StorageAlerts; readonly now: () => Date }) =>
+  async (spaceId: string): Promise<DecidedStorageAlert | undefined> => {
     const { name, plan, projects } = await alerts.storageOf(spaceId);
     const warning = storageWarningOf({ spaceName: name, plan, projects });
     if (warning === undefined) {
-      return;
+      return undefined;
     }
     if (!(await alerts.markAlerted({ spaceId, at: now() }))) {
-      return;
+      return undefined;
     }
-    const owners = await alerts.openOwnerEmailsOf(spaceId);
+    return { spaceId, warning, owners: await alerts.openOwnerEmailsOf(spaceId) };
+  };
+
+export const sendStorageAlert =
+  ({ mailer, log }: { readonly mailer: Mailer; readonly log: LogSink }) =>
+  async ({ spaceId, warning, owners }: DecidedStorageAlert): Promise<void> => {
     await Promise.all(
       owners.map(async (to) => {
         const sent = await mailer.send({ to, ...warning });

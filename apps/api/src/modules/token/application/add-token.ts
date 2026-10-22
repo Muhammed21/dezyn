@@ -1,6 +1,10 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
-import type { StorageAlert } from "#modules/space/contracts/storage-alert.ts";
+import type {
+  DecidedStorageAlert,
+  StorageAlertDecision,
+  StorageAlertSender,
+} from "#modules/space/contracts/storage-alert.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import type { Token, TokenDefinition } from "../domain/token.ts";
@@ -29,6 +33,7 @@ export interface TokenUnitOfWork {
       readonly tokens: TokenWriter;
       readonly history: HistoryWriter;
       readonly proposals: PendingProposals;
+      readonly storageAlert: StorageAlertDecision;
     }) => Promise<T>,
   ): Promise<T>;
 }
@@ -43,7 +48,7 @@ export const addToken =
     modes,
     projectTokens,
     unitOfWork,
-    alertStorage,
+    sendStorageAlert,
     newId,
     now,
   }: {
@@ -51,7 +56,7 @@ export const addToken =
     readonly modes: ModeReader;
     readonly projectTokens: ProjectTokenReader;
     readonly unitOfWork: TokenUnitOfWork;
-    readonly alertStorage: StorageAlert;
+    readonly sendStorageAlert: StorageAlertSender;
     readonly newId: () => string;
     readonly now: () => Date;
   }) =>
@@ -85,8 +90,18 @@ export const addToken =
       status: "validated",
       createdAt: now(),
     };
-    const result = await unitOfWork.run<Result<AddedToken, TokenAdditionFailure>>(
-      async ({ tokens, history, proposals }) => {
+    const result = await unitOfWork.run(
+      async ({
+        tokens,
+        history,
+        proposals,
+        storageAlert,
+      }): Promise<
+        Result<
+          { readonly token: AddedToken; readonly alert: DecidedStorageAlert | undefined },
+          TokenAdditionFailure
+        >
+      > => {
         if ((await tokens.create(added, values.map(modeValueOf))) === "name_taken") {
           return err("name_taken");
         }
@@ -102,11 +117,17 @@ export const addToken =
           correlationId,
           occurredAt: added.createdAt,
         });
-        return ok({ ...added, replaced });
+        return ok({
+          token: { ...added, replaced },
+          alert: await storageAlert(project.spaceId),
+        });
       },
     );
-    if (result.ok) {
-      await alertStorage(project.spaceId);
+    if (!result.ok) {
+      return result;
     }
-    return result;
+    if (result.value.alert !== undefined) {
+      await sendStorageAlert(result.value.alert);
+    }
+    return ok(result.value.token);
   };

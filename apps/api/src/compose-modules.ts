@@ -49,7 +49,8 @@ export const composeModules = ({
     proposalReplacerOn,
     proposalWriterOn,
     storageMeterOn,
-    alertStorage: spaces.alertStorage,
+    storageAlertOn: spaces.storageAlertOn,
+    sendStorageAlert: spaces.sendStorageAlert,
     clock,
   });
   const proposals = proposalModule({

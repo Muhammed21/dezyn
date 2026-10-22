@@ -1,11 +1,11 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import type { PostgresDatabase } from "#db";
+import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
 
 import { acceptInvitation } from "./application/accept-invitation.ts";
-import { alertStorage } from "./application/alert-storage.ts";
+import { decideStorageAlert, sendStorageAlert } from "./application/alert-storage.ts";
 import { inviteMember } from "./application/invite-member.ts";
 import { leaveSpace } from "./application/leave-space.ts";
 import { changeRole, removeMember } from "./application/manage-members.ts";
@@ -46,7 +46,9 @@ export const spaceModule = ({
     projectAccess: (projects: ProjectLocator) => projectAccess({ projects, memberships }),
     createPersonalSpace: createPersonalSpace({ store, newId: randomUUID, now }),
     listMySpaces: listMySpaces({ store }),
-    alertStorage: alertStorage({ alerts: postgresStorageAlerts(db), mailer, now, log }),
+    storageAlertOn: (tx: PostgresTransaction) =>
+      decideStorageAlert({ alerts: postgresStorageAlerts(tx), now }),
+    sendStorageAlert: sendStorageAlert({ mailer, log }),
     readSpace: readSpace({ memberships, spaces: store }),
     inviteMember: inviteMember({
       memberships,

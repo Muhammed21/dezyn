@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import type { PostgresDatabase } from "#db";
+import { createPostgresDatabase, type PostgresDatabase } from "#db";
 import type { LogRecord } from "#platform/logging.ts";
 import type { OutgoingEmail } from "#platform/mailer.ts";
 import { ADA, type App, GRACE } from "#testing/authorization-flow.ts";
@@ -14,7 +14,7 @@ import { addToken, makeColorToken } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
 import { err } from "@repo/result";
 
-const { project, space, spaceMember } = schema;
+const { project, space, spaceMember, token } = schema;
 
 const JUST_UNDER_FREE_ALERT = 399_999_999;
 
@@ -40,6 +40,23 @@ const seedProjectIn = async (
     storedBytes: bytes,
   });
   return projectId;
+};
+
+const breakStorageAlertMarking = async (migratorUrl: string) => {
+  const migrator = createPostgresDatabase({ url: migratorUrl });
+  try {
+    await migrator.orm.execute(sql`
+      CREATE FUNCTION refuse_storage_alert() RETURNS trigger AS $$
+      BEGIN
+        RAISE EXCEPTION 'storage_alerted_at indisponible';
+      END;
+      $$ LANGUAGE plpgsql`);
+    await migrator.orm.execute(sql`
+      CREATE TRIGGER refuse_storage_alert BEFORE UPDATE OF storage_alerted_at ON space
+      FOR EACH ROW EXECUTE FUNCTION refuse_storage_alert()`);
+  } finally {
+    await migrator.close();
+  }
 };
 
 const alertedAtOf = async (db: PostgresDatabase, spaceId: string) => {
@@ -311,6 +328,21 @@ describe("l'ajout d'un token qui porte l'espace à 80 % prévient ses propriéta
       },
     );
   });
+
+  it("une alerte qui ne peut pas se poser n'écrit pas le token à moitié", () =>
+    withIdentityApp(async (app, db, { migratorUrl }) => {
+      const seeded = await seedProject(app, db);
+      await seedStoredBytes(db, { projectId: seeded.projectId, bytes: JUST_UNDER_FREE_ALERT });
+      await breakStorageAlertMarking(migratorUrl);
+
+      const response = await addColorToken(app, seeded);
+
+      expect(response.status).toBe(500);
+      expect(
+        await db.orm.select().from(token).where(eq(token.projectId, seeded.projectId)),
+      ).toEqual([]);
+      expect(await storedBytesOf(db, seeded.projectId)).toBe(JUST_UNDER_FREE_ALERT);
+    }));
 
   it("un échec SMTP laisse l'ajout réussir, le compteur à jour, et journalise l'échec", () => {
     const records: LogRecord[] = [];

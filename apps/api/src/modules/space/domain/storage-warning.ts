@@ -5,6 +5,12 @@ export type ProjectStorage = { readonly name: string; readonly storedBytes: numb
 
 export type StorageWarning = { readonly subject: string; readonly text: string };
 
+export type DecidedStorageAlert = {
+  readonly spaceId: string;
+  readonly warning: StorageWarning;
+  readonly owners: readonly string[];
+};
+
 const sizeOf = (bytes: number) =>
   bytes < 1_000_000_000
     ? `${Math.floor(bytes / 1_000_000)} Mo`

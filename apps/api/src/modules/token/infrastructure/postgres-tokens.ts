@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
+import type { StorageAlertDecision } from "#modules/space/contracts/storage-alert.ts";
 import { schema } from "@repo/db";
 
 import type { PendingProposals, TokenUnitOfWork } from "../application/add-token.ts";
@@ -134,12 +135,14 @@ export const postgresTokenUnitOfWork = ({
   historyWriterOn,
   proposalReplacerOn,
   storageMeterOn,
+  storageAlertOn,
   newId,
 }: {
   readonly db: PostgresDatabase;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
   readonly newId: () => string;
 }): TokenUnitOfWork => ({
   run: (work) =>
@@ -148,6 +151,7 @@ export const postgresTokenUnitOfWork = ({
         tokens: postgresTokenWriter(tx, { newId, meter: storageMeterOn(tx) }),
         history: historyWriterOn(tx),
         proposals: proposalReplacerOn(tx),
+        storageAlert: storageAlertOn(tx),
       }),
     ),
 });
