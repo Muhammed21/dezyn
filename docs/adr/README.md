@@ -37,6 +37,7 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0029](0029-un-champ-d-une-valeur-composee-peut-referencer-un-token.md)                                      | Un champ d'une valeur composée peut référencer un token                                                                       | Accepté                                                                                                                                                                                                                                                                                   |
 | [0030](0030-dezyn-conserve-les-extensions-d-un-token-sans-les-interpreter.md)                                | dezyn conserve les extensions d'un token sans les interpréter                                                                 | Accepté                                                                                                                                                                                                                                                                                   |
 | [0031](0031-un-membre-retire-par-un-proprietaire-est-ferme-avec-la-raison-removed.md)                        | Un membre retiré par un propriétaire est fermé avec la raison `removed`, et l'historique le dit parti                         | Accepté                                                                                                                                                                                                                                                                                   |
+| [0032](0032-le-stockage-d-un-projet-se-compte-par-un-compteur-d-octets-tenu-a-chaque-ecriture.md)            | Le stockage d'un projet se compte par un compteur d'octets tenu à chaque écriture                                             | Accepté                                                                                                                                                                                                                                                                                   |
 
 ## Dépendances principales
 
@@ -138,6 +139,9 @@ graph TD
   0028 --> 0030
   0017 --> 0031[0031 Membre retiré]
   0027 --> 0031
+  0006 --> 0032[0032 Compteur de stockage]
+  0011 --> 0032
+  0016 --> 0032
 ```
 
 ## Points ouverts
