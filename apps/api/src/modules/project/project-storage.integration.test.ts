@@ -1,15 +1,12 @@
-import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import type { PostgresDatabase } from "#db";
 import { withIdentityApp } from "#testing/authorization-flow.ts";
 import { seedModes, seedProject } from "#testing/project-fixtures.ts";
+import { bytesOfProjectRows, storedBytesOf } from "#testing/project-storage.ts";
 import { addToken, makeColorToken } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
 
-import { storedSize } from "./domain/storage.ts";
-
-const { historyEntry, project, token, tokenValue, tokenValueReference } = schema;
+const { tokenValueReference } = schema;
 
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4], alpha: 1, hex: "#1a3366" };
 
@@ -27,42 +24,6 @@ const BODY_TEXT = {
     lineHeight: 1.5,
     letterSpacing: { value: 0, unit: "px" },
   },
-};
-
-const storedBytesOf = async (db: PostgresDatabase, projectId: string) => {
-  const [row] = await db.orm
-    .select({ storedBytes: project.storedBytes })
-    .from(project)
-    .where(eq(project.id, projectId));
-  return row?.storedBytes;
-};
-
-const sizeOfRows = (rows: readonly object[]) =>
-  rows.reduce((total, row) => total + storedSize(row), 0);
-
-const bytesOfProjectRows = async (db: PostgresDatabase, projectId: string) => {
-  const tokens = await db.orm.select().from(token).where(eq(token.projectId, projectId));
-  const values = await db.orm
-    .select({ row: tokenValue })
-    .from(tokenValue)
-    .innerJoin(token, eq(token.id, tokenValue.tokenId))
-    .where(eq(token.projectId, projectId));
-  const references = await db.orm
-    .select({ row: tokenValueReference })
-    .from(tokenValueReference)
-    .innerJoin(tokenValue, eq(tokenValue.id, tokenValueReference.tokenValueId))
-    .innerJoin(token, eq(token.id, tokenValue.tokenId))
-    .where(eq(token.projectId, projectId));
-  const entries = await db.orm
-    .select()
-    .from(historyEntry)
-    .where(eq(historyEntry.projectId, projectId));
-  return (
-    sizeOfRows(tokens) +
-    sizeOfRows(values.map(({ row }) => row)) +
-    sizeOfRows(references.map(({ row }) => row)) +
-    sizeOfRows(entries)
-  );
 };
 
 describe("le compteur d'un projet suit l'ajout d'un token (ADR 0032 §1 à §3)", () => {

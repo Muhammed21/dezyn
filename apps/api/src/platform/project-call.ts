@@ -14,5 +14,5 @@ export type RecordProjectCall = <T, E>(call: {
   readonly clientId: string;
   readonly correlationId: string;
   readonly input: Readonly<Record<string, unknown>>;
-  readonly run: () => Promise<Result<T, E>>;
+  readonly run: (project: { readonly spaceId: string }) => Promise<Result<T, E>>;
 }) => Promise<Result<T, E | RecordFailure>>;

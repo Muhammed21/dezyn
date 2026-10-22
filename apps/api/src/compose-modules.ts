@@ -47,7 +47,7 @@ export const composeModules = ({
     access,
     historyWriterOn: writerOn,
     proposalReplacerOn,
-    proposalWriterOn,
+    proposalWriterOn: (tx) => proposalWriterOn(tx, storageMeterOn(tx)),
     storageMeterOn,
     storageAlertOn: spaces.storageAlertOn,
     sendStorageAlert: spaces.sendStorageAlert,
@@ -61,6 +61,9 @@ export const composeModules = ({
     historyWriterOn: writerOn,
     validatedTokenWriterOn: (tx) => validatedTokenWriterOn(tx, storageMeterOn(tx)),
     figmaStateOn,
+    storageMeterOn,
+    storageAlertOn: spaces.storageAlertOn,
+    sendStorageAlert: spaces.sendStorageAlert,
     clock,
   });
   return { spaces, projects, history, tokens, proposals };

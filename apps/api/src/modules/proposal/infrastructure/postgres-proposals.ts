@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
+import type { StorageAlertDecision } from "#modules/space/contracts/storage-alert.ts";
 import { TokenDefinitionInput } from "#modules/token/contracts/token-definition.ts";
 import type { ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
 import { schema } from "@repo/db";
@@ -60,7 +62,28 @@ export const postgresProposalReplacer = (tx: PostgresTransaction) => ({
   },
 });
 
-export const postgresProposalStore = (tx: PostgresTransaction): ProposalStore => ({
+const resize = async (
+  meter: StorageMeter,
+  {
+    before,
+    after,
+  }: {
+    readonly before: readonly object[];
+    readonly after: readonly { readonly projectId: string }[];
+  },
+) => {
+  const [changed] = after;
+  if (changed === undefined) {
+    return;
+  }
+  await meter.remove(changed.projectId, before);
+  await meter.add(changed.projectId, after);
+};
+
+export const postgresProposalStore = (
+  tx: PostgresTransaction,
+  meter: StorageMeter,
+): ProposalStore => ({
   pendingOf: async (projectId, names) => {
     await [...new Set(names)]
       .toSorted()
@@ -88,40 +111,78 @@ export const postgresProposalStore = (tx: PostgresTransaction): ProposalStore =>
     return rows.map((row) => proposalOf(row.proposal));
   },
   replace: async (proposalIds) => {
-    await tx
+    const before = await tx
+      .select()
+      .from(proposal)
+      .where(inArray(proposal.id, [...proposalIds]));
+    const after = await tx
       .update(proposal)
       .set({ status: "replaced" })
-      .where(inArray(proposal.id, [...proposalIds]));
+      .where(inArray(proposal.id, [...proposalIds]))
+      .returning();
+    await resize(meter, { before, after });
   },
   findOpenBatch: (writer) => findOpenBatch(tx, writer),
   openBatchOf: async (candidate) => {
-    await tx.insert(proposalBatch).values(candidate).onConflictDoNothing();
+    const opened = await tx
+      .insert(proposalBatch)
+      .values(candidate)
+      .onConflictDoNothing()
+      .returning();
+    await meter.add(candidate.projectId, opened);
     return (await findOpenBatch(tx, candidate)) ?? candidate;
   },
   closeBatch: async (batchId) => {
-    await tx.update(proposalBatch).set({ state: "closed" }).where(eq(proposalBatch.id, batchId));
+    const before = await tx.select().from(proposalBatch).where(eq(proposalBatch.id, batchId));
+    const after = await tx
+      .update(proposalBatch)
+      .set({ state: "closed" })
+      .where(eq(proposalBatch.id, batchId))
+      .returning();
+    await resize(meter, { before, after });
   },
   touchBatch: async (batchId, lastWrittenAt) => {
-    await tx.update(proposalBatch).set({ lastWrittenAt }).where(eq(proposalBatch.id, batchId));
+    const before = await tx.select().from(proposalBatch).where(eq(proposalBatch.id, batchId));
+    const after = await tx
+      .update(proposalBatch)
+      .set({ lastWrittenAt })
+      .where(eq(proposalBatch.id, batchId))
+      .returning();
+    await resize(meter, { before, after });
   },
   propose: async (projectId, proposals) => {
-    await tx.insert(proposal).values(
-      proposals.map(({ id, batchId, name, kind, token, status, createdAt }) => ({
-        id,
-        projectId,
-        batchId,
-        tokenName: name,
-        kind,
-        payload: token,
-        status,
-        createdAt,
-      })),
-    );
+    const proposed = await tx
+      .insert(proposal)
+      .values(
+        proposals.map(({ id, batchId, name, kind, token, status, createdAt }) => ({
+          id,
+          projectId,
+          batchId,
+          tokenName: name,
+          kind,
+          payload: token,
+          status,
+          createdAt,
+        })),
+      )
+      .returning();
+    await meter.add(projectId, proposed);
   },
 });
 
-export const postgresProposalUnitOfWork = (db: PostgresDatabase): ProposalUnitOfWork => ({
-  run: (work) => db.orm.transaction((tx) => work(postgresProposalStore(tx))),
+export const postgresProposalUnitOfWork = ({
+  db,
+  storageMeterOn,
+  storageAlertOn,
+}: {
+  readonly db: PostgresDatabase;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
+}): ProposalUnitOfWork => ({
+  run: (work) =>
+    db.orm.transaction((tx) =>
+      work(postgresProposalStore(tx, storageMeterOn(tx)), storageAlertOn(tx)),
+    ),
 });
 
 const BatchState = z.enum(["open", "closed"]);
