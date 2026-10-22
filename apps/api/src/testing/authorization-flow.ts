@@ -90,6 +90,7 @@ export const startIdentityApp = async ({
       trustedIpHeader: "x-forwarded-for",
       log: () => undefined,
       onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
+      clock,
     });
     return {
       app: createApp({
