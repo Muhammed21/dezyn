@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
+import type {
+  StorageAlertDecision,
+  StorageAlertSender,
+} from "#modules/space/contracts/storage-alert.ts";
 import type { Clock } from "#platform/clock.ts";
 
 import { addToken, type PendingProposals } from "./application/add-token.ts";
@@ -25,11 +30,11 @@ import {
 
 export const figmaStateOn = postgresFigmaStateSynchronizer;
 
-export const validatedTokenWriterOn = (tx: PostgresTransaction) =>
+export const validatedTokenWriterOn = (tx: PostgresTransaction, meter: StorageMeter) =>
   validatedTokenWriter({
     modes: postgresModeReader(tx),
     projectTokens: postgresProjectTokenReader(tx),
-    tokens: postgresTokenWriter(tx, { newId: randomUUID }),
+    tokens: postgresTokenWriter(tx, { newId: randomUUID, meter }),
     newId: randomUUID,
   });
 
@@ -39,6 +44,9 @@ export const tokenModule = ({
   historyWriterOn,
   proposalReplacerOn,
   proposalWriterOn,
+  storageMeterOn,
+  storageAlertOn,
+  sendStorageAlert,
   clock,
 }: {
   readonly db: PostgresDatabase;
@@ -46,6 +54,9 @@ export const tokenModule = ({
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
   readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
+  readonly sendStorageAlert: StorageAlertSender;
   readonly clock: Clock;
 }) => {
   const check = checkTokens({
@@ -66,8 +77,11 @@ export const tokenModule = ({
         db,
         historyWriterOn,
         proposalReplacerOn,
+        storageMeterOn,
+        storageAlertOn,
         newId: randomUUID,
       }),
+      sendStorageAlert,
       newId: randomUUID,
       now: clock,
     }),

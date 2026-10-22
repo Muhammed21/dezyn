@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { PostgresTransaction } from "#db";
+import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import { schema } from "@repo/db";
 
 import type { HistoryWriter } from "../domain/history-writer.ts";
@@ -12,7 +13,7 @@ const StoredAuthor = z.object({ id: z.string() });
 
 export const postgresHistoryWriter = (
   tx: PostgresTransaction,
-  { newId }: { readonly newId: () => string },
+  { newId, meter }: { readonly newId: () => string; readonly meter: StorageMeter },
 ): HistoryWriter => ({
   append: async ({ userId, ...entry }) => {
     await tx
@@ -23,8 +24,10 @@ export const postgresHistoryWriter = (
       .select({ id: historyAuthor.id })
       .from(historyAuthor)
       .where(and(eq(historyAuthor.spaceId, entry.spaceId), eq(historyAuthor.userId, userId)));
-    await tx
+    const written = await tx
       .insert(historyEntry)
-      .values({ ...entry, id: newId(), authorId: StoredAuthor.parse(author).id });
+      .values({ ...entry, id: newId(), authorId: StoredAuthor.parse(author).id })
+      .returning();
+    await meter.add(entry.projectId, written);
   },
 });

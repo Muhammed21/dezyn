@@ -1,1 +1,1 @@
-export const LATEST_MIGRATION = { tag: "0012_token_extensions", when: 1792600894639 };
+export const LATEST_MIGRATION = { tag: "0013_storage_meter", when: 1792675253211 };

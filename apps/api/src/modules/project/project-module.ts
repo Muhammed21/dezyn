@@ -11,6 +11,9 @@ import {
   postgresProjectLister,
   postgresProjectUnitOfWork,
 } from "./infrastructure/postgres-projects.ts";
+import { postgresStorageMeter } from "./infrastructure/postgres-storage-meter.ts";
+
+export const storageMeterOn = postgresStorageMeter;
 
 const now = () => new Date();
 

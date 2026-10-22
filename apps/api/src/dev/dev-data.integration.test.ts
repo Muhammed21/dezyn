@@ -37,6 +37,7 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
         db,
         mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
+        log: () => undefined,
       });
 
       const seeded = await seedDevData({
@@ -75,6 +76,7 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
         db,
         mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
+        log: () => undefined,
       });
 
       const seeded = seedDevData({
@@ -96,6 +98,7 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
         db,
         mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
+        log: () => undefined,
       });
       await seedDevData({
         app,
@@ -131,6 +134,7 @@ describe("le vidage de dev supprime les utilisateurs et tout ce qui leur est li�
         db,
         mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
+        log: () => undefined,
       });
       await seedDevData({
         app,
@@ -198,6 +202,7 @@ describe("le vidage de dev supprime les utilisateurs et tout ce qui leur est li�
         db,
         mailer: { send: async () => ok(undefined) },
         webUrl: WEB_URL,
+        log: () => undefined,
       });
       await seedDevData({
         app,

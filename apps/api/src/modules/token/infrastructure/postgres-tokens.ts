@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
+import type { StorageAlertDecision } from "#modules/space/contracts/storage-alert.ts";
 import { schema } from "@repo/db";
 
 import type { PendingProposals, TokenUnitOfWork } from "../application/add-token.ts";
@@ -58,15 +60,18 @@ const insertValues = async (
   },
 ) => {
   const rows = values.map((stored) => ({ id: newId(), stored }));
-  await tx.insert(tokenValue).values(
-    rows.map(({ id, stored: { modeId, value, referencedTokenId } }) => ({
-      id,
-      tokenId,
-      modeId,
-      value,
-      referencedTokenId,
-    })),
-  );
+  const writtenValues = await tx
+    .insert(tokenValue)
+    .values(
+      rows.map(({ id, stored: { modeId, value, referencedTokenId } }) => ({
+        id,
+        tokenId,
+        modeId,
+        value,
+        referencedTokenId,
+      })),
+    )
+    .returning();
   const references = rows.flatMap(({ id, stored }) =>
     stored.fieldReferences.map(({ field, referencedTokenId }) => ({
       id: newId(),
@@ -75,14 +80,16 @@ const insertValues = async (
       referencedTokenId,
     })),
   );
-  if (references.length > 0) {
-    await tx.insert(tokenValueReference).values(references);
+  if (references.length === 0) {
+    return writtenValues;
   }
+  const writtenReferences = await tx.insert(tokenValueReference).values(references).returning();
+  return [...writtenValues, ...writtenReferences];
 };
 
 export const postgresTokenWriter = (
   tx: Queryable,
-  { newId }: { readonly newId: () => string },
+  { newId, meter }: { readonly newId: () => string; readonly meter: StorageMeter },
 ): TokenWriter => ({
   create: async (added, values) => {
     const inserted = await tx
@@ -98,11 +105,12 @@ export const postgresTokenWriter = (
         createdAt: added.createdAt,
       })
       .onConflictDoNothing({ target: [token.projectId, token.name] })
-      .returning({ id: token.id });
+      .returning();
     if (inserted.length === 0) {
       return "name_taken";
     }
-    await insertValues(tx, { newId, tokenId: added.id, values });
+    const written = await insertValues(tx, { newId, tokenId: added.id, values });
+    await meter.add(added.projectId, [...inserted, ...written]);
     return "created";
   },
   replace: async (replaced, values) => {
@@ -126,19 +134,24 @@ export const postgresTokenUnitOfWork = ({
   db,
   historyWriterOn,
   proposalReplacerOn,
+  storageMeterOn,
+  storageAlertOn,
   newId,
 }: {
   readonly db: PostgresDatabase;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
+  readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
   readonly newId: () => string;
 }): TokenUnitOfWork => ({
   run: (work) =>
     db.orm.transaction((tx) =>
       work({
-        tokens: postgresTokenWriter(tx, { newId }),
+        tokens: postgresTokenWriter(tx, { newId, meter: storageMeterOn(tx) }),
         history: historyWriterOn(tx),
         proposals: proposalReplacerOn(tx),
+        storageAlert: storageAlertOn(tx),
       }),
     ),
 });
