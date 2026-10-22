@@ -9,6 +9,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import type { PostgresDatabase } from "#db";
 import {
   BASE_URL,
   callMcp,
@@ -23,6 +24,24 @@ import {
 import { schema } from "@repo/db";
 
 const RESOURCE_METADATA = `${BASE_URL}/.well-known/oauth-protected-resource/v1`;
+
+const makeClock = () => {
+  let instant = new Date();
+  return {
+    now: () => instant,
+    at: (moment: Date) => {
+      instant = moment;
+    },
+  };
+};
+
+const sessionExpiryOf = async (db: PostgresDatabase, userId: string) => {
+  const sessions = await db.orm
+    .select({ expiresAt: schema.identitySession.expiresAt })
+    .from(schema.identitySession)
+    .where(eq(schema.identitySession.userId, userId));
+  return Math.max(...sessions.map(({ expiresAt }) => expiresAt.getTime()));
+};
 
 describe("MCP : l'IA autorisée appelle whoami", () => {
   it("sans jeton, répond 401 et pointe vers les métadonnées de ressource protégée", () =>
@@ -116,6 +135,24 @@ describe("MCP : l'IA autorisée appelle whoami", () => {
 
       expect(response.status).toBe(401);
     }));
+
+  it("à l'heure d'expiration de la session, le jeton est refusé ; une milliseconde avant, il passe", () => {
+    const clock = makeClock();
+    return withIdentityApp(
+      async (app, db) => {
+        const { accessToken, userId } = await obtainAccessToken(app);
+        const expiresAt = await sessionExpiryOf(db, userId);
+
+        clock.at(new Date(expiresAt - 1));
+        const before = await callMcp(app, { token: accessToken, method: "tools/list" });
+        clock.at(new Date(expiresAt));
+        const at = await callMcp(app, { token: accessToken, method: "tools/list" });
+
+        expect([before.status, at.status]).toEqual([200, 401]);
+      },
+      { clock: clock.now },
+    );
+  });
 
   it("annonce whoami avec sa description et son schéma de sortie, et se présente comme dezyn", () =>
     withIdentityApp(async (app) => {

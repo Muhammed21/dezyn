@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { PostgresDatabase } from "#db";
+import type { Clock } from "#platform/clock.ts";
 import type { LogSink } from "#platform/logging.ts";
 import { createAccessTokenVerifier } from "@repo/auth-verifier";
 import { schema } from "@repo/db";
@@ -152,6 +153,7 @@ export const createIdentityAuth = async ({
   trustedIpHeader,
   log,
   onUserCreated,
+  clock = () => new Date(),
 }: {
   readonly db: PostgresDatabase;
   readonly secret: string;
@@ -159,6 +161,7 @@ export const createIdentityAuth = async ({
   readonly trustedIpHeader: string;
   readonly log: LogSink;
   readonly onUserCreated: (user: { readonly id: string; readonly name: string }) => Promise<void>;
+  readonly clock?: Clock;
 }): Promise<Auth> => {
   const auth = betterAuth({
     ...identityAuthOptions({ baseURL, trustedIpHeader }),
@@ -190,7 +193,7 @@ export const createIdentityAuth = async ({
     jwksUrl: new URL("/auth/jwks", baseURL).href,
     issuer,
     audience: apiResourceOf(baseURL),
-    activeGrants: postgresActiveGrants(db),
+    activeGrants: postgresActiveGrants(db, clock),
     fetchJwks: (url) => auth.handler(new Request(url)),
   });
   const authorizationServerMetadata = oauthProviderAuthServerMetadata(auth);
