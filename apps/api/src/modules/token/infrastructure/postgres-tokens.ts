@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -197,9 +197,18 @@ export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTok
       .orderBy(asc(token.name), asc(mode.position)),
 });
 
-export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
-  declare: async ({ states, declaredAt, userId, clientId }) => {
-    await tx
+export const postgresFigmaStateWriter = (tx: Queryable, meter: StorageMeter): FigmaStateWriter => ({
+  declare: async ({ projectId, states, declaredAt, userId, clientId }) => {
+    const before = await tx
+      .select()
+      .from(tokenFigmaState)
+      .where(
+        inArray(
+          tokenFigmaState.tokenId,
+          states.map(({ tokenId }) => tokenId),
+        ),
+      );
+    const after = await tx
       .insert(tokenFigmaState)
       .values(
         states.map((declared) => ({
@@ -222,7 +231,10 @@ export const postgresFigmaStateWriter = (tx: Queryable): FigmaStateWriter => ({
           clientId: sql`excluded.client_id`,
           proposalId: sql`case when excluded.state = 'diverged' then coalesce(excluded.proposal_id, ${tokenFigmaState.proposalId}) end`,
         },
-      });
+      })
+      .returning();
+    await meter.remove(projectId, before);
+    await meter.add(projectId, after);
   },
 });
 
@@ -263,22 +275,61 @@ export const postgresFigmaStateReader = (db: PostgresDatabase): FigmaStateReader
 export const postgresFigmaUnitOfWork = ({
   db,
   proposalWriterOn,
+  storageMeterOn,
 }: {
   readonly db: PostgresDatabase;
   readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
 }): FigmaUnitOfWork => ({
   run: (work) =>
     db.orm.transaction((tx) =>
-      work({ figmaStates: postgresFigmaStateWriter(tx), proposals: proposalWriterOn(tx) }),
+      work({
+        figmaStates: postgresFigmaStateWriter(tx, storageMeterOn(tx)),
+        proposals: proposalWriterOn(tx),
+      }),
     ),
 });
 
-export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
+const resizeFigmaStateOf = async (
+  tx: Queryable,
+  {
+    meter,
+    proposalId,
+    change,
+  }: {
+    readonly meter: StorageMeter;
+    readonly proposalId: string;
+    readonly change: Partial<typeof tokenFigmaState.$inferInsert>;
+  },
+) => {
+  const before = await tx
+    .select({ row: tokenFigmaState, projectId: token.projectId })
+    .from(tokenFigmaState)
+    .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+    .where(eq(tokenFigmaState.proposalId, proposalId));
+  const after = await tx
+    .update(tokenFigmaState)
+    .set(change)
+    .where(eq(tokenFigmaState.proposalId, proposalId))
+    .returning();
+  const [changed] = before;
+  if (changed === undefined) {
+    return;
+  }
+  await meter.remove(
+    changed.projectId,
+    before.map(({ row }) => row),
+  );
+  await meter.add(changed.projectId, after);
+};
+
+export const postgresFigmaStateSynchronizer = (tx: Queryable, meter: StorageMeter) => ({
   proposalValidated: async (proposalId: string) => {
-    await tx
-      .update(tokenFigmaState)
-      .set({ state: "synced", proposalId: null })
-      .where(eq(tokenFigmaState.proposalId, proposalId));
+    await resizeFigmaStateOf(tx, {
+      meter,
+      proposalId,
+      change: { state: "synced", proposalId: null },
+    });
   },
   proposalRejected: async ({
     proposalId,
@@ -287,10 +338,11 @@ export const postgresFigmaStateSynchronizer = (tx: Queryable) => ({
     readonly proposalId: string;
     readonly token: ComparedDefinition;
   }) => {
-    await tx
-      .update(tokenFigmaState)
-      .set({ rejectedValue: { $value, modes }, proposalId: null })
-      .where(eq(tokenFigmaState.proposalId, proposalId));
+    await resizeFigmaStateOf(tx, {
+      meter,
+      proposalId,
+      change: { rejectedValue: { $value, modes }, proposalId: null },
+    });
   },
 });
 

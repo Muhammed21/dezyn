@@ -4,8 +4,16 @@ import type { PostgresDatabase } from "#db";
 import { storedSize } from "#modules/project/domain/storage.ts";
 import { schema } from "@repo/db";
 
-const { historyEntry, project, proposal, proposalBatch, token, tokenValue, tokenValueReference } =
-  schema;
+const {
+  historyEntry,
+  project,
+  proposal,
+  proposalBatch,
+  token,
+  tokenFigmaState,
+  tokenValue,
+  tokenValueReference,
+} = schema;
 
 export const seedStoredBytes = (
   db: PostgresDatabase,
@@ -36,10 +44,16 @@ export const bytesOfTokenRows = async (db: PostgresDatabase, projectId: string) 
     .innerJoin(tokenValue, eq(tokenValue.id, tokenValueReference.tokenValueId))
     .innerJoin(token, eq(token.id, tokenValue.tokenId))
     .where(eq(token.projectId, projectId));
+  const figmaStates = await db.orm
+    .select({ row: tokenFigmaState })
+    .from(tokenFigmaState)
+    .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
+    .where(eq(token.projectId, projectId));
   return (
     sizeOfRows(tokens) +
     sizeOfRows(values.map(({ row }) => row)) +
-    sizeOfRows(references.map(({ row }) => row))
+    sizeOfRows(references.map(({ row }) => row)) +
+    sizeOfRows(figmaStates.map(({ row }) => row))
   );
 };
 

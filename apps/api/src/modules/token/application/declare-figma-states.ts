@@ -14,6 +14,7 @@ import type { ReadToken } from "./read-tokens.ts";
 import type { ProjectTokenReader } from "./token-values.ts";
 
 export type FigmaDeclaration = {
+  readonly projectId: string;
   readonly states: readonly (DeclaredState & { readonly proposalId: string | null })[];
   readonly declaredAt: Date;
   readonly userId: string;
@@ -245,6 +246,7 @@ export const declareFigmaStates =
               createdAt: declaredAt,
             });
       await figmaStates.declare({
+        projectId,
         states: checked.states.map((declared) => ({
           ...declared,
           proposalId: written.proposals.find(({ name }) => name === declared.name)?.id ?? null,
