@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { PostgresDatabase } from "#db";
 import { storedSize } from "#modules/project/domain/storage.ts";
+import { storageMeterOn } from "#modules/project/project-module.ts";
 import { schema } from "@repo/db";
 
 const {
@@ -14,6 +15,8 @@ const {
   tokenValue,
   tokenValueReference,
 } = schema;
+
+export { storageMeterOn };
 
 export const seedStoredBytes = (
   db: PostgresDatabase,

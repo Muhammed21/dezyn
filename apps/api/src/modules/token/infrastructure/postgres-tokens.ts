@@ -199,15 +199,17 @@ export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTok
 
 export const postgresFigmaStateWriter = (tx: Queryable, meter: StorageMeter): FigmaStateWriter => ({
   declare: async ({ projectId, states, declaredAt, userId, clientId }) => {
+    const tokenIds = states.map(({ tokenId }) => tokenId);
+    await tx
+      .select({ id: token.id })
+      .from(token)
+      .where(inArray(token.id, tokenIds))
+      .for("no key update");
     const before = await tx
       .select()
       .from(tokenFigmaState)
-      .where(
-        inArray(
-          tokenFigmaState.tokenId,
-          states.map(({ tokenId }) => tokenId),
-        ),
-      );
+      .where(inArray(tokenFigmaState.tokenId, tokenIds))
+      .for("update");
     const after = await tx
       .insert(tokenFigmaState)
       .values(
@@ -309,7 +311,8 @@ const resizeFigmaStateOf = async (
     .select({ row: tokenFigmaState, projectId: token.projectId })
     .from(tokenFigmaState)
     .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
-    .where(eq(tokenFigmaState.proposalId, proposalId));
+    .where(eq(tokenFigmaState.proposalId, proposalId))
+    .for("update", { of: tokenFigmaState });
   const after = await tx
     .update(tokenFigmaState)
     .set(change)
