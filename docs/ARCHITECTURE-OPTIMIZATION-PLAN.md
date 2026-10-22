@@ -69,4 +69,4 @@ Statuts : pending · in-progress · awaiting-evidence · done · deferred: <rais
 - [x] Phase 8 : dry run de Stryker en `perTest` avec un délai de 15 min ([#101](https://github.com/Muhammed21/dezyn/pull/101)) ; la mutation reste en local ([#105](https://github.com/Muhammed21/dezyn/pull/105)) (Claude)
 - [ ] Traiter les issues `tech-debt` [#106](https://github.com/Muhammed21/dezyn/issues/106) à [#109](https://github.com/Muhammed21/dezyn/issues/109), au rythme d'une pour 5 PR de fonctionnalité (Muhammed)
 - [ ] Discuter des leviers produit de l'import Figma : allers-retours, taille des lots, format d'import (Muhammed)
-- [ ] Vérifier que l'hébergeur de production pose `x-forwarded-for` pour better-auth (Muhammed, avant la mise en production)
+- [ ] Fermer l'origine de l'API à tout ce qui ne vient pas de Cloudflare, sinon `CF-Connecting-IP` se forge (ADR 0033) (Muhammed, avant la mise en production)
