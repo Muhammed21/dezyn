@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type { CheckTokens, ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
 import type { Clock } from "#platform/clock.ts";
@@ -31,9 +32,9 @@ import {
 
 export const proposalReplacerOn = postgresProposalReplacer;
 
-export const proposalWriterOn = (tx: PostgresTransaction) => ({
+export const proposalWriterOn = (tx: PostgresTransaction, meter: StorageMeter) => ({
   propose: (proposed: ProposedTokens) =>
-    proposeTokens(postgresProposalStore(tx), { ...proposed, newId: randomUUID }),
+    proposeTokens(postgresProposalStore(tx, meter), { ...proposed, newId: randomUUID }),
 });
 
 export const proposalModule = ({
@@ -44,6 +45,7 @@ export const proposalModule = ({
   historyWriterOn,
   validatedTokenWriterOn,
   figmaStateOn,
+  storageMeterOn,
   clock: now,
 }: {
   readonly db: PostgresDatabase;
@@ -53,6 +55,7 @@ export const proposalModule = ({
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
   readonly figmaStateOn: (tx: PostgresTransaction) => FigmaStateSynchronizer;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
   readonly clock: Clock;
 }) => {
   const reading = {
@@ -61,7 +64,7 @@ export const proposalModule = ({
     proposals: postgresProposalReader(db),
     now,
   };
-  const unitOfWork = postgresProposalUnitOfWork(db);
+  const unitOfWork = postgresProposalUnitOfWork({ db, storageMeterOn });
   const reviewUnitOfWork = postgresReviewUnitOfWork({
     db,
     historyWriterOn,

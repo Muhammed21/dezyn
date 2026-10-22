@@ -4,4 +4,5 @@ export const storedSize = (row: object): number => encoder.encode(JSON.stringify
 
 export interface StorageMeter {
   add(projectId: string, rows: readonly object[]): Promise<void>;
+  remove(projectId: string, rows: readonly object[]): Promise<void>;
 }

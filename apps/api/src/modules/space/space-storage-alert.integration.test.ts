@@ -9,6 +9,7 @@ import type { OutgoingEmail } from "#platform/mailer.ts";
 import { ADA, type App, GRACE } from "#testing/authorization-flow.ts";
 import { withIdentityApp } from "#testing/authorization-flow.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
+import { storedBytesOf } from "#testing/project-storage.ts";
 import { makeOutbox, promoteToOwner, seedSpaceWithInvitedEditor } from "#testing/space-fixtures.ts";
 import { addToken, makeColorToken } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
@@ -65,14 +66,6 @@ const alertedAtOf = async (db: PostgresDatabase, spaceId: string) => {
     .from(space)
     .where(eq(space.id, spaceId));
   return row?.alertedAt;
-};
-
-const storedBytesOf = async (db: PostgresDatabase, projectId: string) => {
-  const [row] = await db.orm
-    .select({ storedBytes: project.storedBytes })
-    .from(project)
-    .where(eq(project.id, projectId));
-  return row?.storedBytes;
 };
 
 const isStorageAlert = (email: OutgoingEmail) => email.subject.includes("stockage");
