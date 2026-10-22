@@ -1,5 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
-import { z } from "zod";
+import { and, eq, isNull } from "drizzle-orm";
 
 import type { PostgresDatabase } from "#db";
 import { schema } from "@repo/db";
@@ -9,22 +8,17 @@ import { StoredSpace } from "./stored-rows.ts";
 
 const { identityUser, project, space, spaceMember } = schema;
 
-const StoredSpaceStorage = StoredSpace.extend({ storedBytes: z.coerce.number() });
-
 export const postgresStorageAlerts = (db: PostgresDatabase): StorageAlerts => ({
   storageOf: async (spaceId) => {
     const [row] = await db.orm
-      .select({
-        id: space.id,
-        name: space.name,
-        plan: space.plan,
-        storedBytes: sql<string>`coalesce(sum(${project.storedBytes}), 0)`,
-      })
+      .select({ id: space.id, name: space.name, plan: space.plan })
       .from(space)
-      .leftJoin(project, eq(project.spaceId, space.id))
-      .where(eq(space.id, spaceId))
-      .groupBy(space.id);
-    return StoredSpaceStorage.parse(row);
+      .where(eq(space.id, spaceId));
+    const projects = await db.orm
+      .select({ name: project.name, storedBytes: project.storedBytes })
+      .from(project)
+      .where(eq(project.spaceId, spaceId));
+    return { ...StoredSpace.parse(row), projects };
   },
   markAlerted: async ({ spaceId, at }) => {
     const marked = await db.orm

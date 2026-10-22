@@ -118,6 +118,26 @@ describe("l'ajout d'un token qui porte l'espace à 80 % prévient ses propriéta
     );
   });
 
+  it("l'email nomme le projet qui consomme le plus et, en Free, le plan Team", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const seeded = await seedProject(app, db);
+        await seedStoredBytes(db, { projectId: seeded.projectId, bytes: 100_000_000 });
+        await seedProjectIn(db, { spaceId: seeded.spaceId, bytes: 350_000_000 });
+
+        await addColorToken(app, seeded);
+
+        const [alert] = alertsOf(outbox.sent);
+        expect(alert?.text).toContain(
+          "Le projet « Application mobile » est celui qui consomme le plus.",
+        );
+        expect(alert?.text).toContain("Le plan Team offre 20 Go de stockage.");
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
   it("l'ajout qui reste sous 80 % n'envoie rien", () => {
     const outbox = makeOutbox();
     return withIdentityApp(
