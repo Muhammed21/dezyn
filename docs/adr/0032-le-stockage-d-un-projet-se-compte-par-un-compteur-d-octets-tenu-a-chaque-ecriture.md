@@ -1,6 +1,6 @@
 # 0032 — Le stockage d'un projet se compte par un compteur d'octets tenu à chaque écriture
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-22
 - Décideurs : Muhammed
 
