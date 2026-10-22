@@ -1,5 +1,6 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
+import type { StorageAlert } from "#modules/space/contracts/storage-alert.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import type { Token, TokenDefinition } from "../domain/token.ts";
@@ -42,6 +43,7 @@ export const addToken =
     modes,
     projectTokens,
     unitOfWork,
+    alertStorage,
     newId,
     now,
   }: {
@@ -49,6 +51,7 @@ export const addToken =
     readonly modes: ModeReader;
     readonly projectTokens: ProjectTokenReader;
     readonly unitOfWork: TokenUnitOfWork;
+    readonly alertStorage: StorageAlert;
     readonly newId: () => string;
     readonly now: () => Date;
   }) =>
@@ -82,22 +85,28 @@ export const addToken =
       status: "validated",
       createdAt: now(),
     };
-    return unitOfWork.run(async ({ tokens, history, proposals }) => {
-      if ((await tokens.create(added, values.map(modeValueOf))) === "name_taken") {
-        return err("name_taken");
-      }
-      const replaced = await proposals.replace({ projectId, name: token.name });
-      await history.append({
-        spaceId: project.spaceId,
-        projectId,
-        action: "token.created",
-        userId,
-        clientId: null,
-        before: null,
-        after: { ...token, replaced },
-        correlationId,
-        occurredAt: added.createdAt,
-      });
-      return ok({ ...added, replaced });
-    });
+    const result = await unitOfWork.run<Result<AddedToken, TokenAdditionFailure>>(
+      async ({ tokens, history, proposals }) => {
+        if ((await tokens.create(added, values.map(modeValueOf))) === "name_taken") {
+          return err("name_taken");
+        }
+        const replaced = await proposals.replace({ projectId, name: token.name });
+        await history.append({
+          spaceId: project.spaceId,
+          projectId,
+          action: "token.created",
+          userId,
+          clientId: null,
+          before: null,
+          after: { ...token, replaced },
+          correlationId,
+          occurredAt: added.createdAt,
+        });
+        return ok({ ...added, replaced });
+      },
+    );
+    if (result.ok) {
+      await alertStorage(project.spaceId);
+    }
+    return result;
   };

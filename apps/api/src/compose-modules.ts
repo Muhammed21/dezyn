@@ -10,22 +10,25 @@ import {
 import { spaceModule } from "#modules/space/space-module.ts";
 import { figmaStateOn, tokenModule, validatedTokenWriterOn } from "#modules/token/token-module.ts";
 import type { Clock } from "#platform/clock.ts";
+import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
 
 export const composeModules = ({
   db,
   mailer,
   webUrl,
+  log,
   wrapHistoryWriter = (writer) => writer,
   clock = () => new Date(),
 }: {
   readonly db: PostgresDatabase;
   readonly mailer: Mailer;
   readonly webUrl: string;
+  readonly log: LogSink;
   readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
   readonly clock?: Clock;
 }) => {
-  const spaces = spaceModule({ db, mailer, webUrl });
+  const spaces = spaceModule({ db, mailer, webUrl, log });
   const writerOn = (tx: PostgresTransaction) =>
     wrapHistoryWriter(historyWriterOn(tx, storageMeterOn(tx)));
   const projects = projectModule({
@@ -46,6 +49,7 @@ export const composeModules = ({
     proposalReplacerOn,
     proposalWriterOn,
     storageMeterOn,
+    alertStorage: spaces.alertStorage,
     clock,
   });
   const proposals = proposalModule({

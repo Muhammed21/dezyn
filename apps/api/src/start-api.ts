@@ -40,7 +40,7 @@ export const buildApi = async ({
   readonly trustedIpHeader: string;
   readonly webUrl: string;
 }) => {
-  const modules = composeModules({ db, mailer, webUrl });
+  const modules = composeModules({ db, mailer, webUrl, log });
   const auth = await createIdentityAuth({
     db,
     secret: authSecret,

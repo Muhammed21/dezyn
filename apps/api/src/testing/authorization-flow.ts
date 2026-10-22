@@ -6,6 +6,7 @@ import { createPostgresDatabase, type PostgresDatabase } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { createIdentityAuth } from "#modules/identity/infrastructure/better-auth.ts";
 import type { Clock } from "#platform/clock.ts";
+import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
 import { migrate } from "@repo/db";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "@repo/db/testing";
@@ -38,6 +39,7 @@ type IdentityAppOptions = {
   readonly mailer?: Mailer;
   readonly wrapHistoryWriter?: (writer: HistoryWriter) => HistoryWriter;
   readonly clock?: Clock;
+  readonly log?: LogSink;
   readonly createDatabase?: () => Promise<ThrowawayDatabase>;
 };
 
@@ -54,6 +56,7 @@ export const startIdentityApp = async ({
   mailer = { send: async () => ok(undefined) },
   wrapHistoryWriter,
   clock,
+  log = () => undefined,
   createDatabase = createThrowawayDatabase,
 }: IdentityAppOptions = {}): Promise<IdentityApp> => {
   const database = await createDatabase();
@@ -76,6 +79,7 @@ export const startIdentityApp = async ({
       db,
       mailer,
       webUrl: WEB_URL,
+      log,
       wrapHistoryWriter,
       clock,
     });
