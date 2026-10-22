@@ -64,11 +64,12 @@ Problématique : comment se compte le stockage d'un projet, et quand part l'aler
 
 - Avantage : un calcul pur, dans le domaine, testé sans base ; une même écriture compte toujours la même taille.
 - Inconvénient : l'en-tête des lignes et les index de PostgreSQL ne comptent pas ; la limite porte sur les données utiles.
+- Inconvénient : une suppression lit le JSON de chaque ligne qu'elle retire (`DELETE … RETURNING`).
 - **Retenue.**
 
 #### Option H — La taille de la ligne en base (`pg_column_size`)
 
-- Inconvénient : un aller-retour de plus par écriture, une règle liée à PostgreSQL, une relecture avant chaque suppression.
+- Inconvénient : un aller-retour de plus par écriture, une règle liée à PostgreSQL.
 - **Écartée.**
 
 #### Option I — Une taille fixe par sorte de ligne
@@ -146,7 +147,7 @@ Le projet porte son compteur d'octets. `project/contracts` déclare le port `Sto
 
 ### 4. L'alerte part quand l'espace est au-dessus de 80 % et pas encore alerté
 
-L'écriture qui laisse l'espace à 80 % ou plus de sa limite, alors que `storage_alerted_at` est vide, pose `storage_alerted_at` dans sa transaction. Après le commit, chaque propriétaire dont la ligne est ouverte reçoit un email. Un échec d'envoi est journalisé, sans nouvel essai, et ne fait jamais échouer l'écriture. Quand le stockage repasse sous 80 %, `storage_alerted_at` redevient vide.
+L'écriture qui laisse l'espace à 80 % ou plus de sa limite, alors que `storage_alerted_at` est vide, pose `storage_alerted_at` dans sa transaction, par une mise à jour conditionnelle (`WHERE storage_alerted_at IS NULL`). Seule l'écriture dont la mise à jour touche la ligne de l'espace envoie l'alerte : après le commit, chaque propriétaire dont la ligne est ouverte reçoit un email. Un échec d'envoi est journalisé, sans nouvel essai, et ne fait jamais échouer l'écriture. Quand le stockage repasse sous 80 %, `storage_alerted_at` redevient vide.
 
 ### 5. L'email nomme ce qui va se passer
 
@@ -164,13 +165,14 @@ L'email, en français, donne le nom de l'espace, le stockage consommé et la lim
 ### Négatives
 
 - Chaque chemin qui écrit les données d'un projet appelle `StorageMeter`, y compris la purge et la suppression d'entrées d'historique.
+- Une suppression lit le JSON de chaque ligne qu'elle retire, pour retirer sa taille du compteur.
 - La limite porte sur les données utiles : le disque réel la dépasse d'un facteur constant.
 - Un email d'alerte qui échoue n'est pas renvoyé ; le propriétaire l'apprend à la purge.
 
 ### Risques et mitigations
 
 - **Un chemin d'écriture oublie `StorageMeter`, et le compteur dérive** : un test d'intégration par chemin d'écriture compare le compteur à la somme des tailles des lignes du projet.
-- **Deux écritures simultanées franchissent le seuil ensemble** : l'écriture verrouille la ligne de l'espace avant de lire `storage_alerted_at`, comme les autres invariants de l'espace (ADR 0017 §4).
+- **Deux écritures simultanées franchissent le seuil ensemble** : `UPDATE space SET storage_alerted_at = … WHERE id = … AND storage_alerted_at IS NULL` ne touche la ligne que pour l'une d'elles, et seule celle-ci envoie l'email. Les écritures d'un espace ne se verrouillent pas entre elles ; le compteur, mis à jour sur la ligne du projet, ne fait passer l'une après l'autre que les écritures d'un même projet.
 - **Une écriture du compteur par écriture de données ralentit les écritures en masse** : une écriture en lot (`write_tokens`) appelle `StorageMeter` une fois avec la somme des tailles.
 
 ## Notes d'implémentation
@@ -184,4 +186,3 @@ L'email, en français, donne le nom de l'espace, le stockage consommé et la lim
 - [ADR 0006](0006-plans-free-et-team-mcp-complet-dans-tous-les-plans.md) — les limites de stockage, l'alerte à 80 % et la purge (§4).
 - [ADR 0011](0011-l-espace-possede-les-projets-et-porte-le-plan.md) — la limite par espace, mesurée par projet.
 - [ADR 0016](0016-la-purge-d-un-espace-commence-par-le-projet-qui-consomme-le-plus.md) — la purge lit le stockage de chaque projet.
-- [ADR 0017](0017-les-roles-des-membres-vivent-dans-une-table-de-l-espace-evalues-par-une-fonction-pure.md) — les invariants de l'espace se vérifient sous verrou de sa ligne.
