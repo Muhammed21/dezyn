@@ -19,7 +19,8 @@
 
 ## Characterization Backlog
 
-- [ ] Mesurer le score de mutation des modules space et history, et finir proposal et identity : un run partiel (498 mutants sur 1 175, 2026-10-20) compte 23 survivants et 2 timeouts, soit environ 95 % ; à relancer par module avant de remanier l'un d'eux, [#108](https://github.com/Muhammed21/dezyn/issues/108) (risque moyen, priorité moyenne)
+- [ ] Mesurer le score de mutation du module space, et finir proposal et identity : un run partiel (498 mutants sur 1 175, 2026-10-20) compte 23 survivants et 2 timeouts, soit environ 95 % ; à relancer par module avant de remanier l'un d'eux, [#108](https://github.com/Muhammed21/dezyn/issues/108) (risque moyen, priorité moyenne)
+- [x] Mesurer le score de mutation du module history : 95,9 % (171 mutants). Les 7 survivants sont équivalents : le `catch` de `parseJson` et la garde `last !== undefined` de `history-cursor` et `read-history`, le code du `not_found` de `readHistory` (la route ne le lit pas et l'outil refuse un projet inconnu avant), le `false` d'un historique indisponible dans `record-project-call`, le `code` de l'issue « Curseur invalide » (problem+json ne rend que le chemin et le message), la garde d'UUID de `history-routes` (l'accès rend déjà 404)
 - [x] Tuer les survivants antérieurs de `postgres-tokens` et le `not_found` d'`add-token`, [#109](https://github.com/Muhammed21/dezyn/issues/109) (risque moyen, priorité moyenne)
 - [x] Rendre `makeClientIp` assez large pour ne plus buter sur la limite d'inscription : PR #78, voir [TECH-DEBT.md](TECH-DEBT.md) (risque moyen, priorité haute)
 
