@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -352,12 +352,10 @@ export const postgresFigmaStateSynchronizer = (tx: Queryable, meter: StorageMete
   },
 });
 
-const RejectedValue = z
-  .object({
-    $value: z.unknown().optional(),
-    modes: z.record(z.string(), z.unknown()).optional(),
-  })
-  .nullable();
+const RejectedValue = z.object({
+  $value: z.unknown().optional(),
+  modes: z.record(z.string(), z.unknown()).optional(),
+});
 
 export const postgresRejectedValueReader = (db: PostgresDatabase): RejectedValueReader => ({
   rejectedValuesOf: async (projectId) => {
@@ -365,10 +363,10 @@ export const postgresRejectedValueReader = (db: PostgresDatabase): RejectedValue
       .select({ tokenId: tokenFigmaState.tokenId, rejectedValue: tokenFigmaState.rejectedValue })
       .from(tokenFigmaState)
       .innerJoin(token, eq(token.id, tokenFigmaState.tokenId))
-      .where(eq(token.projectId, projectId));
-    return rows.flatMap(({ tokenId, rejectedValue }) => {
-      const rejected = RejectedValue.parse(rejectedValue);
-      return rejected === null ? [] : [{ tokenId, rejected }];
-    });
+      .where(and(eq(token.projectId, projectId), isNotNull(tokenFigmaState.rejectedValue)));
+    return rows.map(({ tokenId, rejectedValue }) => ({
+      tokenId,
+      rejected: RejectedValue.parse(rejectedValue),
+    }));
   },
 });
