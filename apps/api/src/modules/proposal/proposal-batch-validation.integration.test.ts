@@ -9,7 +9,9 @@ import {
   obtainAccessToken,
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
+import { whileHolding } from "#testing/lock-wait.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
+import { storageMeterOn } from "#testing/project-storage.ts";
 import {
   addToken,
   historyOf,
@@ -17,6 +19,8 @@ import {
   PRIMARY_BLUE,
   seedValidatedToken,
 } from "#testing/token-fixtures.ts";
+
+import { postgresProposalStore } from "./infrastructure/postgres-proposals.ts";
 
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
 
@@ -368,6 +372,30 @@ describe("une proposition Remplacée pendant la relecture n'est pas validée (AD
       const response = await validateBatch(app, { accessToken, batchId: batch.id });
 
       expect(await response.json()).toMatchObject({ validated: [expect.any(String)] });
+      expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
+        "couleur.fond.primaire": "replaced",
+        "couleur.bleu.500": "validated",
+      });
+      expect(await readTokenNames(app, { token: accessToken, projectId })).toEqual([
+        "couleur.bleu.500",
+      ]);
+    }));
+
+  it("la proposition remplacée pendant la validation du lot reste Remplacée", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const { batch, proposals } = await seedClosedBatch(app, {
+        accessToken,
+        projectId,
+        tokens: [makeColorToken(), makeColorToken({ name: "couleur.bleu.500" })],
+      });
+
+      const response = await whileHolding(db, {
+        hold: (tx) => postgresProposalStore(tx, storageMeterOn(tx)).replace([proposals[0].id]),
+        meanwhile: () => validateBatch(app, { accessToken, batchId: batch.id }),
+      });
+
+      expect(await response.json()).toMatchObject({ validated: [proposals[1].id] });
       expect(await statusesOf(app, { accessToken, batchId: batch.id })).toEqual({
         "couleur.fond.primaire": "replaced",
         "couleur.bleu.500": "validated",

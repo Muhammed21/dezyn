@@ -1,10 +1,9 @@
-import { setTimeout as wait } from "node:timers/promises";
-
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import type { PostgresDatabase, PostgresTransaction } from "#db";
+import type { PostgresDatabase } from "#db";
 import { type App, BASE_URL, callMcp, withIdentityApp } from "#testing/authorization-flow.ts";
+import { whileHolding } from "#testing/lock-wait.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
 import { bytesOfProjectRows, storageMeterOn, storedBytesOf } from "#testing/project-storage.ts";
 import { addToken, makeColorToken } from "#testing/token-fixtures.ts";
@@ -83,38 +82,6 @@ const seedHeldDeclaration = async (db: PostgresDatabase, projectId: string) => {
     name: String(declared?.name),
     clientId: String(client?.clientId),
   };
-};
-
-const lockWaitIn = async (db: PostgresDatabase, attempts = 80): Promise<void> => {
-  const {
-    rows: [waiting],
-  } = await db.orm.execute<{ count: number }>(
-    sql`SELECT count(*)::int AS count FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid WHERE NOT l.granted AND a.datname = current_database()`,
-  );
-  if ((waiting?.count ?? 0) > 0 || attempts === 0) {
-    return;
-  }
-  await wait(10);
-  return lockWaitIn(db, attempts - 1);
-};
-
-const whileHolding = async (
-  db: PostgresDatabase,
-  {
-    hold,
-    meanwhile,
-  }: {
-    readonly hold: (tx: PostgresTransaction) => Promise<void>;
-    readonly meanwhile: () => unknown;
-  },
-) => {
-  const { concurrent } = await db.orm.transaction(async (tx) => {
-    await hold(tx);
-    const started = meanwhile();
-    await lockWaitIn(db);
-    return { concurrent: started };
-  });
-  return concurrent;
 };
 
 describe("le compteur d'un projet suit les états Figma (ADR 0032 §1 à §3)", () => {
