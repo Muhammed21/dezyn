@@ -223,6 +223,7 @@ describe("un email d'invitation qui ne part pas ne laisse pas d'invitation", () 
 
         expect(response.status).toBe(503);
         expect(await response.json()).toMatchObject({
+          type: "about:blank",
           title: "Email d'invitation non envoyé",
           status: 503,
         });
