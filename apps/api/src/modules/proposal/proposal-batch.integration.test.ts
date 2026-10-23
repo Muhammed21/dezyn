@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,8 +12,12 @@ import {
   refreshTokens,
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
+import { whileHolding } from "#testing/lock-wait.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
+import { storageMeterOn } from "#testing/project-storage.ts";
 import { historyOf, makeColorToken } from "#testing/token-fixtures.ts";
+
+import { postgresProposalStore } from "./infrastructure/postgres-proposals.ts";
 
 const INTENTION = "Import du Figma Healthcare";
 
@@ -191,6 +197,30 @@ describe("un lot appartient à l'IA d'un membre dans un seul projet (ADR 0013 §
       const written = await writeTokens(app, { token: String(reconnected), projectId });
 
       expect(written.batch.id).toBe(opened.structuredContent.batch.id);
+    }));
+
+  it("deux premières écritures simultanées de la même IA vont dans le même lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, clientId, userId, projectId } = await seedProject(app, db);
+      const heldBatchId = randomUUID();
+      const openedAt = new Date();
+
+      const written = await whileHolding(db, {
+        hold: (tx) =>
+          postgresProposalStore(tx, storageMeterOn(tx)).openBatchOf({
+            id: heldBatchId,
+            projectId,
+            userId,
+            clientId,
+            intent: null,
+            state: "open",
+            openedAt,
+            lastWrittenAt: openedAt,
+          }),
+        meanwhile: () => writeTokens(app, { token: accessToken, projectId }),
+      });
+
+      expect(written.batch.id).toBe(heldBatchId);
     }));
 
   it("des écritures dans deux projets produisent deux lots", () =>
