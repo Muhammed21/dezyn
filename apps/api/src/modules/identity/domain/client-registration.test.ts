@@ -44,6 +44,10 @@ describe("defaultToNativeForLoopback", () => {
   it.each([
     ["sans redirect_uris", { client_name: "Claude Code" }],
     ["avec des redirect_uris qui ne sont pas des chaînes", { redirect_uris: [42] }],
+    [
+      "avec une redirection locale enfermée dans un tableau",
+      { redirect_uris: [["http://localhost:33418/callback"]] },
+    ],
     ["qui n'est pas un objet", "texte"],
     ["null", null],
   ])("ne change rien à un corps %s", (_case, body) => {
