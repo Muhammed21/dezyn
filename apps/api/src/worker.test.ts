@@ -11,11 +11,11 @@ const HYPERDRIVE_URL = "postgresql://app@127.0.0.1:1/dezyn";
 const makeBindings = () => ({
   HYPERDRIVE: { connectionString: HYPERDRIVE_URL },
   BETTER_AUTH_SECRET: "secret-de-test-de-32-caracteres-au-moins",
-  BETTER_AUTH_URL: "https://api.dezyn.app",
-  WEB_URL: "https://dezyn.app",
+  BETTER_AUTH_URL: "https://api.dezyn.dev",
+  WEB_URL: "https://dezyn.dev",
 });
 
-const UNKNOWN_ROUTE = "https://api.dezyn.app/route-inconnue";
+const UNKNOWN_ROUTE = "https://api.dezyn.dev/route-inconnue";
 
 const SCHEMA_BEHIND = new Error("Schéma en retard : la migration 0042_x n'est pas appliquée.");
 
@@ -30,8 +30,8 @@ describe("le Worker", () => {
     });
 
     const response = await worker.fetch(
-      new Request("https://api.dezyn.app/health"),
-      { BETTER_AUTH_URL: "https://api.dezyn.app", WEB_URL: "pas une url" },
+      new Request("https://api.dezyn.dev/health"),
+      { BETTER_AUTH_URL: "https://api.dezyn.dev", WEB_URL: "pas une url" },
       makeContext(),
     );
 

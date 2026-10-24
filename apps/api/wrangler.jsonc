@@ -4,11 +4,11 @@
   "main": "src/worker.ts",
   "compatibility_date": "2026-10-20",
   "compatibility_flags": ["nodejs_compat"],
-  "routes": [{ "pattern": "api.dezyn.app", "custom_domain": true }],
+  "routes": [{ "pattern": "api.dezyn.dev", "custom_domain": true }],
   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "ed807e2d1a7e437f9a17bb749123c6d2" }],
   "vars": {
-    "BETTER_AUTH_URL": "https://api.dezyn.app",
-    "WEB_URL": "https://dezyn.app",
+    "BETTER_AUTH_URL": "https://api.dezyn.dev",
+    "WEB_URL": "https://dezyn.dev",
   },
   "observability": { "enabled": true },
 }

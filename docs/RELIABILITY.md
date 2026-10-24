@@ -30,6 +30,6 @@
 
 ## Deploy vs Release
 
-En production, l'API tourne dans le Worker Cloudflare `dezyn-api`, sur `api.dezyn.app` (ADR 0034). Une CI verte sur `main` lance `.github/workflows/deploy.yml` : il migre (`pnpm migrate`, ADR 0009), déploie le Worker, puis appelle `GET /health` ; s'il n'obtient pas 200, il revient à la version précédente (`wrangler rollback`). Le job ne part que si la variable de dépôt `DEPLOY_ENABLED` vaut `true`. Chaque migration reste compatible avec la version précédente de l'API, qui tourne pendant le déploiement.
+En production, l'API tourne dans le Worker Cloudflare `dezyn-api`, sur `api.dezyn.dev` (ADR 0034). Une CI verte sur `main` lance `.github/workflows/deploy.yml` : il migre (`pnpm migrate`, ADR 0009), déploie le Worker, puis appelle `GET /health` ; s'il n'obtient pas 200, il revient à la version précédente (`wrangler rollback`). Le job ne part que si la variable de dépôt `DEPLOY_ENABLED` vaut `true`. Chaque migration reste compatible avec la version précédente de l'API, qui tourne pendant le déploiement.
 
 Le Worker vérifie la version du schéma à la première requête de chaque isolat, et répond 503 tant qu'elle est en retard ; le serveur Node la vérifie au démarrage. Les releases (`v*.*.*`, `.github/workflows/release.yml`) publient des notes, sans déployer.
