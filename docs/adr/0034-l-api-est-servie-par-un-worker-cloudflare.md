@@ -1,6 +1,6 @@
 # 0034 — L'API est servie par un Worker Cloudflare
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-24
 - Décideurs : Muhammed
 - Amende : ADR 0033 (§1 : il n'y a plus d'origine à fermer, le Worker reçoit les requêtes directement)
