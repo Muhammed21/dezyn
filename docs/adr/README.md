@@ -39,7 +39,8 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0031](0031-un-membre-retire-par-un-proprietaire-est-ferme-avec-la-raison-removed.md)                        | Un membre retiré par un propriétaire est fermé avec la raison `removed`, et l'historique le dit parti                         | Accepté                                                                                                                                                                                                                                                                                   |
 | [0032](0032-le-stockage-d-un-projet-se-compte-par-un-compteur-d-octets-tenu-a-chaque-ecriture.md)            | Le stockage d'un projet se compte par un compteur d'octets tenu à chaque écriture                                             | Accepté                                                                                                                                                                                                                                                                                   |
 | [0033](0033-l-api-de-production-est-servie-derriere-cloudflare-qui-porte-l-ip-du-client.md)                  | L'API de production est servie derrière Cloudflare, qui porte l'IP du client                                                  | Accepté — §1 remplacé par [0034](0034-l-api-est-servie-par-un-worker-cloudflare.md)                                                                                                                                                                                                       |
-| [0034](0034-l-api-est-servie-par-un-worker-cloudflare.md)                                                    | L'API est servie par un Worker Cloudflare                                                                                     | Accepté                                                                                                                                                                                                                                                                                   |
+| [0034](0034-l-api-est-servie-par-un-worker-cloudflare.md)                                                    | L'API est servie par un Worker Cloudflare                                                                                     | Accepté — §6 remplacé par [0035](0035-les-emails-de-production-passent-par-resend.md)                                                                                                                                                                                                     |
+| [0035](0035-les-emails-de-production-passent-par-resend.md)                                                  | Les emails de production passent par Resend, appelé en HTTP depuis le Worker                                                  | Proposé                                                                                                                                                                                                                                                                                   |
 
 ## Dépendances principales
 
@@ -148,6 +149,7 @@ graph TD
   0033 --> 0034[0034 Worker Cloudflare]
   0008 --> 0034
   0009 --> 0034
+  0034 --> 0035[0035 Emails par Resend]
 ```
 
 ## Points ouverts
