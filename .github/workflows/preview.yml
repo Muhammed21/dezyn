@@ -1,0 +1,150 @@
+name: Preview
+
+# Une CI verte sur une PR publie une version du Worker dezyn-api-preview sous l'alias pr-<N>,
+# sur sa propre branche Neon, et commente son URL sur la PR (ADR 0034). La fermeture de la PR
+# supprime sa branche Neon ; les versions restent sur Cloudflare.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: preview-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
+    environment: preview
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+    steps:
+      - id: origin
+        name: Same repository
+        env:
+          HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: |
+          if [ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ] || [ -z "$PR_NUMBER" ]; then
+            echo "No preview: the pull request comes from the fork $HEAD_REPOSITORY." >> "$GITHUB_STEP_SUMMARY"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.origin.outputs.publish == 'true'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.HEAD_SHA }}
+      - if: steps.origin.outputs.publish == 'true'
+        uses: ./.github/actions/install
+      - id: branch
+        name: Neon branch
+        if: steps.origin.outputs.publish == 'true'
+        run: |
+          branch="pr-$PR_NUMBER"
+          if ! npx --yes neonctl@2.47.0 branches get "$branch" --project-id "$NEON_PROJECT_ID" > /dev/null 2>&1; then
+            npx --yes neonctl@2.47.0 branches create --project-id "$NEON_PROJECT_ID" --name "$branch" --parent preview > /dev/null
+          fi
+          for role in migrator app; do
+            url=$(npx --yes neonctl@2.47.0 connection-string "$branch" --project-id "$NEON_PROJECT_ID" --role-name "$role")
+            echo "::add-mask::$url"
+            echo "${role}_url=$url" >> "$GITHUB_OUTPUT"
+          done
+      - name: Migrate
+        if: steps.origin.outputs.publish == 'true'
+        run: pnpm migrate
+        env:
+          DATABASE_URL_MIGRATOR: ${{ steps.branch.outputs.migrator_url }}
+      - id: upload
+        name: Upload
+        if: steps.origin.outputs.publish == 'true'
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DATABASE_URL: ${{ steps.branch.outputs.app_url }}
+          BETTER_AUTH_SECRET: ${{ secrets.PREVIEW_BETTER_AUTH_SECRET }}
+          ALIAS_URL: https://pr-${{ env.PR_NUMBER }}-dezyn-api-preview.${{ vars.WORKERS_SUBDOMAIN }}.workers.dev
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
+        run: |
+          secrets_file="$RUNNER_TEMP/preview-secrets.json"
+          jq -n '{DATABASE_URL: env.DATABASE_URL, BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET}' > "$secrets_file"
+          pnpm exec wrangler versions upload --env preview \
+            --preview-alias "pr-$PR_NUMBER" \
+            --message "$HEAD_SHA" \
+            --secrets-file "$secrets_file" \
+            --var "BETTER_AUTH_URL:$ALIAS_URL" \
+            --var "WEB_URL:$ALIAS_URL"
+          rm "$secrets_file"
+          uploaded=$(jq -sr 'map(select(.type == "version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")
+          if [ "$(jq -r '.preview_alias_url' <<< "$uploaded")" != "$ALIAS_URL" ]; then
+            echo "::error::The alias URL is not $ALIAS_URL; check the WORKERS_SUBDOMAIN variable."
+            exit 1
+          fi
+          echo "alias_url=$ALIAS_URL" >> "$GITHUB_OUTPUT"
+          echo "version_url=$(jq -r '.preview_url' <<< "$uploaded")" >> "$GITHUB_OUTPUT"
+      - name: Health check
+        if: steps.origin.outputs.publish == 'true'
+        env:
+          HEALTH_URL: ${{ steps.upload.outputs.alias_url }}/health
+        run: |
+          for attempt in 1 2 3 4 5; do
+            curl --fail --silent --show-error --max-time 10 "$HEALTH_URL" && exit 0
+            sleep 6
+          done
+          echo "::error::$HEALTH_URL does not answer 200 after the upload."
+          exit 1
+      - name: Comment
+        if: steps.origin.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALIAS_URL: ${{ steps.upload.outputs.alias_url }}
+          VERSION_URL: ${{ steps.upload.outputs.version_url }}
+        run: |
+          marker="<!-- dezyn:preview -->"
+          body=$(printf '%s\n### Preview\n\n| | URL |\n| --- | --- |\n| PR | %s |\n| Commit `%s` | %s |\n' \
+            "$marker" "$ALIAS_URL" "${HEAD_SHA:0:7}" "$VERSION_URL")
+          comment_id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" -f body="$body" > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$body" > /dev/null
+          fi
+
+  clean:
+    name: Clean
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: preview
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+      BRANCH: pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Delete the Neon branch
+        run: |
+          if npx --yes neonctl@2.47.0 branches get "$BRANCH" --project-id "$NEON_PROJECT_ID" > /dev/null 2>&1; then
+            npx --yes neonctl@2.47.0 branches delete "$BRANCH" --project-id "$NEON_PROJECT_ID" > /dev/null
+            echo "Neon branch $BRANCH deleted." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No Neon branch $BRANCH to delete." >> "$GITHUB_STEP_SUMMARY"
+          fi

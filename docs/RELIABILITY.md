@@ -33,4 +33,6 @@
 
 En production, l'API tourne dans le Worker Cloudflare `dezyn-api`, sur `api.dezyn.dev` (ADR 0034). Une CI verte sur `main` lance `.github/workflows/deploy.yml` : il migre (`pnpm migrate`, ADR 0009), déploie le Worker, puis appelle `GET /health` ; s'il n'obtient pas 200, il revient à la version précédente (`wrangler rollback`). Le job ne part que si la variable de dépôt `DEPLOY_ENABLED` vaut `true`. Chaque migration reste compatible avec la version précédente de l'API, qui tourne pendant le déploiement.
 
+Une CI verte sur une PR du dépôt lance `.github/workflows/preview.yml` : il crée la branche Neon `pr-<N>` depuis la branche `preview` si elle manque, la migre, publie une version du Worker `dezyn-api-preview` sous l'alias `pr-<N>`, appelle `GET /health` sur l'URL de l'alias, puis met à jour le commentaire de la PR qui donne l'URL de l'alias et celle du commit. Une PR venue d'un fork n'a pas de preview. La fermeture de la PR supprime sa branche Neon. Les logs d'une URL de version ou d'alias ne passent ni par Workers Logs ni par `wrangler tail`.
+
 Le Worker vérifie la version du schéma à la première requête de chaque isolat, et répond 503 tant qu'elle est en retard ; le serveur Node la vérifie au démarrage. Les releases (`v*.*.*`, `.github/workflows/release.yml`) publient des notes, sans déployer.

@@ -12,4 +12,13 @@
     "MAIL_FROM": "no-reply@dezyn.dev",
   },
   "observability": { "enabled": true },
+  "env": {
+    "preview": {
+      "routes": [],
+      "hyperdrive": [],
+      "workers_dev": true,
+      "preview_urls": true,
+      "vars": { "EMAIL_DELIVERY": "log" },
+    },
+  },
 }
