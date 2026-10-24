@@ -3,9 +3,8 @@ name: Preview
 # Une CI verte sur une PR publie une version du Worker dezyn-api-preview sous l'alias pr-<N>,
 # sur sa propre branche Neon, et commente son URL sur la PR (ADR 0034). La fermeture de la PR
 # supprime sa branche Neon ; les versions restent sur Cloudflare.
-# Le code de la PR ne tourne jamais à côté de NEON_API_KEY ni de CLOUDFLARE_API_TOKEN : build
-# lit les URL Neon avant le checkout, puis migre et bundle sans jeton ; upload envoie ce bundle
-# avec le code de main, sans exécuter celui de la PR.
+# Aucun code de la PR ne tourne ici, dans le contexte de main : la CI de la PR produit le bundle,
+# et seuls les fichiers SQL de ses migrations sont pris dans son commit, appliqués par le code de main.
 
 on:
   workflow_run:
@@ -18,8 +17,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build
+  publish:
+    name: Publish
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'pull_request' &&
@@ -27,15 +26,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
-      group: preview-build-${{ github.event.workflow_run.head_branch }}
+      group: preview-${{ github.event.workflow_run.head_branch }}
       cancel-in-progress: true
     environment: preview
-    outputs:
-      publish: ${{ steps.origin.outputs.publish }}
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
     env:
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
       NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+      ALIAS_URL: https://pr-${{ github.event.workflow_run.pull_requests[0].number }}-dezyn-api-preview.${{ vars.WORKERS_SUBDOMAIN }}.workers.dev
     steps:
       - id: origin
         name: Same repository
@@ -48,6 +50,25 @@ jobs:
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
+      - if: steps.origin.outputs.publish == 'true'
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Migrations of the pull request
+        if: steps.origin.outputs.publish == 'true'
+        run: |
+          rm -rf packages/db/migrations
+          git fetch --no-tags --depth=1 origin "$HEAD_SHA"
+          git checkout "$HEAD_SHA" -- packages/db/migrations
+      - if: steps.origin.outputs.publish == 'true'
+        uses: ./.github/actions/install
+      - if: steps.origin.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: preview-bundle
+          path: ${{ runner.temp }}/bundle
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
       - id: branch
         name: Neon branch
         if: steps.origin.outputs.publish == 'true'
@@ -58,73 +79,23 @@ jobs:
           if ! npx --yes neonctl@2.47.0 branches get "$branch" --project-id "$NEON_PROJECT_ID" > /dev/null 2>&1; then
             npx --yes neonctl@2.47.0 branches create --project-id "$NEON_PROJECT_ID" --name "$branch" --parent preview > /dev/null
           fi
-          url=$(npx --yes neonctl@2.47.0 connection-string "$branch" --project-id "$NEON_PROJECT_ID" --role-name migrator)
-          echo "::add-mask::$url"
-          echo "migrator_url=$url" >> "$GITHUB_OUTPUT"
-      - if: steps.origin.outputs.publish == 'true'
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.HEAD_SHA }}
-          persist-credentials: false
-      - if: steps.origin.outputs.publish == 'true'
-        uses: ./.github/actions/install
+          for role in migrator app; do
+            url=$(npx --yes neonctl@2.47.0 connection-string "$branch" --project-id "$NEON_PROJECT_ID" --role-name "$role")
+            echo "::add-mask::$url"
+            echo "${role}_url=$url" >> "$GITHUB_OUTPUT"
+          done
       - name: Migrate
         if: steps.origin.outputs.publish == 'true'
         run: pnpm migrate
         env:
           DATABASE_URL_MIGRATOR: ${{ steps.branch.outputs.migrator_url }}
-      - name: Bundle
-        if: steps.origin.outputs.publish == 'true'
-        working-directory: apps/api
-        run: pnpm exec wrangler deploy --env preview --dry-run --outdir "$RUNNER_TEMP/bundle"
-      - if: steps.origin.outputs.publish == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: preview-bundle
-          path: ${{ runner.temp }}/bundle/worker.js
-          retention-days: 1
-
-  upload:
-    name: Upload
-    needs: build
-    if: needs.build.outputs.publish == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: preview-upload-${{ github.event.workflow_run.head_branch }}
-      cancel-in-progress: true
-    environment: preview
-    permissions:
-      contents: read
-      pull-requests: write
-    env:
-      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
-      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-      ALIAS_URL: https://pr-${{ github.event.workflow_run.pull_requests[0].number }}-dezyn-api-preview.${{ vars.WORKERS_SUBDOMAIN }}.workers.dev
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/install
-      - uses: actions/download-artifact@v4
-        with:
-          name: preview-bundle
-          path: ${{ runner.temp }}/bundle
-      - id: database
-        name: Neon app role
-        env:
-          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-        run: |
-          url=$(npx --yes neonctl@2.47.0 connection-string "pr-$PR_NUMBER" --project-id "$NEON_PROJECT_ID" --role-name app)
-          echo "::add-mask::$url"
-          echo "app_url=$url" >> "$GITHUB_OUTPUT"
       - id: upload
         name: Upload
+        if: steps.origin.outputs.publish == 'true'
         working-directory: apps/api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          DATABASE_URL: ${{ steps.database.outputs.app_url }}
+          DATABASE_URL: ${{ steps.branch.outputs.app_url }}
           BETTER_AUTH_SECRET: ${{ secrets.PREVIEW_BETTER_AUTH_SECRET }}
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
         run: |
@@ -147,6 +118,7 @@ jobs:
           fi
           echo "version_url=$(jq -r '.preview_url' <<< "$uploaded")" >> "$GITHUB_OUTPUT"
       - name: Health check
+        if: steps.origin.outputs.publish == 'true'
         run: |
           for attempt in 1 2 3 4 5; do
             curl --fail --silent --show-error --max-time 10 "$ALIAS_URL/health" && exit 0
@@ -155,6 +127,7 @@ jobs:
           echo "::error::$ALIAS_URL/health does not answer 200 after the upload."
           exit 1
       - name: Comment
+        if: steps.origin.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION_URL: ${{ steps.upload.outputs.version_url }}
