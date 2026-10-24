@@ -10,8 +10,8 @@ const SCHEMA_BEHIND = new Error("Schéma en retard : la migration 0042_x n'est p
 const makeBindings = (databaseUrl: string) => ({
   HYPERDRIVE: { connectionString: databaseUrl },
   BETTER_AUTH_SECRET: "secret-de-test-de-32-caracteres-au-moins",
-  BETTER_AUTH_URL: "https://api.dezyn.app",
-  WEB_URL: "https://dezyn.app",
+  BETTER_AUTH_URL: "https://api.dezyn.dev",
+  WEB_URL: "https://dezyn.dev",
 });
 
 const withRequests = async (
@@ -21,7 +21,7 @@ const withRequests = async (
   const closing: Promise<unknown>[] = [];
   const send = async (worker: ReturnType<typeof createWorker>) => {
     const response = await worker.fetch(
-      new Request("https://api.dezyn.app/health"),
+      new Request("https://api.dezyn.dev/health"),
       makeBindings(databaseUrl),
       { waitUntil: (promise) => closing.push(promise) },
     );

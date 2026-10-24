@@ -27,9 +27,9 @@ jobs:
     timeout-minutes: 10
     environment:
       name: production
-      url: https://api.dezyn.app
+      url: https://api.dezyn.dev
     env:
-      HEALTH_URL: https://api.dezyn.app/health
+      HEALTH_URL: https://api.dezyn.dev/health
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - uses: actions/checkout@v5

@@ -75,7 +75,7 @@ describe("l'API lit sa configuration dans l'environnement", () => {
   it.each([
     ["DATABASE_URL", "postgres://app@127.0.0.1/dezyn"],
     ["BETTER_AUTH_SECRET", "x".repeat(32)],
-    ["BETTER_AUTH_URL", "https://api.dezyn.app"],
+    ["BETTER_AUTH_URL", "https://api.dezyn.dev"],
     ["SMTP_PORT", "1"],
     ["PORT", "65535"],
   ])("%s=%j est acceptée", (variable, value) => {
@@ -86,8 +86,8 @@ describe("l'API lit sa configuration dans l'environnement", () => {
 const makeBindings = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   HYPERDRIVE: { connectionString: "postgresql://app@hyperdrive.local:5432/dezyn" },
   BETTER_AUTH_SECRET: "secret-de-test-de-32-caracteres-au-moins",
-  BETTER_AUTH_URL: "https://api.dezyn.app",
-  WEB_URL: "https://dezyn.app",
+  BETTER_AUTH_URL: "https://api.dezyn.dev",
+  WEB_URL: "https://dezyn.dev",
   ...overrides,
 });
 
@@ -97,9 +97,9 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
       ok({
         databaseUrl: "postgresql://app@hyperdrive.local:5432/dezyn",
         authSecret: "secret-de-test-de-32-caracteres-au-moins",
-        baseURL: "https://api.dezyn.app",
+        baseURL: "https://api.dezyn.dev",
         trustedIpHeader: "cf-connecting-ip",
-        webUrl: "https://dezyn.app",
+        webUrl: "https://dezyn.dev",
       }),
     );
   });
@@ -125,7 +125,7 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
     ["HYPERDRIVE", {}, "manquante"],
     ["BETTER_AUTH_SECRET", "x".repeat(31), "32 caractères au moins"],
     ["BETTER_AUTH_URL", "127.0.0.1:3000", "URL http(s) attendue"],
-    ["WEB_URL", "ftp://dezyn.app", "URL http(s) attendue"],
+    ["WEB_URL", "ftp://dezyn.dev", "URL http(s) attendue"],
     ["TRUSTED_IP_HEADER", "", "vide"],
   ])("%s=%j est refusé : %s", (binding, value, message) => {
     expect(readWorkerConfig(makeBindings({ [binding]: value }))).toEqual(
