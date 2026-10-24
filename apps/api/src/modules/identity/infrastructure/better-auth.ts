@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import type { PostgresDatabase } from "#db";
 import type { Clock } from "#platform/clock.ts";
-import type { LogSink } from "#platform/logging.ts";
+import { errorDetails, type LogSink } from "#platform/logging.ts";
 import { createAccessTokenVerifier } from "@repo/auth-verifier";
 import { schema } from "@repo/db";
 
@@ -148,14 +148,19 @@ export const identityAuthOptions = ({
     ],
   }) satisfies BetterAuthOptions;
 
-const initialized = async <A extends { readonly $context: Promise<unknown> }>(
-  build: () => A,
-): Promise<A> => {
+const initialized = async <A extends { readonly $context: Promise<unknown> }>({
+  build,
+  log,
+}: {
+  readonly build: () => A;
+  readonly log: LogSink;
+}): Promise<A> => {
   const auth = build();
   try {
     await auth.$context;
     return auth;
-  } catch {
+  } catch (error) {
+    log({ level: "warn", msg: "better-auth init retried", ...errorDetails(error) });
     const retried = build();
     await retried.$context;
     return retried;
@@ -204,7 +209,7 @@ export const createIdentityAuth = async ({
         },
       },
     });
-  const auth = await initialized(build);
+  const auth = await initialized({ build, log });
   const issuer = (await auth.api.getOAuthServerConfig()).issuer;
   const verifier = createAccessTokenVerifier({
     jwksUrl: new URL("/auth/jwks", baseURL).href,
