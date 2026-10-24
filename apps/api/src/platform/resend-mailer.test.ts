@@ -82,6 +82,33 @@ describe("l'envoi par Resend", () => {
     },
   );
 
+  it.each(["rate_limit_exceeded", "daily_quota_exceeded"])(
+    "un refus nommé %s par Resend est journalisé avec son nom",
+    async (name) => {
+      const refusing: Fetch = async () =>
+        new Response(JSON.stringify({ statusCode: 429, name, message: "Too many" }), {
+          status: 429,
+        });
+
+      const { logged } = await sendWith(refusing);
+
+      expect(logged).toEqual([
+        { level: "error", msg: "email send failed", status: 429, reason: name },
+      ]);
+    },
+  );
+
+  it.each([
+    ["un corps qui n'est pas du JSON", "Bad Gateway"],
+    ["un nom qui n'est pas une chaîne", JSON.stringify({ name: 42 })],
+  ])("un refus avec %s est journalisé sans nom", async (_, body) => {
+    const refusing: Fetch = async () => new Response(body, { status: 502 });
+
+    const { logged } = await sendWith(refusing);
+
+    expect(logged).toEqual([{ level: "error", msg: "email send failed", status: 502 }]);
+  });
+
   it("un échec réseau est journalisé et rend le mail indisponible", async () => {
     const failure = new TypeError("fetch failed");
 

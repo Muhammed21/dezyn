@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { err, ok } from "@repo/result";
 
 import { errorDetails, type LogSink } from "./logging.ts";
@@ -8,6 +10,13 @@ export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 const SENDER_NAME = "dezyn";
 const TIMEOUT_MS = 10_000;
+
+const ResendError = z.object({ name: z.string() });
+
+const reasonOf = async (response: Response): Promise<{ readonly reason?: string }> => {
+  const parsed = ResendError.safeParse(await response.json().catch(() => undefined));
+  return parsed.success ? { reason: parsed.data.name } : {};
+};
 
 export const createResendMailer = ({
   apiKey,
@@ -34,7 +43,12 @@ export const createResendMailer = ({
         signal: timeout.signal,
       });
       if (!response.ok) {
-        log({ level: "error", msg: "email send failed", status: response.status });
+        log({
+          level: "error",
+          msg: "email send failed",
+          status: response.status,
+          ...(await reasonOf(response)),
+        });
         return err("mail_unavailable");
       }
       return ok(undefined);

@@ -97,7 +97,12 @@ describe("le Worker envoie les emails par Resend", () => {
   it("un refus de Resend fait répondre l'invitation 503, et l'échec est journalisé sans le lien", async () => {
     await inviteGraceThroughWorker({ bindings: RESEND, fetch: refusing }, ({ status, logged }) => {
       expect(status).toBe(503);
-      expect(logged).toContainEqual({ level: "error", msg: "email send failed", status: 429 });
+      expect(logged).toContainEqual({
+        level: "error",
+        msg: "email send failed",
+        status: 429,
+        reason: "rate_limit_exceeded",
+      });
       expect(JSON.stringify(logged)).not.toContain("/invitations/");
     });
   });
