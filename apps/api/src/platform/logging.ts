@@ -6,8 +6,6 @@ export type LogRecord = {
 export type LogSink = (record: LogRecord) => void;
 
 export const errorDetails = (
-  error: Error,
-): { readonly error: string; readonly stack?: string | undefined } => ({
-  error: error.message,
-  stack: error.stack,
-});
+  error: unknown,
+): { readonly error: string; readonly stack?: string | undefined } =>
+  error instanceof Error ? { error: error.message, stack: error.stack } : { error: String(error) };

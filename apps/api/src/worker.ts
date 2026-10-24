@@ -39,7 +39,7 @@ const schemaIsCurrent = async ({
     log({
       level: "error",
       msg: "schema check failed",
-      ...(error instanceof Error ? errorDetails(error) : { error: String(error) }),
+      ...errorDetails(error),
     });
     return false;
   }

@@ -9,9 +9,6 @@ export type Host = {
 
 const SIGNALS = ["SIGTERM", "SIGINT"] as const;
 
-const detailsOf = (reason: unknown) =>
-  reason instanceof Error ? errorDetails(reason) : { error: String(reason) };
-
 export const superviseProcess = ({
   host,
   api,
@@ -33,7 +30,7 @@ export const superviseProcess = ({
     try {
       await api.close();
     } catch (error) {
-      log({ level: "error", msg: "shutdown failed", ...detailsOf(error) });
+      log({ level: "error", msg: "shutdown failed", ...errorDetails(error) });
       host.exit(1);
       return;
     }
@@ -41,7 +38,7 @@ export const superviseProcess = ({
     host.exit(0);
   };
   const crash = (msg: string) => (reason: unknown) => {
-    log({ level: "error", msg, ...detailsOf(reason) });
+    log({ level: "error", msg, ...errorDetails(reason) });
     host.exit(1);
   };
 
