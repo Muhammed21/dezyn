@@ -104,6 +104,31 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
     );
   });
 
+  it("sans RESEND_API_KEY, le Worker n'a pas d'envoi d'email", () => {
+    const config = readWorkerConfig(makeBindings({ MAIL_FROM: "no-reply@dezyn.dev" }));
+
+    expect(config.ok && config.value.email).toBeUndefined();
+  });
+
+  it("RESEND_API_KEY et MAIL_FROM donnent l'envoi d'email et son expéditeur", () => {
+    expect(
+      readWorkerConfig(
+        makeBindings({ RESEND_API_KEY: "re_cle_de_test", MAIL_FROM: "no-reply@dezyn.dev" }),
+      ),
+    ).toMatchObject(ok({ email: { apiKey: "re_cle_de_test", from: "no-reply@dezyn.dev" } }));
+  });
+
+  it.each([
+    [{ RESEND_API_KEY: "re_cle_de_test" }, "MAIL_FROM : manquante"],
+    [
+      { RESEND_API_KEY: "re_cle_de_test", MAIL_FROM: "dezyn" },
+      "MAIL_FROM : adresse email attendue",
+    ],
+    [{ RESEND_API_KEY: "", MAIL_FROM: "no-reply@dezyn.dev" }, "RESEND_API_KEY : vide"],
+  ])("%j est refusé : %s", (bindings, message) => {
+    expect(readWorkerConfig(makeBindings(bindings))).toEqual(err([message]));
+  });
+
   it("TRUSTED_IP_HEADER remplace l'en-tête par défaut", () => {
     expect(readWorkerConfig(makeBindings({ TRUSTED_IP_HEADER: "x-forwarded-for" }))).toMatchObject(
       ok({ trustedIpHeader: "x-forwarded-for" }),

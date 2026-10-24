@@ -53,6 +53,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0032 — Le stockage d'un projet se compte par un compteur d'octets tenu à chaque écriture](adr/0032-le-stockage-d-un-projet-se-compte-par-un-compteur-d-octets-tenu-a-chaque-ecriture.md) — _explanation · Accepté_ — Comment se compte le stockage d'un projet, et quand part l'alerte à 80 % ?
 - [0033 — L'API de production est servie derrière Cloudflare, qui porte l'IP du client](adr/0033-l-api-de-production-est-servie-derriere-cloudflare-qui-porte-l-ip-du-client.md) — _explanation · Proposé_ — Quel proxy sert l'API en production, et quel en-tête porte l'IP du client ?
 - [0034 — L'API est servie par un Worker Cloudflare](adr/0034-l-api-est-servie-par-un-worker-cloudflare.md) — _explanation · Accepté_ — Où et comment l'API est-elle servie en production et dans les previews de PR ?
+- [0035 — Les emails de production passent par Resend, appelé en HTTP depuis le Worker](adr/0035-les-emails-de-production-passent-par-resend.md) — _explanation · Proposé_ — Par quoi passent les emails de production tant que le compte reste sur le plan Workers Free ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée

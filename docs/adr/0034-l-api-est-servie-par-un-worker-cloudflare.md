@@ -1,6 +1,6 @@
 # 0034 — L'API est servie par un Worker Cloudflare
 
-- Statut : Accepté
+- Statut : Accepté — §6 remplacé par [0035](0035-les-emails-de-production-passent-par-resend.md)
 - Date : 2026-10-24
 - Décideurs : Muhammed
 - Amende : ADR 0033 (§1 : il n'y a plus d'origine à fermer, le Worker reçoit les requêtes directement)

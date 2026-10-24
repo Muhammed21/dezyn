@@ -9,6 +9,7 @@
   "vars": {
     "BETTER_AUTH_URL": "https://api.dezyn.dev",
     "WEB_URL": "https://dezyn.dev",
+    "MAIL_FROM": "no-reply@dezyn.dev",
   },
   "observability": { "enabled": true },
 }

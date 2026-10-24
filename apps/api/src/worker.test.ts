@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { LogRecord } from "#platform/logging.ts";
+import type { Fetch } from "#platform/resend-mailer.ts";
 
 import { createWorker } from "./worker.ts";
+
+const noOutgoingCall: Fetch = () => Promise.reject(new Error("aucun appel sortant attendu"));
 
 const makeContext = () => ({ waitUntil: () => undefined });
 
@@ -25,6 +28,7 @@ describe("le Worker", () => {
   it("répond 500 au format problème et nomme chaque binding en cause quand sa configuration est invalide", async () => {
     const logged: LogRecord[] = [];
     const worker = createWorker({
+      fetch: noOutgoingCall,
       log: (record) => logged.push(record),
       assertSchema: succeeding(),
     });
@@ -59,6 +63,7 @@ describe("le Worker", () => {
   it("répond 503 et journalise la migration manquante quand le schéma est en retard", async () => {
     const logged: LogRecord[] = [];
     const worker = createWorker({
+      fetch: noOutgoingCall,
       log: (record) => logged.push(record),
       assertSchema: async () => {
         throw SCHEMA_BEHIND;
@@ -87,6 +92,7 @@ describe("le Worker", () => {
   it("journalise aussi une vérification qui lève autre chose qu'une Error", async () => {
     const logged: LogRecord[] = [];
     const worker = createWorker({
+      fetch: noOutgoingCall,
       log: (record) => logged.push(record),
       assertSchema: () => Promise.reject("base injoignable"),
     });
