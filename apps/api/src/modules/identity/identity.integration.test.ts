@@ -132,3 +132,28 @@ describe("identité : inscription et connexion", () => {
       });
     }));
 });
+
+describe("identité : initialisation", () => {
+  it("une initialisation qui échoue est journalisée avant d'être reprise", () =>
+    withThrowawayDatabase(async ({ appUrl }) => {
+      const db = createPostgresDatabase({ url: appUrl });
+      const records: LogRecord[] = [];
+      try {
+        const initializing = createIdentityAuth({
+          db,
+          secret: SECRET,
+          baseURL: BASE_URL,
+          trustedIpHeader: "x-forwarded-for",
+          log: (record) => records.push(record),
+          onUserCreated: () => Promise.resolve(),
+        });
+
+        await expect(initializing).rejects.toThrow(/Failed query/);
+        expect(records.filter(({ msg }) => msg === "better-auth init retried")).toEqual([
+          expect.objectContaining({ level: "warn", error: expect.stringMatching(/Failed query/) }),
+        ]);
+      } finally {
+        await db.close();
+      }
+    }));
+});
