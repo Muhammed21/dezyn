@@ -143,7 +143,6 @@ describe("le Worker de production", () => {
 
         await withWorker(appUrl, (first) =>
           withWorker(appUrl, async (second) => {
-            await first.request(`${BASE_URL}/.well-known/oauth-authorization-server`);
             const allowed = await Promise.all(
               Array.from({ length: REGISTRATION_RATE_LIMIT.max }, (_, index) =>
                 register(index % 2 === 0 ? first : second, "203.0.113.8"),

@@ -148,6 +148,20 @@ export const identityAuthOptions = ({
     ],
   }) satisfies BetterAuthOptions;
 
+const initialized = async <A extends { readonly $context: Promise<unknown> }>(
+  build: () => A,
+): Promise<A> => {
+  const auth = build();
+  try {
+    await auth.$context;
+    return auth;
+  } catch {
+    const retried = build();
+    await retried.$context;
+    return retried;
+  }
+};
+
 export const createIdentityAuth = async ({
   db,
   secret,
@@ -165,31 +179,32 @@ export const createIdentityAuth = async ({
   readonly onUserCreated: (user: { readonly id: string; readonly name: string }) => Promise<void>;
   readonly clock?: Clock;
 }): Promise<Auth> => {
-  const auth = betterAuth({
-    ...identityAuthOptions({ baseURL, trustedIpHeader }),
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            try {
-              await onUserCreated(user);
-            } catch (error) {
-              await db.orm.delete(schema.identityUser).where(eq(schema.identityUser.id, user.id));
-              throw error;
-            }
+  const build = () =>
+    betterAuth({
+      ...identityAuthOptions({ baseURL, trustedIpHeader }),
+      databaseHooks: {
+        user: {
+          create: {
+            after: async (user) => {
+              try {
+                await onUserCreated(user);
+              } catch (error) {
+                await db.orm.delete(schema.identityUser).where(eq(schema.identityUser.id, user.id));
+                throw error;
+              }
+            },
           },
         },
       },
-    },
-    secret,
-    database: drizzleAdapter(db.orm, { provider: "pg", schema: IDENTITY_SCHEMA }),
-    logger: {
-      log: (level, message) => {
-        log({ level, msg: message, source: "better-auth" });
+      secret,
+      database: drizzleAdapter(db.orm, { provider: "pg", schema: IDENTITY_SCHEMA }),
+      logger: {
+        log: (level, message) => {
+          log({ level, msg: message, source: "better-auth" });
+        },
       },
-    },
-  });
-  await auth.$context;
+    });
+  const auth = await initialized(build);
   const issuer = (await auth.api.getOAuthServerConfig()).issuer;
   const verifier = createAccessTokenVerifier({
     jwksUrl: new URL("/auth/jwks", baseURL).href,
