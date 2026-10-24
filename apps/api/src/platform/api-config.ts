@@ -34,13 +34,20 @@ const ApiEnv = z.object({
   PORT: port().default(3000),
 });
 
-const WorkerEnv = z.object({
-  HYPERDRIVE: z.object({ connectionString: text() }, { error: MISSING }),
-  BETTER_AUTH_SECRET: authSecret(),
-  BETTER_AUTH_URL: httpUrl(),
-  WEB_URL: httpUrl(),
-  TRUSTED_IP_HEADER: trustedIpHeader(),
-});
+const WorkerEnv = z
+  .object({
+    HYPERDRIVE: z.object({ connectionString: text() }, { error: MISSING }),
+    BETTER_AUTH_SECRET: authSecret(),
+    BETTER_AUTH_URL: httpUrl(),
+    WEB_URL: httpUrl(),
+    TRUSTED_IP_HEADER: trustedIpHeader(),
+    RESEND_API_KEY: text().optional(),
+    MAIL_FROM: z.email({ error: "adresse email attendue" }).optional(),
+  })
+  .refine((env) => env.RESEND_API_KEY === undefined || env.MAIL_FROM !== undefined, {
+    path: ["MAIL_FROM"],
+    error: MISSING,
+  });
 
 const issuesOf = (error: z.ZodError): readonly string[] =>
   error.issues.map(({ path, message }) => `${String(path[0])} : ${message}`);
@@ -74,7 +81,9 @@ export const readApiConfig = (
   });
 };
 
-export type WorkerConfig = Omit<ApiConfig, "smtp" | "port">;
+export type WorkerConfig = Omit<ApiConfig, "smtp" | "port"> & {
+  readonly email?: { readonly apiKey: string; readonly from: string };
+};
 
 export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readonly string[]> => {
   const parsed = WorkerEnv.safeParse(bindings);
@@ -88,5 +97,8 @@ export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readon
     baseURL: data.BETTER_AUTH_URL,
     trustedIpHeader: data.TRUSTED_IP_HEADER,
     webUrl: data.WEB_URL,
+    ...(data.RESEND_API_KEY && data.MAIL_FROM
+      ? { email: { apiKey: data.RESEND_API_KEY, from: data.MAIL_FROM } }
+      : {}),
   });
 };

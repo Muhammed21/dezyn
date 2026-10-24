@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type { Fetch } from "#platform/resend-mailer.ts";
 import { migrate } from "@repo/db";
 import { withThrowawayDatabase } from "@repo/db/testing";
 
 import { createWorker } from "./worker.ts";
+
+const noOutgoingCall: Fetch = () => Promise.reject(new Error("aucun appel sortant attendu"));
 
 const SCHEMA_BEHIND = new Error("Schéma en retard : la migration 0042_x n'est pas appliquée.");
 
@@ -40,6 +43,7 @@ describe("le Worker vérifie le schéma une fois par isolat", () => {
       await migrate({ connectionString: migratorUrl });
       const checked: string[] = [];
       const worker = createWorker({
+        fetch: noOutgoingCall,
         log: () => undefined,
         assertSchema: async (databaseUrl) => {
           checked.push(databaseUrl);
@@ -58,6 +62,7 @@ describe("le Worker vérifie le schéma une fois par isolat", () => {
       await migrate({ connectionString: migratorUrl });
       const outcomes = [SCHEMA_BEHIND, undefined];
       const worker = createWorker({
+        fetch: noOutgoingCall,
         log: () => undefined,
         assertSchema: async () => {
           const outcome = outcomes.shift();
