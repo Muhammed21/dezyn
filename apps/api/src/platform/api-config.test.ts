@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { err, ok } from "@repo/result";
 
-import { readApiConfig } from "./api-config.ts";
+import { readApiConfig, readWorkerConfig } from "./api-config.ts";
 
 const makeEnv = (overrides: Readonly<Record<string, string | undefined>> = {}) => ({
   DATABASE_URL: "postgresql://app@127.0.0.1:5432/dezyn",
@@ -80,5 +80,56 @@ describe("l'API lit sa configuration dans l'environnement", () => {
     ["PORT", "65535"],
   ])("%s=%j est acceptée", (variable, value) => {
     expect(readApiConfig(makeEnv({ [variable]: value })).ok).toBe(true);
+  });
+});
+
+const makeBindings = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  HYPERDRIVE: { connectionString: "postgresql://app@hyperdrive.local:5432/dezyn" },
+  BETTER_AUTH_SECRET: "secret-de-test-de-32-caracteres-au-moins",
+  BETTER_AUTH_URL: "https://api.dezyn.app",
+  WEB_URL: "https://dezyn.app",
+  ...overrides,
+});
+
+describe("le Worker lit sa configuration dans ses bindings", () => {
+  it("des bindings complets donnent la configuration, base comprise par Hyperdrive", () => {
+    expect(readWorkerConfig(makeBindings())).toEqual(
+      ok({
+        databaseUrl: "postgresql://app@hyperdrive.local:5432/dezyn",
+        authSecret: "secret-de-test-de-32-caracteres-au-moins",
+        baseURL: "https://api.dezyn.app",
+        trustedIpHeader: "cf-connecting-ip",
+        webUrl: "https://dezyn.app",
+      }),
+    );
+  });
+
+  it("TRUSTED_IP_HEADER remplace l'en-tête par défaut", () => {
+    expect(readWorkerConfig(makeBindings({ TRUSTED_IP_HEADER: "x-forwarded-for" }))).toMatchObject(
+      ok({ trustedIpHeader: "x-forwarded-for" }),
+    );
+  });
+
+  it("chaque binding manquant est nommé, tous en une fois", () => {
+    expect(readWorkerConfig({})).toEqual(
+      err([
+        "HYPERDRIVE : manquante",
+        "BETTER_AUTH_SECRET : manquante",
+        "BETTER_AUTH_URL : manquante",
+        "WEB_URL : manquante",
+      ]),
+    );
+  });
+
+  it.each([
+    ["HYPERDRIVE", {}, "manquante"],
+    ["BETTER_AUTH_SECRET", "x".repeat(31), "32 caractères au moins"],
+    ["BETTER_AUTH_URL", "127.0.0.1:3000", "URL http(s) attendue"],
+    ["WEB_URL", "ftp://dezyn.app", "URL http(s) attendue"],
+    ["TRUSTED_IP_HEADER", "", "vide"],
+  ])("%s=%j est refusé : %s", (binding, value, message) => {
+    expect(readWorkerConfig(makeBindings({ [binding]: value }))).toEqual(
+      err([`${binding} : ${message}`]),
+    );
   });
 });
