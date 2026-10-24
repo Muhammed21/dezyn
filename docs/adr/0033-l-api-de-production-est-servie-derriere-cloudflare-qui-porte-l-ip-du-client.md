@@ -1,6 +1,6 @@
 # 0033 — L'API de production est servie derrière Cloudflare, qui porte l'IP du client
 
-- Statut : Proposé
+- Statut : Proposé — §1 remplacé par [0034](0034-l-api-est-servie-par-un-worker-cloudflare.md)
 - Date : 2026-10-23
 - Décideurs : Muhammed
 
