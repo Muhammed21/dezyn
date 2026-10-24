@@ -9,7 +9,7 @@
 
 L'API n'a pas d'hébergement : `release.yml` le dit, « the hosting is not chosen ». L'ADR 0033 prévoit une origine Node derrière le proxy de Cloudflare, fermée à tout trafic qui ne vient pas de Cloudflare.
 
-Le domaine `dezyn.com` a sa zone sur Cloudflare. L'API doit être servie sur `api.dezyn.com`, et chaque commit d'une PR doit publier une version de test de l'API.
+Le domaine `dezyn.app` a sa zone sur Cloudflare. L'API doit être servie sur `api.dezyn.app`, et chaque commit d'une PR doit publier une version de test de l'API.
 
 Le code est presque prêt pour un Worker. Le MCP utilise déjà `WebStandardStreamableHTTPServerTransport`, et la crypto passe par `node:crypto`, que Workers fournit avec `nodejs_compat`. Trois choses manquent :
 
@@ -23,7 +23,7 @@ Problématique : où et comment l'API est-elle servie en production et dans les 
 
 ## Facteurs de décision
 
-- L'API est servie sur `api.dezyn.com`.
+- L'API est servie sur `api.dezyn.app`.
 - Chaque commit d'une PR publie une preview de l'API, avec son URL.
 - Une preview ne peut toucher ni les données ni les secrets de la production, même par erreur.
 - Aucune donnée réelle d'utilisateur n'arrive dans une preview.
@@ -36,7 +36,7 @@ Problématique : où et comment l'API est-elle servie en production et dans les 
 
 #### Option A — Un Worker Cloudflare
 
-- Avantage : le Worker sert `api.dezyn.com` directement, et Wrangler publie une version de test par commit, avec son URL.
+- Avantage : le Worker sert `api.dezyn.app` directement, et Wrangler publie une version de test par commit, avec son URL.
 - Avantage : il n'y a plus d'origine à protéger, et `cf-connecting-ip` vient de Cloudflare.
 - Inconvénient : il faut remplacer `nodemailer` et joindre Postgres depuis le Worker.
 - **Retenue.**
@@ -170,7 +170,7 @@ Problématique : où et comment l'API est-elle servie en production et dans les 
 
 ## Décision
 
-### 1. La production est servie par le Worker `dezyn-api` sur `api.dezyn.com`
+### 1. La production est servie par le Worker `dezyn-api` sur `api.dezyn.app`
 
 Un point d'entrée `worker.ts` réutilise `buildApi` et sert toute l'API : HTTP, MCP et OAuth. Il joint la branche `main` de Neon par Hyperdrive. Il n'y a pas d'origine : le §1 de l'ADR 0033 ne s'applique plus, son §2 reste (`TRUSTED_IP_HEADER` vaut `cf-connecting-ip` par défaut).
 
@@ -196,7 +196,7 @@ L'environnement GitHub `production`, réservé à `main`, porte le jeton Cloudfl
 
 Un job court migre avec le rôle `migrator` (ADR 0009 §3), puis publie le Worker. Chaque migration reste compatible avec la version précédente de l'API : on ajoute d'abord, on retire dans une PR suivante. La vérification du schéma (ADR 0009 §4) a lieu une fois par isolat.
 
-La production part au merge sur `main`, une fois la CI de `main` verte. Le job appelle ensuite `GET /health` sur `api.dezyn.com`, et revient à la version précédente avec `wrangler rollback` s'il échoue. Une preview appelle aussi `/health` après son upload, puis son URL est commentée sur la PR.
+La production part au merge sur `main`, une fois la CI de `main` verte. Le job appelle ensuite `GET /health` sur `api.dezyn.app`, et revient à la version précédente avec `wrangler rollback` s'il échoue. Une preview appelle aussi `/health` après son upload, puis son URL est commentée sur la PR.
 
 ### 6. Les emails passent par Cloudflare Email Service
 
