@@ -1,5 +1,6 @@
 export {
   identityAccount,
+  identityRateLimit,
   identitySession,
   identityUser,
   identityVerification,
