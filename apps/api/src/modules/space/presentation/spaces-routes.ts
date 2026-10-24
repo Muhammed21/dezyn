@@ -42,7 +42,7 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
 
 const lastOwnerProblem = (c: Context<AuthenticatedEnv>) =>
   problemResponse(c, {
-    type: "https://dezyn.app/problems/last-owner",
+    type: "https://dezyn.dev/problems/last-owner",
     title: "Dernier propriétaire de l'espace",
     status: 409,
   });
@@ -66,7 +66,7 @@ const removalProblem = (c: Context<AuthenticatedEnv>, failure: RemovalFailure) =
   return failure === "forbidden"
     ? forbiddenProblem(c)
     : problemResponse(c, {
-        type: "https://dezyn.app/problems/self-removal",
+        type: "https://dezyn.dev/problems/self-removal",
         title: "Un membre quitte l'espace par son départ",
         status: 409,
       });

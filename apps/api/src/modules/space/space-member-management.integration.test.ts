@@ -18,9 +18,9 @@ import {
   seedTeamSpace,
 } from "#testing/space-fixtures.ts";
 
-const LAST_OWNER = "https://dezyn.app/problems/last-owner";
+const LAST_OWNER = "https://dezyn.dev/problems/last-owner";
 
-const SELF_REMOVAL = "https://dezyn.app/problems/self-removal";
+const SELF_REMOVAL = "https://dezyn.dev/problems/self-removal";
 
 const changeRole = (
   app: App,

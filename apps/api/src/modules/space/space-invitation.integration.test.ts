@@ -17,7 +17,7 @@ import { schema } from "@repo/db";
 import { err } from "@repo/result";
 
 const DAY_MS = 86_400_000;
-const PLAN_REQUIRED = "https://dezyn.app/problems/plan-required";
+const PLAN_REQUIRED = "https://dezyn.dev/problems/plan-required";
 
 describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 0011 §4)", () => {
   it("crée l'invitation pour 7 jours et envoie un lien dont seul le hash est gardé", () => {

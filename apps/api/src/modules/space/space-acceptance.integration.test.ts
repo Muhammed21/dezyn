@@ -20,7 +20,7 @@ import {
 } from "#testing/space-fixtures.ts";
 import { schema } from "@repo/db";
 
-const PLAN_REQUIRED = "https://dezyn.app/problems/plan-required";
+const PLAN_REQUIRED = "https://dezyn.dev/problems/plan-required";
 
 const accept = (app: App, { accessToken, token }: { accessToken: string; token: string }) =>
   app.request(`${BASE_URL}/v1/invitations/${token}/accept`, {

@@ -16,7 +16,7 @@ import {
   seedTeamSpace,
 } from "#testing/space-fixtures.ts";
 
-const LAST_OWNER = "https://dezyn.app/problems/last-owner";
+const LAST_OWNER = "https://dezyn.dev/problems/last-owner";
 
 const leave = (app: App, { accessToken, spaceId }: { accessToken: string; spaceId: string }) =>
   app.request(`${BASE_URL}/v1/spaces/${spaceId}/members/me`, {

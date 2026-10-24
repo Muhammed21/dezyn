@@ -5,7 +5,7 @@ import { planRequired } from "./plan.ts";
 describe("le refus plan-required dit le plan requis, et la limite quand il y en a une", () => {
   it("un refus sans limite ne porte que le plan requis", () => {
     expect(planRequired({ code: "plan_required", requiredPlan: "team" })).toStrictEqual({
-      type: "https://dezyn.app/problems/plan-required",
+      type: "https://dezyn.dev/problems/plan-required",
       title: "Plan Team requis",
       status: 403,
       extensions: { requiredPlan: "team" },
