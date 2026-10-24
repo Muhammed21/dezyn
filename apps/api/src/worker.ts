@@ -1,7 +1,9 @@
 import { createPostgresDatabase } from "#db";
 import { readWorkerConfig } from "#platform/api-config.ts";
+import { createCloudflareMailer } from "#platform/cloudflare-mailer.ts";
 import { createJsonLineSink } from "#platform/json-line-sink.ts";
 import { errorDetails, type LogSink } from "#platform/logging.ts";
+import type { Mailer } from "#platform/mailer.ts";
 import { INTERNAL_ERROR, type Problem } from "#platform/problem.ts";
 import { assertSchemaVersion, LATEST_MIGRATION } from "@repo/db";
 import { err } from "@repo/result";
@@ -46,6 +48,13 @@ const schemaIsCurrent = async ({
   }
 };
 
+const loggingMailer = (log: LogSink): Mailer => ({
+  send: async ({ to, subject }) => {
+    log({ level: "warn", msg: "email not sent", to, subject });
+    return err("mail_unavailable");
+  },
+});
+
 export const createWorker = ({
   log,
   assertSchema,
@@ -76,12 +85,9 @@ export const createWorker = ({
         const { app } = await buildApi({
           ...config.value,
           db,
-          mailer: {
-            send: async ({ to, subject }) => {
-              log({ level: "warn", msg: "email not sent", to, subject });
-              return err("mail_unavailable");
-            },
-          },
+          mailer: config.value.email
+            ? createCloudflareMailer({ ...config.value.email, log })
+            : loggingMailer(log),
           log,
         });
         return await app.fetch(request);

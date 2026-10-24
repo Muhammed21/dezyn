@@ -2,7 +2,7 @@
 
 ## System Context
 
-Une seule app Hono sert l'API HTTP, le MCP en Streamable HTTP et le serveur OAuth des apps d'IA (ADR 0007, 0008). En production, elle tourne dans le Worker Cloudflare `dezyn-api` et joint PostgreSQL par Hyperdrive (ADR 0034) ; en local et dans les tests, sur Node. Dépendances sortantes : PostgreSQL, S3, SMTP en local ; l'envoi des emails en production arrive avec [#132](https://github.com/Muhammed21/dezyn/issues/132). Charge : voir [PERFORMANCE.md](PERFORMANCE.md#load-reality).
+Une seule app Hono sert l'API HTTP, le MCP en Streamable HTTP et le serveur OAuth des apps d'IA (ADR 0007, 0008). En production, elle tourne dans le Worker Cloudflare `dezyn-api` et joint PostgreSQL par Hyperdrive (ADR 0034) ; en local et dans les tests, sur Node. Dépendances sortantes : PostgreSQL, S3, et pour les emails Cloudflare Email Service en production (binding `send_email` du Worker, expéditeur `MAIL_FROM`), SMTP en local. Le Worker de preview n'a pas ce binding : il journalise l'email sans l'envoyer. Charge : voir [PERFORMANCE.md](PERFORMANCE.md#load-reality).
 
 ## Layer Map & Dependency Rule
 

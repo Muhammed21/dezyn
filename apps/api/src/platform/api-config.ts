@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { err, ok, type Result } from "@repo/result";
 
+import type { EmailBinding } from "./cloudflare-mailer.ts";
+
 const MISSING = "manquante";
 const PORT = "port entre 1 et 65535 attendu";
 const HTTP_URL = "URL http(s) attendue";
@@ -34,13 +36,30 @@ const ApiEnv = z.object({
   PORT: port().default(3000),
 });
 
-const WorkerEnv = z.object({
-  HYPERDRIVE: z.object({ connectionString: text() }, { error: MISSING }),
-  BETTER_AUTH_SECRET: authSecret(),
-  BETTER_AUTH_URL: httpUrl(),
-  WEB_URL: httpUrl(),
-  TRUSTED_IP_HEADER: trustedIpHeader(),
-});
+const emailBinding = () =>
+  z.custom<EmailBinding>(
+    (value) =>
+      typeof value === "object" &&
+      value !== null &&
+      "send" in value &&
+      typeof value.send === "function",
+    { error: "binding send_email attendu" },
+  );
+
+const WorkerEnv = z
+  .object({
+    HYPERDRIVE: z.object({ connectionString: text() }, { error: MISSING }),
+    BETTER_AUTH_SECRET: authSecret(),
+    BETTER_AUTH_URL: httpUrl(),
+    WEB_URL: httpUrl(),
+    TRUSTED_IP_HEADER: trustedIpHeader(),
+    EMAIL: emailBinding().optional(),
+    MAIL_FROM: z.email({ error: "adresse email attendue" }).optional(),
+  })
+  .refine((env) => env.EMAIL === undefined || env.MAIL_FROM !== undefined, {
+    path: ["MAIL_FROM"],
+    error: MISSING,
+  });
 
 const issuesOf = (error: z.ZodError): readonly string[] =>
   error.issues.map(({ path, message }) => `${String(path[0])} : ${message}`);
@@ -74,7 +93,9 @@ export const readApiConfig = (
   });
 };
 
-export type WorkerConfig = Omit<ApiConfig, "smtp" | "port">;
+export type WorkerConfig = Omit<ApiConfig, "smtp" | "port"> & {
+  readonly email?: { readonly binding: EmailBinding; readonly from: string };
+};
 
 export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readonly string[]> => {
   const parsed = WorkerEnv.safeParse(bindings);
@@ -88,5 +109,8 @@ export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readon
     baseURL: data.BETTER_AUTH_URL,
     trustedIpHeader: data.TRUSTED_IP_HEADER,
     webUrl: data.WEB_URL,
+    ...(data.EMAIL && data.MAIL_FROM
+      ? { email: { binding: data.EMAIL, from: data.MAIL_FROM } }
+      : {}),
   });
 };

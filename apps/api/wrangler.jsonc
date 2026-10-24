@@ -6,9 +6,11 @@
   "compatibility_flags": ["nodejs_compat"],
   "routes": [{ "pattern": "api.dezyn.dev", "custom_domain": true }],
   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "ed807e2d1a7e437f9a17bb749123c6d2" }],
+  "send_email": [{ "name": "EMAIL" }],
   "vars": {
     "BETTER_AUTH_URL": "https://api.dezyn.dev",
     "WEB_URL": "https://dezyn.dev",
+    "MAIL_FROM": "no-reply@dezyn.dev",
   },
   "observability": { "enabled": true },
 }

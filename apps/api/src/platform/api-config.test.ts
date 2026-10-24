@@ -104,6 +104,43 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
     );
   });
 
+  it("sans binding EMAIL, le Worker n'a pas d'envoi d'email", () => {
+    const config = readWorkerConfig(makeBindings());
+
+    expect(config.ok && config.value.email).toBeUndefined();
+  });
+
+  it("MAIL_FROM seul, sans binding EMAIL, ne donne pas d'envoi d'email", () => {
+    const config = readWorkerConfig(makeBindings({ MAIL_FROM: "no-reply@dezyn.dev" }));
+
+    expect(config.ok && config.value.email).toBeUndefined();
+  });
+
+  it("le binding EMAIL et MAIL_FROM donnent l'envoi d'email et son expéditeur", () => {
+    const binding = { send: async () => ({ messageId: "m-1" }) };
+
+    expect(
+      readWorkerConfig(makeBindings({ EMAIL: binding, MAIL_FROM: "no-reply@dezyn.dev" })),
+    ).toMatchObject(ok({ email: { binding, from: "no-reply@dezyn.dev" } }));
+  });
+
+  it.each([
+    [{ EMAIL: { send: async () => ({ messageId: "m-1" }) } }, "MAIL_FROM : manquante"],
+    [
+      { EMAIL: { send: async () => ({ messageId: "m-1" }) }, MAIL_FROM: "dezyn" },
+      "MAIL_FROM : adresse email attendue",
+    ],
+    [{ EMAIL: {}, MAIL_FROM: "no-reply@dezyn.dev" }, "EMAIL : binding send_email attendu"],
+    [{ EMAIL: null, MAIL_FROM: "no-reply@dezyn.dev" }, "EMAIL : binding send_email attendu"],
+    [{ EMAIL: "EMAIL", MAIL_FROM: "no-reply@dezyn.dev" }, "EMAIL : binding send_email attendu"],
+    [
+      { EMAIL: { send: "envoyer" }, MAIL_FROM: "no-reply@dezyn.dev" },
+      "EMAIL : binding send_email attendu",
+    ],
+  ])("%j est refusé : %s", (bindings, message) => {
+    expect(readWorkerConfig(makeBindings(bindings))).toEqual(err([message]));
+  });
+
   it("TRUSTED_IP_HEADER remplace l'en-tête par défaut", () => {
     expect(readWorkerConfig(makeBindings({ TRUSTED_IP_HEADER: "x-forwarded-for" }))).toMatchObject(
       ok({ trustedIpHeader: "x-forwarded-for" }),
