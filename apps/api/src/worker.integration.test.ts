@@ -117,6 +117,7 @@ describe("le Worker de production", () => {
             correlationId: "ci-worker-1",
           });
           expect(logs().join("\n")).not.toContain("connection lost");
+          expect(logs().filter((message) => message.endsWith("\n"))).toEqual([]);
         });
       }),
     60_000,

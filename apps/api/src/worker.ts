@@ -76,7 +76,12 @@ export const createWorker = ({
         const { app } = await buildApi({
           ...config.value,
           db,
-          mailer: { send: async () => err("mail_unavailable") },
+          mailer: {
+            send: async ({ to, subject }) => {
+              log({ level: "warn", msg: "email not sent", to, subject });
+              return err("mail_unavailable");
+            },
+          },
           log,
         });
         return await app.fetch(request);
