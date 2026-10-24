@@ -40,3 +40,7 @@ yarn-error.log*
 
 # vitest bench --outputJson
 bench-results.json
+
+# Wrangler
+.wrangler
+.dev.vars

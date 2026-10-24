@@ -1,5 +1,6 @@
 import { createPostgresDatabase } from "#db";
 import { readWorkerConfig } from "#platform/api-config.ts";
+import { createJsonLineSink } from "#platform/json-line-sink.ts";
 import { errorDetails, type LogSink } from "#platform/logging.ts";
 import { INTERNAL_ERROR, type Problem } from "#platform/problem.ts";
 import { assertSchemaVersion, LATEST_MIGRATION } from "@repo/db";
@@ -87,7 +88,7 @@ export const createWorker = ({
 };
 
 export default createWorker({
-  log: () => undefined,
+  log: createJsonLineSink({ write: (line) => console.log(line.trimEnd()), now: () => new Date() }),
   assertSchema: (databaseUrl) =>
     assertSchemaVersion({ connectionString: databaseUrl, migration: LATEST_MIGRATION }),
 });
