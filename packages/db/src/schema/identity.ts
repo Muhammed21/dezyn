@@ -1,4 +1,13 @@
-import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -62,3 +71,10 @@ export const identityVerification = pgTable(
   },
   (table) => [index("identity_verification_identifier_idx").on(table.identifier)],
 );
+
+export const identityRateLimit = pgTable("identity_rate_limit", {
+  id: uuid("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});

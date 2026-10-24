@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestHarness } from "wrangler";
 
+import { REGISTRATION_RATE_LIMIT } from "#modules/identity/infrastructure/better-auth.ts";
 import {
   ADA,
   type App,
@@ -14,6 +15,17 @@ import { migrate } from "@repo/db";
 import { withThrowawayDatabase } from "@repo/db/testing";
 
 const HYPERDRIVE_LOCAL = "CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE";
+
+const register = async (worker: App, ip: string) =>
+  worker.request(`${BASE_URL}/auth/oauth2/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-forwarded-for": ip },
+    body: JSON.stringify({
+      client_name: "Claude Code",
+      redirect_uris: ["http://localhost:33418/callback"],
+      token_endpoint_auth_method: "none",
+    }),
+  });
 
 const jsonLines = (messages: readonly string[]): readonly unknown[] =>
   messages.flatMap((message) => {
@@ -121,5 +133,36 @@ describe("le Worker de production", () => {
         });
       }),
     60_000,
+  );
+
+  it(
+    "deux Workers sur la même base partagent la limite d'enregistrement OAuth d'une IP",
+    () =>
+      withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
+        await migrate({ connectionString: migratorUrl });
+
+        await withWorker(appUrl, (first) =>
+          withWorker(appUrl, async (second) => {
+            await first.request(`${BASE_URL}/.well-known/oauth-authorization-server`);
+            const allowed = await Promise.all(
+              Array.from({ length: REGISTRATION_RATE_LIMIT.max }, (_, index) =>
+                register(index % 2 === 0 ? first : second, "203.0.113.8"),
+              ),
+            );
+
+            const refusedByFirst = await register(first, "203.0.113.8");
+            const refusedBySecond = await register(second, "203.0.113.8");
+            const otherIp = await register(second, "203.0.113.9");
+
+            expect(allowed.map((response) => response.status)).toEqual(
+              Array(REGISTRATION_RATE_LIMIT.max).fill(201),
+            );
+            expect(refusedByFirst.status).toBe(429);
+            expect(refusedBySecond.status).toBe(429);
+            expect(otherIp.status).toBe(201);
+          }),
+        );
+      }),
+    90_000,
   );
 });

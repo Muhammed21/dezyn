@@ -29,6 +29,7 @@ export const IDENTITY_SCHEMA = {
   session: schema.identitySession,
   account: schema.identityAccount,
   verification: schema.identityVerification,
+  rateLimit: schema.identityRateLimit,
   jwks: schema.identityJwks,
   oauthClient: schema.identityOAuthClient,
   oauthResource: schema.identityOAuthResource,
@@ -113,6 +114,7 @@ export const identityAuthOptions = ({
     },
     rateLimit: {
       enabled: true,
+      storage: "database",
       customRules: { "/oauth2/register": REGISTRATION_RATE_LIMIT },
     },
     emailAndPassword: { enabled: true },
