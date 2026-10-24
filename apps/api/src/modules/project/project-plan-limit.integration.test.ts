@@ -54,7 +54,7 @@ const seedFreeSpaceWithProjects = async (app: App, db: PostgresDatabase, count: 
 };
 
 const PLAN_REQUIRED = {
-  type: "https://dezyn.app/problems/plan-required",
+  type: "https://dezyn.dev/problems/plan-required",
   title: "Plan Team requis",
   status: 403,
   requiredPlan: "team",
