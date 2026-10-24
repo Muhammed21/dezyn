@@ -104,6 +104,37 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
     );
   });
 
+  it("sans Hyperdrive, DATABASE_URL donne la base jointe en direct", () => {
+    const { HYPERDRIVE: _, ...withoutHyperdrive } = makeBindings();
+
+    expect(
+      readWorkerConfig({
+        ...withoutHyperdrive,
+        DATABASE_URL: "postgresql://app@ep-preview.neon.tech/dezyn",
+      }),
+    ).toMatchObject(ok({ databaseUrl: "postgresql://app@ep-preview.neon.tech/dezyn" }));
+  });
+
+  it("HYPERDRIVE et DATABASE_URL ensemble sont refusés", () => {
+    expect(
+      readWorkerConfig(
+        makeBindings({ DATABASE_URL: "postgresql://app@ep-preview.neon.tech/dezyn" }),
+      ),
+    ).toEqual(err(["DATABASE_URL : en double avec HYPERDRIVE"]));
+  });
+
+  it("EMAIL_DELIVERY=log journalise les emails au lieu de les envoyer", () => {
+    expect(readWorkerConfig(makeBindings({ EMAIL_DELIVERY: "log" }))).toMatchObject(
+      ok({ emailDelivery: "log" }),
+    );
+  });
+
+  it("sans EMAIL_DELIVERY, les emails ne sont pas journalisés à la place d'un envoi", () => {
+    const config = readWorkerConfig(makeBindings());
+
+    expect(config.ok && config.value.emailDelivery).toBeUndefined();
+  });
+
   it("sans RESEND_API_KEY, le Worker n'a pas d'envoi d'email", () => {
     const config = readWorkerConfig(makeBindings({ MAIL_FROM: "no-reply@dezyn.dev" }));
 
@@ -138,20 +169,22 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
   it("chaque binding manquant est nommé, tous en une fois", () => {
     expect(readWorkerConfig({})).toEqual(
       err([
-        "HYPERDRIVE : manquante",
         "BETTER_AUTH_SECRET : manquante",
         "BETTER_AUTH_URL : manquante",
         "WEB_URL : manquante",
+        "HYPERDRIVE : manquante, comme DATABASE_URL",
       ]),
     );
   });
 
   it.each([
     ["HYPERDRIVE", {}, "manquante"],
+    ["HYPERDRIVE", "postgresql://app@hyperdrive.local:5432/dezyn", "binding Hyperdrive attendu"],
     ["BETTER_AUTH_SECRET", "x".repeat(31), "32 caractères au moins"],
     ["BETTER_AUTH_URL", "127.0.0.1:3000", "URL http(s) attendue"],
     ["WEB_URL", "ftp://dezyn.dev", "URL http(s) attendue"],
     ["TRUSTED_IP_HEADER", "", "vide"],
+    ["EMAIL_DELIVERY", "smtp", "seule la valeur log est admise"],
   ])("%s=%j est refusé : %s", (binding, value, message) => {
     expect(readWorkerConfig(makeBindings({ [binding]: value }))).toEqual(
       err([`${binding} : ${message}`]),

@@ -20,10 +20,13 @@ const authSecret = () => z.string({ error: MISSING }).min(32, { error: "32 carac
 
 const trustedIpHeader = () => text().default("cf-connecting-ip");
 
-const ApiEnv = z.object({
-  DATABASE_URL: z
+const postgresUrl = () =>
+  z
     .string({ error: MISSING })
-    .pipe(z.url({ protocol: /^postgres(ql)?$/, error: "URL postgresql:// attendue" })),
+    .pipe(z.url({ protocol: /^postgres(ql)?$/, error: "URL postgresql:// attendue" }));
+
+const ApiEnv = z.object({
+  DATABASE_URL: postgresUrl(),
   BETTER_AUTH_SECRET: authSecret(),
   BETTER_AUTH_URL: httpUrl(),
   SMTP_HOST: text(),
@@ -36,13 +39,26 @@ const ApiEnv = z.object({
 
 const WorkerEnv = z
   .object({
-    HYPERDRIVE: z.object({ connectionString: text() }, { error: MISSING }),
+    HYPERDRIVE: z
+      .object({ connectionString: text() }, { error: "binding Hyperdrive attendu" })
+      .optional(),
+    DATABASE_URL: postgresUrl().optional(),
     BETTER_AUTH_SECRET: authSecret(),
     BETTER_AUTH_URL: httpUrl(),
     WEB_URL: httpUrl(),
     TRUSTED_IP_HEADER: trustedIpHeader(),
     RESEND_API_KEY: text().optional(),
     MAIL_FROM: z.email({ error: "adresse email attendue" }).optional(),
+    EMAIL_DELIVERY: z.literal("log", { error: "seule la valeur log est admise" }).optional(),
+  })
+  .refine((env) => env.HYPERDRIVE !== undefined || env.DATABASE_URL !== undefined, {
+    path: ["HYPERDRIVE"],
+    error: "manquante, comme DATABASE_URL",
+    when: () => true,
+  })
+  .refine((env) => env.HYPERDRIVE === undefined || env.DATABASE_URL === undefined, {
+    path: ["DATABASE_URL"],
+    error: "en double avec HYPERDRIVE",
   })
   .refine((env) => env.RESEND_API_KEY === undefined || env.MAIL_FROM !== undefined, {
     path: ["MAIL_FROM"],
@@ -83,6 +99,7 @@ export const readApiConfig = (
 
 export type WorkerConfig = Omit<ApiConfig, "smtp" | "port"> & {
   readonly email?: { readonly apiKey: string; readonly from: string };
+  readonly emailDelivery?: "log";
 };
 
 export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readonly string[]> => {
@@ -92,7 +109,7 @@ export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readon
   }
   const { data } = parsed;
   return ok({
-    databaseUrl: data.HYPERDRIVE.connectionString,
+    databaseUrl: data.HYPERDRIVE?.connectionString ?? data.DATABASE_URL ?? "",
     authSecret: data.BETTER_AUTH_SECRET,
     baseURL: data.BETTER_AUTH_URL,
     trustedIpHeader: data.TRUSTED_IP_HEADER,
@@ -100,5 +117,6 @@ export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readon
     ...(data.RESEND_API_KEY && data.MAIL_FROM
       ? { email: { apiKey: data.RESEND_API_KEY, from: data.MAIL_FROM } }
       : {}),
+    ...(data.EMAIL_DELIVERY ? { emailDelivery: data.EMAIL_DELIVERY } : {}),
   });
 };

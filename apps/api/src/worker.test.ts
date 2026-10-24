@@ -52,9 +52,9 @@ describe("le Worker", () => {
         level: "error",
         msg: "invalid configuration",
         issues: [
-          "HYPERDRIVE : manquante",
           "BETTER_AUTH_SECRET : manquante",
           "WEB_URL : URL http(s) attendue",
+          "HYPERDRIVE : manquante, comme DATABASE_URL",
         ],
       },
     ]);
