@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dezyn-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [{ "pattern": "api.dezyn.app", "custom_domain": true }],
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "00000000000000000000000000000000" }],
+  "vars": {
+    "BETTER_AUTH_URL": "https://api.dezyn.app",
+    "WEB_URL": "https://dezyn.app",
+  },
+  "observability": { "enabled": true },
+}

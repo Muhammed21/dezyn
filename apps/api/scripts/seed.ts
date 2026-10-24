@@ -4,8 +4,8 @@ import { createPostgresDatabase } from "#db";
 import { assertSchemaVersion, LATEST_MIGRATION } from "@repo/db";
 import { ok } from "@repo/result";
 
+import { buildApi } from "../src/build-api.ts";
 import { seedDevData } from "../src/dev/dev-data.ts";
-import { buildApi } from "../src/start-api.ts";
 
 const required = (variable: string): string => {
   const value = process.env[variable];

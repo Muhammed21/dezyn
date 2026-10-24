@@ -45,6 +45,7 @@
     "@types/nodemailer": "8.0.2",
     "@types/pg": "8.23.1",
     "typescript": "7.0.2",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "wrangler": "4.152.0"
   }
 }
