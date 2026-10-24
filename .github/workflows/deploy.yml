@@ -1,7 +1,7 @@
 name: Deploy
 
 # Une CI verte sur main migre la base de production, déploie le Worker dezyn-api, puis vérifie /health ;
-# un /health en échec remet la version précédente (ADR 0034).
+# un /health en échec remet la version précédente (ADR 0034). Un commit dépassé par un plus récent ne déploie pas.
 
 on:
   workflow_run:
@@ -35,18 +35,32 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.HEAD_SHA }}
-      - uses: ./.github/actions/install
+      - id: latest
+        name: Still the head of main
+        run: |
+          git fetch --no-tags --quiet origin main
+          if [ "$(git rev-parse origin/main)" = "$HEAD_SHA" ]; then
+            echo "head=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$HEAD_SHA is no longer the head of main; the run of the newer commit deploys."
+            echo "head=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.latest.outputs.head == 'true'
+        uses: ./.github/actions/install
       - name: Migrate
+        if: steps.latest.outputs.head == 'true'
         run: pnpm migrate
         env:
           DATABASE_URL_MIGRATOR: ${{ secrets.DATABASE_URL_MIGRATOR }}
       - id: deploy
         name: Deploy
+        if: steps.latest.outputs.head == 'true'
         working-directory: apps/api
         run: pnpm exec wrangler deploy --message "$HEAD_SHA"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Health check
+        if: steps.latest.outputs.head == 'true'
         run: |
           for attempt in 1 2 3 4 5; do
             curl --fail --silent --show-error --max-time 10 "$HEALTH_URL" && exit 0
