@@ -30,8 +30,11 @@ export const createPostgresDatabase = ({
     lock_timeout: LOCK_TIMEOUT_MS,
     idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_TIMEOUT_MS,
   });
-  const connectionLost = (error: Error) =>
-    log({ level: "error", msg: "postgres connection lost", ...errorDetails(error) });
+  const connectionLost = (error: Error) => {
+    if (!pool.ending) {
+      log({ level: "error", msg: "postgres connection lost", ...errorDetails(error) });
+    }
+  };
   pool.on("error", () => undefined);
   pool.on("connect", (client) => client.on("error", connectionLost));
 

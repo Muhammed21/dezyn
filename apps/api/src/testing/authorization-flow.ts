@@ -29,7 +29,9 @@ export const GRACE = {
 
 type User = typeof ADA;
 
-export type App = ReturnType<typeof createApp>;
+export type App = {
+  readonly request: (input: string, init?: RequestInit) => Response | Promise<Response>;
+};
 
 type UserCreated = (user: { readonly id: string; readonly name: string }) => Promise<void>;
 

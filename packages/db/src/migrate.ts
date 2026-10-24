@@ -6,7 +6,7 @@ import { Client } from "pg";
 
 import { assertRolesProvisioned } from "./provisioned-roles.ts";
 
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../migrations", import.meta.url));
+const migrationsFolder = () => fileURLToPath(new URL("../migrations", import.meta.url));
 
 export const migrate = async ({
   connectionString,
@@ -22,7 +22,7 @@ export const migrate = async ({
         return rows.map((row) => row.rolname);
       },
     });
-    await applyMigrations(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
+    await applyMigrations(drizzle(client), { migrationsFolder: migrationsFolder() });
   } finally {
     await client.end();
   }

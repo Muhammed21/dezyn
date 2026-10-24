@@ -1,0 +1,76 @@
+name: Deploy
+
+# Une CI verte sur main migre la base de production, déploie le Worker dezyn-api, puis vérifie /health ;
+# un /health en échec remet la version précédente (ADR 0034). Un commit dépassé par un plus récent ne déploie pas.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    name: Production
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://api.dezyn.app
+    env:
+      HEALTH_URL: https://api.dezyn.app/health
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.HEAD_SHA }}
+      - id: latest
+        name: Still the head of main
+        run: |
+          git fetch --no-tags --quiet origin main
+          if [ "$(git rev-parse origin/main)" = "$HEAD_SHA" ]; then
+            echo "head=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$HEAD_SHA is no longer the head of main; the run of the newer commit deploys."
+            echo "head=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.latest.outputs.head == 'true'
+        uses: ./.github/actions/install
+      - name: Migrate
+        if: steps.latest.outputs.head == 'true'
+        run: pnpm migrate
+        env:
+          DATABASE_URL_MIGRATOR: ${{ secrets.DATABASE_URL_MIGRATOR }}
+      - id: deploy
+        name: Deploy
+        if: steps.latest.outputs.head == 'true'
+        working-directory: apps/api
+        run: pnpm exec wrangler deploy --message "$HEAD_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Health check
+        if: steps.latest.outputs.head == 'true'
+        run: |
+          for attempt in 1 2 3 4 5; do
+            curl --fail --silent --show-error --max-time 10 "$HEALTH_URL" && exit 0
+            sleep 6
+          done
+          echo "::error::$HEALTH_URL does not answer 200 after the deploy."
+          exit 1
+      - name: Roll back
+        if: failure() && steps.deploy.outcome == 'success'
+        working-directory: apps/api
+        run: pnpm exec wrangler rollback --yes --message "health check failed for $HEAD_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -37,7 +37,7 @@ export const createSmtpMailer = ({
         log({
           level: "error",
           msg: "smtp send failed",
-          ...(error instanceof Error ? errorDetails(error) : { error: String(error) }),
+          ...errorDetails(error),
         });
         return err("mail_unavailable");
       }

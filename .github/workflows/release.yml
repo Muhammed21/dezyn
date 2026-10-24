@@ -1,7 +1,7 @@
 name: Release
 
 # A v*.*.* tag on a commit of main publishes a GitHub Release with generated notes.
-# Deployment is not part of it yet: the hosting is not chosen.
+# Deployment is not part of it: a green CI on main deploys production (deploy.yml).
 
 on:
   push:

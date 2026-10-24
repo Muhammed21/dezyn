@@ -16,19 +16,34 @@ const port = () =>
     .string({ error: MISSING })
     .pipe(z.coerce.number<string>({ error: PORT }).int().min(1).max(65_535));
 
+const authSecret = () => z.string({ error: MISSING }).min(32, { error: "32 caractères au moins" });
+
+const trustedIpHeader = () => text().default("cf-connecting-ip");
+
 const ApiEnv = z.object({
   DATABASE_URL: z
     .string({ error: MISSING })
     .pipe(z.url({ protocol: /^postgres(ql)?$/, error: "URL postgresql:// attendue" })),
-  BETTER_AUTH_SECRET: z.string({ error: MISSING }).min(32, { error: "32 caractères au moins" }),
+  BETTER_AUTH_SECRET: authSecret(),
   BETTER_AUTH_URL: httpUrl(),
   SMTP_HOST: text(),
   SMTP_PORT: port(),
   MAIL_FROM: text(),
   WEB_URL: httpUrl(),
-  TRUSTED_IP_HEADER: text().default("cf-connecting-ip"),
+  TRUSTED_IP_HEADER: trustedIpHeader(),
   PORT: port().default(3000),
 });
+
+const WorkerEnv = z.object({
+  HYPERDRIVE: z.object({ connectionString: text() }, { error: MISSING }),
+  BETTER_AUTH_SECRET: authSecret(),
+  BETTER_AUTH_URL: httpUrl(),
+  WEB_URL: httpUrl(),
+  TRUSTED_IP_HEADER: trustedIpHeader(),
+});
+
+const issuesOf = (error: z.ZodError): readonly string[] =>
+  error.issues.map(({ path, message }) => `${String(path[0])} : ${message}`);
 
 export type ApiConfig = {
   readonly databaseUrl: string;
@@ -45,7 +60,7 @@ export const readApiConfig = (
 ): Result<ApiConfig, readonly string[]> => {
   const parsed = ApiEnv.safeParse(env);
   if (!parsed.success) {
-    return err(parsed.error.issues.map(({ path, message }) => `${String(path[0])} : ${message}`));
+    return err(issuesOf(parsed.error));
   }
   const { data } = parsed;
   return ok({
@@ -56,5 +71,22 @@ export const readApiConfig = (
     smtp: { host: data.SMTP_HOST, port: data.SMTP_PORT, from: data.MAIL_FROM },
     webUrl: data.WEB_URL,
     port: data.PORT,
+  });
+};
+
+export type WorkerConfig = Omit<ApiConfig, "smtp" | "port">;
+
+export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readonly string[]> => {
+  const parsed = WorkerEnv.safeParse(bindings);
+  if (!parsed.success) {
+    return err(issuesOf(parsed.error));
+  }
+  const { data } = parsed;
+  return ok({
+    databaseUrl: data.HYPERDRIVE.connectionString,
+    authSecret: data.BETTER_AUTH_SECRET,
+    baseURL: data.BETTER_AUTH_URL,
+    trustedIpHeader: data.TRUSTED_IP_HEADER,
+    webUrl: data.WEB_URL,
   });
 };
