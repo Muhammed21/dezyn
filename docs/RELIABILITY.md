@@ -35,4 +35,10 @@ En production, l'API tourne dans le Worker Cloudflare `dezyn-api`, sur `api.dezy
 
 Une CI verte sur une PR du dépôt lance `.github/workflows/preview.yml` : il crée la branche Neon `pr-<N>` depuis la branche `preview` si elle manque, la migre, publie une version du Worker `dezyn-api-preview` sous l'alias `pr-<N>`, appelle `GET /health` sur l'URL de l'alias, puis met à jour le commentaire de la PR qui donne l'URL de l'alias et celle du commit. La CI de la PR produit le bundle du Worker ; `preview.yml` ne prend du commit de la PR que les fichiers de `packages/db/migrations`, et n'exécute que le code de `main`, seul à voir `NEON_API_KEY` et `CLOUDFLARE_API_TOKEN`. Une PR venue d'un fork n'a pas de preview. La fermeture de la PR supprime sa branche Neon. Les logs d'une URL de version ou d'alias ne passent ni par Workers Logs ni par `wrangler tail`.
 
+L'environnement de preview se monte avec trois commandes, à lancer dans un terminal, qui n'affichent ni URL de connexion ni secret :
+
+- `pnpm preview:github` : l'environnement GitHub `preview`, réservé à `main`, ses variables `WORKERS_SUBDOMAIN` et `NEON_PROJECT_ID`, et ses secrets ; un secret déjà posé n'est remplacé que sur confirmation.
+- `pnpm preview:db` : après `npx neonctl auth`, la branche Neon `preview` (créée en schéma seul si elle manque), les rôles `migrator`, `app` et `history_maintainer`, la remise à zéro du schéma copié avec ses droits, la migration, puis le seed avec le mot de passe de démo saisi. La remise à zéro refuse une base dont une table a des lignes ; la commande migre alors sans seeder.
+- `pnpm preview:clean` : supprime les branches Neon `pr-<N>` dont la PR n'est plus ouverte.
+
 Le Worker vérifie la version du schéma à la première requête de chaque isolat, et répond 503 tant qu'elle est en retard ; le serveur Node la vérifie au démarrage. Les releases (`v*.*.*`, `.github/workflows/release.yml`) publient des notes, sans déployer.

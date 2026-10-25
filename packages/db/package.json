@@ -10,6 +10,7 @@
   "scripts": {
     "generate": "node scripts/latest-migration.ts",
     "migrate": "node --env-file-if-exists=../../.env scripts/migrate.ts",
+    "reset-copied-schema": "node scripts/reset-copied-schema.ts",
     "studio": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs studio",
     "test": "vitest run",
     "test:watch": "vitest",
