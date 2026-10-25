@@ -23,3 +23,9 @@ export const onClient = async <T>(
 
 export const asAdmin = (sql: string) =>
   onClient(urlOf("DATABASE_URL_ADMIN").toString(), (client) => client.query(sql));
+
+export const asAdminOn = (databaseUrl: string, sql: string) => {
+  const url = urlOf("DATABASE_URL_ADMIN");
+  url.pathname = new URL(databaseUrl).pathname;
+  return onClient(url.toString(), (client) => client.query(sql));
+};

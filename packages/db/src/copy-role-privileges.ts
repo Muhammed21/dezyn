@@ -18,6 +18,17 @@ const GRANTS = `
   WHERE a.grantee = to_regrole($1::text)
 `;
 
+export const copyPrivilegesWith = async (
+  client: Client,
+  { from, to }: { readonly from: string; readonly to: string },
+): Promise<void> => {
+  const { rows } = await client.query<{ statement: string }>(GRANTS, [from, to]);
+  await rows.reduce(
+    (previous, { statement }) => previous.then(() => client.query(statement)).then(() => undefined),
+    Promise.resolve(),
+  );
+};
+
 export const copyRolePrivileges = async ({
   connectionString,
   from,
@@ -30,13 +41,8 @@ export const copyRolePrivileges = async ({
   const client = new Client({ connectionString });
   await client.connect();
   try {
-    const { rows } = await client.query<{ statement: string }>(GRANTS, [from, to]);
     await client.query("BEGIN");
-    await rows.reduce(
-      (previous, { statement }) =>
-        previous.then(() => client.query(statement)).then(() => undefined),
-      Promise.resolve(),
-    );
+    await copyPrivilegesWith(client, { from, to });
     await client.query("COMMIT");
   } finally {
     await client.end();

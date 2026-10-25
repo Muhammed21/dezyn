@@ -31,10 +31,10 @@ Chaque rôle passe par un **dépositaire** : un rôle SQL temporaire, sans conne
 
 1. **Couper les déploiements** : `DEPLOY_ENABLED=false`. Aucune migration ne tourne pendant l'opération.
 2. **`migrator`**
-   1. Créer `migrator_keeper` en SQL et l'accorder à `migrator`. Connecté en `migrator` : `REASSIGN OWNED BY migrator TO migrator_keeper`, puis copier les droits explicites de `migrator` sur `migrator_keeper`.
+   1. `neondb_owner` crée `migrator_keeper` en SQL et l'accorde à `migrator` et à lui-même. Connecté en `migrator` : `REASSIGN OWNED BY migrator TO migrator_keeper`. Puis `neondb_owner` copie les droits explicites de `migrator` sur `migrator_keeper`.
    2. Supprimer `migrator` par `neonctl`. Il ne possède plus rien.
-   3. Créer `migrator` en SQL et l'accorder à `migrator_keeper`. Connecté en `migrator_keeper` : `REASSIGN OWNED BY migrator_keeper TO migrator`, puis recopier les droits.
-   4. Supprimer `migrator_keeper`, puis mettre à jour le secret `DATABASE_URL_MIGRATOR`.
+   3. Dans une transaction, `neondb_owner` crée `migrator` en SQL, se l'accorde, fait `REASSIGN OWNED BY migrator_keeper TO migrator`, recopie les droits, accorde `CREATE` sur la base et sur `public` (que l'ancien tenait de `neon_superuser`), puis supprime `migrator_keeper`. Un dépositaire ne se connecte pas : c'est `neondb_owner`, qui l'a créé, qui agit pour lui.
+   4. Mettre à jour le secret `DATABASE_URL_MIGRATOR`.
 3. **`app`**
    1. Créer `app_keeper` en SQL et lui copier tous les droits explicites de `app` : base, schémas, tables, colonnes, séquences. L'absence d'UPDATE sur `history_entry` est conservée.
    2. Supprimer `app` par `neonctl`. L'API répond 503 à partir d'ici.
