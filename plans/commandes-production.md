@@ -29,7 +29,7 @@ L'opérateur monte la production et vérifie sa cohérence par des commandes, la
 
 ## Critères d'acceptation
 
-- [ ] `pnpm prod:check` passe sur la production actuelle, et échoue en nommant l'écart quand un rôle est privilégié ou qu'un secret manque.
+- [x] `pnpm prod:check` passe sur la production actuelle, et échoue en nommant l'écart quand un rôle est privilégié ou qu'un secret manque.
 - [ ] `pnpm prod:github`, `pnpm prod:secrets` et `pnpm prod:db` sont relançables : relancés sur une production complète, ils ne changent rien sans confirmation.
 - [ ] Sur une branche Neon sans rôles de dezyn, `prod:db` crée les rôles en SQL et migre, sans seed, et `inspectRoles` passe.
 - [ ] Aucune commande n'affiche de secret ni d'URL de connexion.
