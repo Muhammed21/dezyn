@@ -57,7 +57,7 @@ Les mots de passe sont tirés par `openssl` dans le script. Ils ne sont jamais a
 - [ ] Toutes les données sont intactes : le nombre de lignes de chaque table est le même avant et après.
 - [ ] `/health` ne répond pas 200 que pendant le remplacement de `app`, quelques secondes.
 - [ ] Un déploiement après l'opération migre avec le nouveau `migrator`.
-- [ ] Toute la procédure est d'abord répétée sur une branche Neon copiée de `main`, avec ses données.
+- [ ] Toute la procédure est d'abord répétée sur une branche Neon copiée de `production`, avec ses données.
 
 ## Tranches
 
@@ -79,10 +79,10 @@ Chaque tranche suit RED → GREEN → MUTATE → KILL MUTANTS → REFACTOR, et a
 ### Tranche 2 : une commande `prod:roles` qui remplace les rôles d'une branche Neon, d'abord répétée sur une copie
 
 **Valeur** : l'opérateur remplace les rôles en une commande, avec les vérifications de l'étape 5, et peut la répéter sur une copie avant la production.
-**Chemin** : `scripts/env/roles-replace.sh <branche>`. Il suit la procédure ci-dessus. Sur une branche autre que `main`, il saute Hyperdrive et le secret GitHub. Il demande une confirmation avant chaque suppression, et s'arrête à la première vérification en échec. Pour le critère de privilège, il réutilise `provisionRoles`, ou une fonction `privilegedRoles` à extraire de ce module.
+**Chemin** : `scripts/env/roles-replace.sh <branche>`. Il suit la procédure ci-dessus. Sur une branche autre que `production`, il saute Hyperdrive et le secret GitHub. Il demande une confirmation avant chaque suppression, et s'arrête à la première vérification en échec. Pour le critère de privilège, il réutilise `provisionRoles`, ou une fonction `privilegedRoles` à extraire de ce module.
 **Critères** :
 
-- sur une branche `rehearsal-roles` copiée de `main`, la commande aboutit, et les vérifications de l'étape 5 passent ;
+- sur une branche `rehearsal-roles` copiée de `production`, la commande aboutit, et les vérifications de l'étape 5 passent ;
 - le nombre de lignes de chaque table est le même avant et après ;
 - relancée, la commande ne refait rien : les rôles sont déjà SQL.
   **RED** : la partie testable est en TypeScript (comptage des lignes, vérifications) et a ses tests d'intégration. Le script shell se valide par la répétition, dont le compte rendu va dans la PR.

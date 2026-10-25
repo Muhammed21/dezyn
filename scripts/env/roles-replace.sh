@@ -4,6 +4,7 @@ source "$(dirname "$0")/lib.sh"
 cd "$(dirname "$0")/../.."
 
 HYPERDRIVE_ID=ed807e2d1a7e437f9a17bb749123c6d2
+PRODUCTION_BRANCH=production
 
 branch=${1:-}
 if [ -z "$branch" ]; then
@@ -15,14 +16,14 @@ require_terminal
 require_neon_login
 project=$(preview_variable NEON_PROJECT_ID)
 
-if [ "$branch" = main ]; then
+if [ "$branch" = "$PRODUCTION_BRANCH" ]; then
   deploy_enabled=$(gh variable get DEPLOY_ENABLED 2> /dev/null || gh variable get DEPLOY_ENABLED --env production)
   if [ "$deploy_enabled" != false ]; then
     echo "Production : passer d'abord DEPLOY_ENABLED à false, aucune migration ne doit tourner." >&2
     exit 1
   fi
-  read -r -p "Remplacer les rôles de PRODUCTION : taper main pour confirmer : " typed
-  if [ "$typed" != main ]; then
+  read -r -p "Remplacer les rôles de PRODUCTION : taper $PRODUCTION_BRANCH pour confirmer : " typed
+  if [ "$typed" != "$PRODUCTION_BRANCH" ]; then
     echo "Abandon." >&2
     exit 1
   fi
@@ -69,11 +70,11 @@ for role in $ROLES; do
   if [ "$role" = migrator ]; then
     migrator_url=$(role_url "$owner" migrator "$password")
   fi
-  if [ "$branch" = main ] && [ "$role" = migrator ]; then
+  if [ "$branch" = "$PRODUCTION_BRANCH" ] && [ "$role" = migrator ]; then
     printf '%s' "$migrator_url" | gh secret set DATABASE_URL_MIGRATOR --env production
     echo "Secret GitHub DATABASE_URL_MIGRATOR mis à jour"
   fi
-  if [ "$branch" = main ] && [ "$role" = app ]; then
+  if [ "$branch" = "$PRODUCTION_BRANCH" ] && [ "$role" = app ]; then
     (cd apps/api && pnpm exec wrangler hyperdrive update "$HYPERDRIVE_ID" \
       --origin-user app --origin-password "$password" > /dev/null)
     echo "Hyperdrive pointe sur le nouveau app"
