@@ -12,7 +12,12 @@
     },
     "test:integration": {
       "cache": false,
-      "passThroughEnv": ["DATABASE_URL", "DATABASE_URL_MIGRATOR", "DATABASE_URL_HISTORY_MAINTAINER"]
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "DATABASE_URL_MIGRATOR",
+        "DATABASE_URL_HISTORY_MAINTAINER",
+        "DATABASE_URL_ADMIN"
+      ]
     }
   }
 }
