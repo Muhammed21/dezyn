@@ -17,7 +17,17 @@ import { withThrowawayDatabase } from "@repo/db/testing";
 
 import { createWorker } from "./worker.ts";
 
-const RESEND = { RESEND_API_KEY: "re_cle_de_test", MAIL_FROM: "no-reply@dezyn.dev" };
+type Bindings = (databaseUrl: string) => Readonly<Record<string, unknown>>;
+
+const PRODUCTION: Bindings = (databaseUrl) => ({ HYPERDRIVE: { connectionString: databaseUrl } });
+
+const RESEND: Bindings = (databaseUrl) => ({
+  ...PRODUCTION(databaseUrl),
+  RESEND_API_KEY: "re_cle_de_test",
+  MAIL_FROM: "no-reply@dezyn.dev",
+});
+
+const PREVIEW: Bindings = (databaseUrl) => ({ DATABASE_URL: databaseUrl, EMAIL_DELIVERY: "log" });
 
 const INVITATION_SUBJECT = `Invitation à rejoindre « ${ADA.name} » sur dezyn`;
 
@@ -29,10 +39,7 @@ const refusing: Fetch = async () =>
 const noOutgoingCall: Fetch = () => Promise.reject(new Error("aucun appel sortant attendu"));
 
 const inviteGraceThroughWorker = (
-  {
-    bindings,
-    fetch,
-  }: { readonly bindings: Readonly<Record<string, unknown>>; readonly fetch: Fetch },
+  { bindings, fetch }: { readonly bindings: Bindings; readonly fetch: Fetch },
   check: (outcome: Outcome) => void,
 ) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
@@ -48,12 +55,11 @@ const inviteGraceThroughWorker = (
         worker.fetch(
           new Request(input, init),
           {
-            HYPERDRIVE: { connectionString: appUrl },
             BETTER_AUTH_SECRET: "secret-de-test-de-32-caracteres-au-moins",
             BETTER_AUTH_URL: BASE_URL,
             WEB_URL,
             TRUSTED_IP_HEADER: "x-forwarded-for",
-            ...bindings,
+            ...bindings(appUrl),
           },
           { waitUntil: () => undefined },
         ),
@@ -107,14 +113,32 @@ describe("le Worker envoie les emails par Resend", () => {
     });
   });
 
-  it("sans RESEND_API_KEY, comme en preview, une invitation répond 503 et l'email est journalisé sans son lien", async () => {
+  it("sans RESEND_API_KEY, une invitation répond 503 et l'email est journalisé sans son lien", async () => {
     await inviteGraceThroughWorker(
-      { bindings: {}, fetch: noOutgoingCall },
+      { bindings: PRODUCTION, fetch: noOutgoingCall },
       ({ status, logged }) => {
         expect(status).toBe(503);
         expect(logged).toContainEqual({
           level: "warn",
           msg: "email not sent",
+          to: GRACE.email,
+          subject: INVITATION_SUBJECT,
+        });
+        expect(JSON.stringify(logged)).not.toContain("/invitations/");
+      },
+    );
+  });
+});
+
+describe("le Worker de preview", () => {
+  it("joint sa base par DATABASE_URL, et une invitation répond 201 en journalisant l'email sans son lien", async () => {
+    await inviteGraceThroughWorker(
+      { bindings: PREVIEW, fetch: noOutgoingCall },
+      ({ status, logged }) => {
+        expect(status).toBe(201);
+        expect(logged).toContainEqual({
+          level: "info",
+          msg: "email logged instead of sent",
           to: GRACE.email,
           subject: INVITATION_SUBJECT,
         });
