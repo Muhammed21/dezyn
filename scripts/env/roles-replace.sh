@@ -33,15 +33,19 @@ replace_role() {
   DATABASE_URL_OWNER=$owner node packages/db/scripts/replace-role.ts "$@"
 }
 
+verify_full() {
+  sed 's/sslmode=require/sslmode=verify-full/'
+}
+
 neon_role_url() {
-  neon connection-string "$branch" --project-id "$project" --role-name "$1"
+  neon connection-string "$branch" --project-id "$project" --role-name "$1" | verify_full
 }
 
 inspect() {
   DATABASE_URL_MIGRATOR=$1 node packages/db/scripts/replace-role.ts inspect
 }
 
-owner=$(owner_url "$project" "$branch")
+owner=$(owner_url "$project" "$branch" | verify_full)
 migrator_url=$(neon_role_url migrator)
 before=$(inspect "$migrator_url")
 privileged=$(jq -r '.privileged[]' <<< "$before")
