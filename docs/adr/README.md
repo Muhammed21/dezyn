@@ -41,6 +41,7 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0033](0033-l-api-de-production-est-servie-derriere-cloudflare-qui-porte-l-ip-du-client.md)                  | L'API de production est servie derrière Cloudflare, qui porte l'IP du client                                                  | Accepté — §1 remplacé par [0034](0034-l-api-est-servie-par-un-worker-cloudflare.md)                                                                                                                                                                                                       |
 | [0034](0034-l-api-est-servie-par-un-worker-cloudflare.md)                                                    | L'API est servie par un Worker Cloudflare                                                                                     | Accepté — §6 remplacé par [0035](0035-les-emails-de-production-passent-par-resend.md)                                                                                                                                                                                                     |
 | [0035](0035-les-emails-de-production-passent-par-resend.md)                                                  | Les emails de production passent par Resend, appelé en HTTP depuis le Worker                                                  | Proposé                                                                                                                                                                                                                                                                                   |
+| [0036](0036-les-roles-postgresql-sont-crees-en-sql-jamais-par-neon.md)                                       | Les rôles PostgreSQL de dezyn sont créés en SQL par le propriétaire de la base, jamais par la console ou l'API de Neon        | Proposé                                                                                                                                                                                                                                                                                   |
 
 ## Dépendances principales
 
@@ -150,6 +151,8 @@ graph TD
   0008 --> 0034
   0009 --> 0034
   0034 --> 0035[0035 Emails par Resend]
+  0019 --> 0036[0036 Rôles créés en SQL]
+  0034 --> 0036
 ```
 
 ## Points ouverts

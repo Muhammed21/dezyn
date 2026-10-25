@@ -6,7 +6,7 @@ export type ProvisionOutcome =
   | { readonly kind: "provisioned" }
   | { readonly kind: "privileged"; readonly roles: readonly string[] };
 
-const privilegedAmong = async (
+export const privilegedRoles = async (
   client: Client,
   names: readonly string[],
 ): Promise<readonly string[]> => {
@@ -40,7 +40,7 @@ export const provisionRoles = async ({
   const client = new Client({ connectionString });
   await client.connect();
   try {
-    const privileged = await privilegedAmong(
+    const privileged = await privilegedRoles(
       client,
       roles.map(({ name }) => name),
     );
