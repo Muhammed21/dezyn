@@ -57,7 +57,7 @@ Les mots de passe sont tirés par `openssl` dans le script. Ils ne sont jamais a
 - [ ] Toutes les données sont intactes : le nombre de lignes de chaque table est le même avant et après.
 - [ ] `/health` ne répond pas 200 que pendant le remplacement de `app`, quelques secondes.
 - [ ] Un déploiement après l'opération migre avec le nouveau `migrator`.
-- [ ] Toute la procédure est d'abord répétée sur une branche Neon copiée de `production`, avec ses données.
+- [x] Toute la procédure est d'abord répétée sur une branche Neon copiée de `production`, avec ses données.
 
 ## Tranches
 
