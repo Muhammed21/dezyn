@@ -1,21 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import { Client } from "pg";
 import { describe, expect, it } from "vitest";
 
 import { migrate } from "./migrate.ts";
 import { resetCopiedSchema } from "./reset-copied-schema.ts";
+import { asAdmin, onClient, urlOf } from "./testing/clients.ts";
 import { withThrowawayDatabase } from "./testing/throwaway-database.ts";
-
-const onClient = async <T>(connectionString: string, run: (client: Client) => Promise<T>) => {
-  const client = new Client({ connectionString });
-  await client.connect();
-  try {
-    return await run(client);
-  } finally {
-    await client.end();
-  }
-};
 
 const appliedMigrations = (connectionString: string) =>
   onClient(connectionString, async (client) => {
@@ -38,17 +28,6 @@ const seedUser = (connectionString: string) =>
       "ada@dezyn.test",
     ]);
   });
-
-const urlOf = (variable: string): URL => {
-  const url = process.env[variable];
-  if (url === undefined) {
-    throw new Error(`${variable} manquante : copier .env.example en .env`);
-  }
-  return new URL(url);
-};
-
-const asAdmin = (sql: string) =>
-  onClient(urlOf("DATABASE_URL_ADMIN").toString(), (client) => client.query(sql));
 
 const withDatabaseOwnedByAnotherRole = async (
   run: (urls: { readonly ownerUrl: string; readonly migratorUrl: string }) => Promise<void>,

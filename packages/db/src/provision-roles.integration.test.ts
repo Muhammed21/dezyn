@@ -1,42 +1,22 @@
 import { randomUUID } from "node:crypto";
 
-import { Client } from "pg";
 import { describe, expect, it } from "vitest";
 
 import { provisionRoles } from "./provision-roles.ts";
-
-const adminUrl = (): URL => {
-  const url = process.env.DATABASE_URL_ADMIN;
-  if (url === undefined) {
-    throw new Error("DATABASE_URL_ADMIN manquante : copier .env.example en .env");
-  }
-  return new URL(url);
-};
+import { asAdmin, onClient, urlOf } from "./testing/clients.ts";
 
 const urlAs = (role: string, password: string): string => {
-  const url = adminUrl();
+  const url = urlOf("DATABASE_URL_ADMIN");
   url.username = role;
   url.password = password;
   return url.toString();
 };
 
-const onClient = async <T>(connectionString: string, run: (client: Client) => Promise<T>) => {
-  const client = new Client({ connectionString });
-  await client.connect();
-  try {
-    return await run(client);
-  } finally {
-    await client.end();
-  }
-};
-
-const asAdmin = (sql: string) => onClient(adminUrl().toString(), (client) => client.query(sql));
-
 const canLogIn = (role: string, password: string): Promise<boolean> =>
   onClient(urlAs(role, password), async () => true).catch(() => false);
 
 const attributesOf = (role: string) =>
-  onClient(adminUrl().toString(), async (client) => {
+  onClient(urlOf("DATABASE_URL_ADMIN").toString(), async (client) => {
     const { rows } = await client.query(
       "SELECT rolsuper, rolcreaterole, rolcreatedb, rolbypassrls FROM pg_roles WHERE rolname = $1",
       [role],

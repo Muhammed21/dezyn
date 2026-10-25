@@ -3,13 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { Client } from "pg";
 
-const urlOf = (variable: string): URL => {
-  const url = process.env[variable];
-  if (url === undefined) {
-    throw new Error(`${variable} manquante : copier .env.example en .env`);
-  }
-  return new URL(url);
-};
+import { urlOf } from "./clients.ts";
 
 const onDatabase = (url: URL, database: string): string => {
   const copy = new URL(url);

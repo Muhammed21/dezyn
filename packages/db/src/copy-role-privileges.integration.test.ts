@@ -1,31 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import { Client } from "pg";
 import { describe, expect, it } from "vitest";
 
 import { copyRolePrivileges } from "./copy-role-privileges.ts";
 import { migrate } from "./migrate.ts";
+import { asAdmin, onClient, urlOf } from "./testing/clients.ts";
 import { withThrowawayDatabase } from "./testing/throwaway-database.ts";
-
-const onClient = async <T>(connectionString: string, run: (client: Client) => Promise<T>) => {
-  const client = new Client({ connectionString });
-  await client.connect();
-  try {
-    return await run(client);
-  } finally {
-    await client.end();
-  }
-};
-
-const adminUrl = (): string => {
-  const url = process.env.DATABASE_URL_ADMIN;
-  if (url === undefined) {
-    throw new Error("DATABASE_URL_ADMIN manquante : copier .env.example en .env");
-  }
-  return url;
-};
-
-const asAdmin = (sql: string) => onClient(adminUrl(), (client) => client.query(sql));
 
 const onDatabaseOf = (url: string, database: string): string => {
   const copy = new URL(url);
@@ -178,10 +158,13 @@ describe("copyRolePrivileges", () => {
         await onClient(migratorUrl, (client) =>
           client.query(`GRANT CONNECT ON DATABASE ${client.database} TO ${from}`),
         );
-        await onClient(onDatabaseOf(adminUrl(), migratorUrl), async (client) => {
-          await client.query("CREATE TABLE hors_de_portee (id int)");
-          await client.query(`GRANT SELECT ON hors_de_portee TO ${from}`);
-        });
+        await onClient(
+          onDatabaseOf(urlOf("DATABASE_URL_ADMIN").toString(), migratorUrl),
+          async (client) => {
+            await client.query("CREATE TABLE hors_de_portee (id int)");
+            await client.query(`GRANT SELECT ON hors_de_portee TO ${from}`);
+          },
+        );
 
         await expect(
           copyRolePrivileges({ connectionString: migratorUrl, from, to }),
