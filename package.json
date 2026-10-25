@@ -21,7 +21,10 @@
     "test:infra": "./docker/tests/infra.test.sh",
     "prepare": "husky",
     "seed": "pnpm --filter @repo/api seed",
-    "db:reset": "pnpm --filter @repo/api db:reset"
+    "db:reset": "pnpm --filter @repo/api db:reset",
+    "preview:github": "./scripts/env/preview-github.sh",
+    "preview:db": "./scripts/env/preview-db.sh",
+    "preview:clean": "./scripts/env/preview-clean.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

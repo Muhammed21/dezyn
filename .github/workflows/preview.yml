@@ -79,11 +79,24 @@ jobs:
           if ! npx --yes neonctl@2.47.0 branches get "$branch" --project-id "$NEON_PROJECT_ID" > /dev/null 2>&1; then
             npx --yes neonctl@2.47.0 branches create --project-id "$NEON_PROJECT_ID" --name "$branch" --parent preview > /dev/null
           fi
-          for role in migrator app; do
-            url=$(npx --yes neonctl@2.47.0 connection-string "$branch" --project-id "$NEON_PROJECT_ID" --role-name "$role")
-            echo "::add-mask::$url"
-            echo "${role}_url=$url" >> "$GITHUB_OUTPUT"
-          done
+          source scripts/env/lib.sh
+          owner=$(owner_url "$NEON_PROJECT_ID" "$branch")
+          echo "::add-mask::$owner"
+          migrator_password=$(openssl rand -hex 24)
+          app_password=$(openssl rand -hex 24)
+          echo "::add-mask::$migrator_password"
+          echo "::add-mask::$app_password"
+          provisioned=0
+          provision_roles "$owner" "$migrator_password" "$app_password" "$(openssl rand -hex 24)" ||
+            provisioned=$?
+          if [ "$provisioned" -eq "$PRIVILEGED" ]; then
+            echo "::error::$branch copies roles created by Neon; delete the branch, then re-run."
+            exit 1
+          elif [ "$provisioned" -ne 0 ]; then
+            exit "$provisioned"
+          fi
+          echo "migrator_url=$(role_url "$owner" migrator "$migrator_password")" >> "$GITHUB_OUTPUT"
+          echo "app_url=$(role_url "$owner" app "$app_password")" >> "$GITHUB_OUTPUT"
       - name: Migrate
         if: steps.origin.outputs.publish == 'true'
         run: pnpm migrate
