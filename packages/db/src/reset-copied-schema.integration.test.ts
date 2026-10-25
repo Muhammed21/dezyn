@@ -39,7 +39,48 @@ const seedUser = (connectionString: string) =>
     ]);
   });
 
+const urlOf = (variable: string): URL => {
+  const url = process.env[variable];
+  if (url === undefined) {
+    throw new Error(`${variable} manquante : copier .env.example en .env`);
+  }
+  return new URL(url);
+};
+
+const asAdmin = (sql: string) =>
+  onClient(urlOf("DATABASE_URL_ADMIN").toString(), (client) => client.query(sql));
+
+const withDatabaseOwnedByAnotherRole = async (
+  run: (urls: { readonly ownerUrl: string; readonly migratorUrl: string }) => Promise<void>,
+): Promise<void> => {
+  const name = `dezyn_test_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+  const password = randomUUID();
+  await asAdmin(`CREATE ROLE ${name} LOGIN PASSWORD '${password}'`);
+  await asAdmin(`CREATE DATABASE ${name} OWNER ${name}`);
+  const ownerUrl = urlOf("DATABASE_URL_ADMIN");
+  ownerUrl.username = name;
+  ownerUrl.password = password;
+  ownerUrl.pathname = `/${name}`;
+  const migratorUrl = urlOf("DATABASE_URL_MIGRATOR");
+  migratorUrl.pathname = `/${name}`;
+  try {
+    await run({ ownerUrl: ownerUrl.toString(), migratorUrl: migratorUrl.toString() });
+  } finally {
+    await asAdmin(`DROP DATABASE ${name} WITH (FORCE)`);
+    await asAdmin(`DROP ROLE ${name}`);
+  }
+};
+
 describe("resetCopiedSchema", () => {
+  it("donne à migrator de quoi migrer une base qu'il ne possède pas", () =>
+    withDatabaseOwnedByAnotherRole(async ({ ownerUrl, migratorUrl }) => {
+      expect(await resetCopiedSchema({ connectionString: ownerUrl })).toEqual({ kind: "reset" });
+
+      await migrate({ connectionString: migratorUrl });
+
+      expect(await appliedMigrations(migratorUrl)).toBeGreaterThan(0);
+    }));
+
   it("vide un schéma copié sans lignes, et la migration repasse ensuite", () =>
     withThrowawayDatabase(async ({ migratorUrl, appUrl }) => {
       await migrate({ connectionString: migratorUrl });
