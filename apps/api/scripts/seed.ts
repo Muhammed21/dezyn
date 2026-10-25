@@ -7,6 +7,8 @@ import { ok } from "@repo/result";
 import { buildApi } from "../src/build-api.ts";
 import { seedDevData } from "../src/dev/dev-data.ts";
 
+const ALREADY_SEEDED = 3;
+
 const required = (variable: string): string => {
   const value = process.env[variable];
   if (value === undefined) {
@@ -48,7 +50,7 @@ try {
   });
   if (!seeded.ok) {
     console.error(`${user.email} existe déjà : lancer pnpm db:reset avant de reseeder`);
-    process.exitCode = 1;
+    process.exitCode = ALREADY_SEEDED;
   } else {
     console.log(`Utilisateur : ${user.email} / ${user.password}`);
     console.log(`Espace d'équipe : Studio ${user.name} (${seeded.value.spaceId})`);

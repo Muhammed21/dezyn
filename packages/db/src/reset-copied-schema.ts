@@ -9,15 +9,15 @@ const tablesWithRows = async (client: Client): Promise<readonly string[]> => {
   const { rows: tables } = await client.query<Table>(
     "SELECT schemaname, tablename FROM pg_tables WHERE schemaname IN ('public', 'drizzle') ORDER BY schemaname, tablename",
   );
-  const counted = await Promise.all(
-    tables.map(async (table) => {
-      const { rows } = await client.query<{ filled: boolean }>(
-        `SELECT EXISTS (SELECT 1 FROM ${qualified(client, table)}) AS filled`,
-      );
-      return { name: `${table.schemaname}.${table.tablename}`, filled: rows[0]?.filled === true };
-    }),
-  );
-  return counted.filter(({ filled }) => filled).map(({ name }) => name);
+  return tables.reduce<Promise<readonly string[]>>(async (previous, table) => {
+    const filled = await previous;
+    const { rows } = await client.query<{ filled: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM ${qualified(client, table)}) AS filled`,
+    );
+    return rows[0]?.filled === true
+      ? [...filled, `${table.schemaname}.${table.tablename}`]
+      : filled;
+  }, Promise.resolve([]));
 };
 
 export type ResetOutcome =
