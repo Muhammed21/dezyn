@@ -2,6 +2,7 @@ import { composeModules } from "#compose-modules";
 import { createApp } from "#create-app";
 import type { PostgresDatabase } from "#db";
 import { createIdentityAuth } from "#modules/identity/infrastructure/better-auth.ts";
+import type { AuthSecret } from "#platform/api-config.ts";
 import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
 
@@ -10,6 +11,7 @@ export const buildApi = async ({
   mailer,
   log,
   authSecret,
+  authSecrets,
   baseURL,
   trustedIpHeader,
   webUrl,
@@ -18,6 +20,7 @@ export const buildApi = async ({
   readonly mailer: Mailer;
   readonly log: LogSink;
   readonly authSecret: string;
+  readonly authSecrets?: readonly AuthSecret[];
   readonly baseURL: string;
   readonly trustedIpHeader: string;
   readonly webUrl: string;
@@ -26,6 +29,7 @@ export const buildApi = async ({
   const auth = await createIdentityAuth({
     db,
     secret: authSecret,
+    secrets: authSecrets,
     baseURL,
     trustedIpHeader,
     log,

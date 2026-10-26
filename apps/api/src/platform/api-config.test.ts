@@ -21,6 +21,7 @@ describe("l'API lit sa configuration dans l'environnement", () => {
       ok({
         databaseUrl: "postgresql://app@127.0.0.1:5432/dezyn",
         authSecret: "secret-de-test-de-32-caracteres-au-moins",
+        authSecrets: [],
         baseURL: "http://127.0.0.1:3000",
         trustedIpHeader: "cf-connecting-ip",
         smtp: { host: "127.0.0.1", port: 1025, from: "dezyn <no-reply@dezyn.test>" },
@@ -97,6 +98,7 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
       ok({
         databaseUrl: "postgresql://app@hyperdrive.local:5432/dezyn",
         authSecret: "secret-de-test-de-32-caracteres-au-moins",
+        authSecrets: [],
         baseURL: "https://api.dezyn.dev",
         trustedIpHeader: "cf-connecting-ip",
         webUrl: "https://dezyn.dev",
@@ -188,6 +190,58 @@ describe("le Worker lit sa configuration dans ses bindings", () => {
   ])("%s=%j est refusé : %s", (binding, value, message) => {
     expect(readWorkerConfig(makeBindings({ [binding]: value }))).toEqual(
       err([`${binding} : ${message}`]),
+    );
+  });
+});
+
+const SECOND_SECRET = "deuxieme-secret-de-32-caracteres-au-moins";
+const TENTH_SECRET = "dixieme-secret-de-32-caracteres-au-moins";
+
+describe.each([
+  ["l'API", (secrets: Readonly<Record<string, string>>) => readApiConfig(makeEnv(secrets))],
+  [
+    "le Worker",
+    (secrets: Readonly<Record<string, string>>) => readWorkerConfig(makeBindings(secrets)),
+  ],
+])("%s lit les versions du secret d'authentification", (_, readConfig) => {
+  it("les versions sont rangées de la plus récente à la plus ancienne, en ordre numérique", () => {
+    expect(
+      readConfig({ BETTER_AUTH_SECRET_2: SECOND_SECRET, BETTER_AUTH_SECRET_10: TENTH_SECRET }),
+    ).toMatchObject(
+      ok({
+        authSecrets: [
+          { version: 10, value: TENTH_SECRET },
+          { version: 2, value: SECOND_SECRET },
+        ],
+      }),
+    );
+  });
+
+  it("une version de 32 caractères est acceptée", () => {
+    expect(readConfig({ BETTER_AUTH_SECRET_1: "x".repeat(32) })).toMatchObject(
+      ok({ authSecrets: [{ version: 1, value: "x".repeat(32) }] }),
+    );
+  });
+
+  it.each([
+    ["BETTER_AUTH_SECRET_2", "x".repeat(31), "32 caractères au moins"],
+    ["BETTER_AUTH_SECRET_X", SECOND_SECRET, "numéro de version entier et positif attendu"],
+    ["BETTER_AUTH_SECRET_0", SECOND_SECRET, "numéro de version entier et positif attendu"],
+    ["BETTER_AUTH_SECRET_02", SECOND_SECRET, "numéro de version entier et positif attendu"],
+    ["BETTER_AUTH_SECRET_2a", SECOND_SECRET, "numéro de version entier et positif attendu"],
+    ["BETTER_AUTH_SECRET_", SECOND_SECRET, "numéro de version entier et positif attendu"],
+  ])("%s=%j est refusée : %s", (variable, value, message) => {
+    expect(readConfig({ [variable]: value })).toEqual(err([`${variable} : ${message}`]));
+  });
+
+  it("une erreur de version s'ajoute aux autres erreurs de configuration", () => {
+    expect(
+      readConfig({ BETTER_AUTH_URL: "127.0.0.1:3000", BETTER_AUTH_SECRET_2: "court" }),
+    ).toEqual(
+      err([
+        "BETTER_AUTH_URL : URL http(s) attendue",
+        "BETTER_AUTH_SECRET_2 : 32 caractères au moins",
+      ]),
     );
   });
 });
