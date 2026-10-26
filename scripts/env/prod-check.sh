@@ -48,7 +48,7 @@ case $deploy_enabled in
 esac
 
 echo "Worker dezyn-api"
-worker_secrets=$(wrangler_api secret list --format json 2> /dev/null | jq -r '.[].name' || true)
+worker_secrets=$(wrangler_api secret list --env="" --format json 2> /dev/null | jq -r '.[].name' || true)
 check "secrets du Worker" "$(missing_from "$worker_secrets" BETTER_AUTH_SECRET)" ""
 if [ -n "$(missing_from "$worker_secrets" RESEND_API_KEY)" ]; then
   info "RESEND_API_KEY absent : les emails ne partent pas, chacun est journalisé « email not sent »"

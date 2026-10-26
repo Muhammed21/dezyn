@@ -50,4 +50,6 @@ Les trois rôles sont créés en SQL par le propriétaire de la base, sans super
 
 `pnpm prod:github`, dans un terminal, monte l'environnement GitHub `production`, réservé à `main`. Il demande `DEPLOY_ENABLED` seulement s'il manque. Il fait saisir `CLOUDFLARE_API_TOKEN` masqué, et reconstruit `DATABASE_URL_MIGRATOR` depuis le rôle `migrator` de la branche Neon `production`, sans changer son mot de passe. Un secret déjà posé n'est remplacé que sur confirmation, et aucune valeur n'est affichée.
 
+`pnpm prod:secrets`, dans un terminal, pose les secrets du Worker `dezyn-api` : `BETTER_AUTH_SECRET`, tiré par `openssl`, et `RESEND_API_KEY`, facultatif et saisi masqué. Un secret déjà posé n'est remplacé que sur confirmation ; remplacer `BETTER_AUTH_SECRET` déconnecte toutes les sessions. Chaque secret posé publie aussitôt une nouvelle version du Worker, avec le code déployé.
+
 Le Worker vérifie la version du schéma à la première requête de chaque isolat, et répond 503 tant qu'elle est en retard ; le serveur Node la vérifie au démarrage. Les releases (`v*.*.*`, `.github/workflows/release.yml`) publient des notes, sans déployer.
