@@ -5,6 +5,7 @@ import { createApp } from "#create-app";
 import { createPostgresDatabase, type PostgresDatabase } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { createIdentityAuth } from "#modules/identity/infrastructure/better-auth.ts";
+import type { AuthSecret } from "#platform/api-config.ts";
 import type { Clock } from "#platform/clock.ts";
 import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
@@ -43,6 +44,8 @@ type IdentityAppOptions = {
   readonly clock?: Clock;
   readonly log?: LogSink;
   readonly createDatabase?: () => Promise<ThrowawayDatabase>;
+  readonly secret?: string;
+  readonly secrets?: readonly AuthSecret[];
 };
 
 export type IdentityApp = {
@@ -60,6 +63,8 @@ export const startIdentityApp = async ({
   clock,
   log = () => undefined,
   createDatabase = createThrowawayDatabase,
+  secret = "secret-de-test-de-32-caracteres-au-moins",
+  secrets = [],
 }: IdentityAppOptions = {}): Promise<IdentityApp> => {
   const database = await createDatabase();
   try {
@@ -87,7 +92,8 @@ export const startIdentityApp = async ({
     });
     const auth = await createIdentityAuth({
       db,
-      secret: "secret-de-test-de-32-caracteres-au-moins",
+      secret,
+      secrets,
       baseURL,
       trustedIpHeader: "x-forwarded-for",
       log: () => undefined,

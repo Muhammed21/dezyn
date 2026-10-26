@@ -1,6 +1,7 @@
 import { serve, type ServerType } from "@hono/node-server";
 
 import { createPostgresDatabase } from "#db";
+import type { AuthSecret } from "#platform/api-config.ts";
 import type { LogSink } from "#platform/logging.ts";
 import { createSmtpMailer } from "#platform/smtp-mailer.ts";
 import { assertSchemaVersion, type Migration } from "@repo/db";
@@ -27,6 +28,7 @@ export const startApi = async ({
   port,
   log,
   authSecret,
+  authSecrets,
   baseURL,
   trustedIpHeader,
   smtp,
@@ -37,6 +39,7 @@ export const startApi = async ({
   readonly port: number;
   readonly log: LogSink;
   readonly authSecret: string;
+  readonly authSecrets?: readonly AuthSecret[];
   readonly baseURL: string;
   readonly trustedIpHeader: string;
   readonly smtp: { readonly host: string; readonly port: number; readonly from: string };
@@ -49,6 +52,7 @@ export const startApi = async ({
     mailer: createSmtpMailer({ ...smtp, log }),
     log,
     authSecret,
+    authSecrets,
     baseURL,
     trustedIpHeader,
     webUrl,

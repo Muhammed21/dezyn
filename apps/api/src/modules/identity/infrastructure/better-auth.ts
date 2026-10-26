@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { PostgresDatabase } from "#db";
+import type { AuthSecret } from "#platform/api-config.ts";
 import type { Clock } from "#platform/clock.ts";
 import { errorDetails, type LogSink } from "#platform/logging.ts";
 import { createAccessTokenVerifier } from "@repo/auth-verifier";
@@ -175,9 +176,11 @@ export const createIdentityAuth = async ({
   log,
   onUserCreated,
   clock = () => new Date(),
+  secrets = [],
 }: {
   readonly db: PostgresDatabase;
   readonly secret: string;
+  readonly secrets?: readonly AuthSecret[];
   readonly baseURL: string;
   readonly trustedIpHeader: string;
   readonly log: LogSink;
@@ -202,6 +205,7 @@ export const createIdentityAuth = async ({
         },
       },
       secret,
+      ...(secrets.length > 0 ? { secrets: [...secrets] } : {}),
       database: drizzleAdapter(db.orm, { provider: "pg", schema: IDENTITY_SCHEMA }),
       logger: {
         log: (level, message) => {

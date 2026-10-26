@@ -68,9 +68,56 @@ const WorkerEnv = z
 const issuesOf = (error: z.ZodError): readonly string[] =>
   error.issues.map(({ path, message }) => `${String(path[0])} : ${message}`);
 
+const VERSIONED_SECRET = /^BETTER_AUTH_SECRET_(.*)$/;
+const VERSION = /^[1-9]\d*$/;
+
+const versionedSecretOf = (
+  name: string,
+  version: string,
+  value: unknown,
+): Result<AuthSecret, readonly string[]> => {
+  const secret = authSecret().safeParse(value);
+  if (VERSION.test(version) && secret.success) {
+    return ok({ version: Number(version), value: secret.data });
+  }
+  return err([
+    ...(VERSION.test(version) ? [] : [`${name} : numéro de version entier et positif attendu`]),
+    ...(secret.success ? [] : secret.error.issues.map(({ message }) => `${name} : ${message}`)),
+  ]);
+};
+
+const versionedSecretsOf = (env: unknown): Result<readonly AuthSecret[], readonly string[]> => {
+  const secrets = Object.entries(z.record(z.string(), z.unknown()).catch({}).parse(env)).flatMap(
+    ([name, value]) => {
+      const version = VERSIONED_SECRET.exec(name)?.[1];
+      return version === undefined ? [] : [versionedSecretOf(name, version, value)];
+    },
+  );
+  const issues = secrets.flatMap((secret) => (secret.ok ? [] : secret.error));
+  if (issues.length > 0) {
+    return err(issues);
+  }
+  return ok(
+    secrets
+      .flatMap((secret) => (secret.ok ? [secret.value] : []))
+      .toSorted((left, right) => right.version - left.version),
+  );
+};
+
+export type AuthSecret = { readonly version: number; readonly value: string };
+
+const issuesOfBoth = (
+  parsed: { readonly success: true } | { readonly success: false; readonly error: z.ZodError },
+  secrets: Result<readonly AuthSecret[], readonly string[]>,
+): readonly string[] => [
+  ...(parsed.success ? [] : issuesOf(parsed.error)),
+  ...(secrets.ok ? [] : secrets.error),
+];
+
 export type ApiConfig = {
   readonly databaseUrl: string;
   readonly authSecret: string;
+  readonly authSecrets: readonly AuthSecret[];
   readonly baseURL: string;
   readonly trustedIpHeader: string;
   readonly smtp: { readonly host: string; readonly port: number; readonly from: string };
@@ -82,13 +129,15 @@ export const readApiConfig = (
   env: Readonly<Record<string, string | undefined>>,
 ): Result<ApiConfig, readonly string[]> => {
   const parsed = ApiEnv.safeParse(env);
-  if (!parsed.success) {
-    return err(issuesOf(parsed.error));
+  const secrets = versionedSecretsOf(env);
+  if (!parsed.success || !secrets.ok) {
+    return err(issuesOfBoth(parsed, secrets));
   }
   const { data } = parsed;
   return ok({
     databaseUrl: data.DATABASE_URL,
     authSecret: data.BETTER_AUTH_SECRET,
+    authSecrets: secrets.value,
     baseURL: data.BETTER_AUTH_URL,
     trustedIpHeader: data.TRUSTED_IP_HEADER,
     smtp: { host: data.SMTP_HOST, port: data.SMTP_PORT, from: data.MAIL_FROM },
@@ -104,13 +153,15 @@ export type WorkerConfig = Omit<ApiConfig, "smtp" | "port"> & {
 
 export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readonly string[]> => {
   const parsed = WorkerEnv.safeParse(bindings);
-  if (!parsed.success) {
-    return err(issuesOf(parsed.error));
+  const secrets = versionedSecretsOf(bindings);
+  if (!parsed.success || !secrets.ok) {
+    return err(issuesOfBoth(parsed, secrets));
   }
   const { data } = parsed;
   return ok({
     databaseUrl: data.HYPERDRIVE?.connectionString ?? data.DATABASE_URL ?? "",
     authSecret: data.BETTER_AUTH_SECRET,
+    authSecrets: secrets.value,
     baseURL: data.BETTER_AUTH_URL,
     trustedIpHeader: data.TRUSTED_IP_HEADER,
     webUrl: data.WEB_URL,
