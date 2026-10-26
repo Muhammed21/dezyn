@@ -26,7 +26,8 @@
     "preview:db": "./scripts/env/preview-db.sh",
     "preview:clean": "./scripts/env/preview-clean.sh",
     "roles:replace": "./scripts/env/roles-replace.sh",
-    "prod:check": "./scripts/env/prod-check.sh"
+    "prod:check": "./scripts/env/prod-check.sh",
+    "prod:github": "./scripts/env/prod-github.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
