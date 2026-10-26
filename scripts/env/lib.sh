@@ -48,3 +48,42 @@ provision_roles() {
     PASSWORD_HISTORY_MAINTAINER=$4 \
     node packages/db/scripts/provision-roles.ts
 }
+
+PRODUCTION_BRANCH=production
+HYPERDRIVE_ID=ed807e2d1a7e437f9a17bb749123c6d2
+failed=0
+
+verify_full() {
+  sed 's/sslmode=require/sslmode=verify-full/'
+}
+
+neon_role_url() {
+  neon connection-string "$2" --project-id "$1" --role-name "$3" | verify_full
+}
+
+inspect_roles() {
+  DATABASE_URL_MIGRATOR=$1 node packages/db/scripts/replace-role.ts inspect
+}
+
+wrangler_api() {
+  (cd apps/api && pnpm exec wrangler "$@")
+}
+
+check() {
+  if [ "$2" = "$3" ]; then
+    echo "OK  $1"
+  else
+    echo "ÉCHEC  $1 : ${2:-absent}" >&2
+    failed=1
+  fi
+}
+
+info() {
+  echo "INFO  $1"
+}
+
+check_roles() {
+  check "aucun rôle privilégié" "$(jq -r '.privileged | join(" ")' <<< "$1")" ""
+  check "tout appartient à migrator" "$(jq -r '.foreign | join(" ")' <<< "$1")" ""
+  check "app ne fait qu'ajouter à l'historique" "$(jq -r '.history | join(" ")' <<< "$1")" "INSERT"
+}

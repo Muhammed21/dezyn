@@ -1,6 +1,6 @@
 # 0036 — Les rôles PostgreSQL de dezyn sont créés en SQL par le propriétaire de la base, jamais par la console ou l'API de Neon
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-25
 - Décideurs : Muhammed
 

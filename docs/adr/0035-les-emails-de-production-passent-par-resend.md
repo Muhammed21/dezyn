@@ -1,6 +1,6 @@
 # 0035 — Les emails de production passent par Resend, appelé en HTTP depuis le Worker
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-24
 - Décideurs : Muhammed
 - Amende : ADR 0034 (§6 : les emails passent par Resend, plus par Cloudflare Email Service)
