@@ -19,6 +19,7 @@
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v && ./docker/up.sh",
     "test:infra": "./docker/tests/infra.test.sh",
+    "test:scripts": "./scripts/env/tests/lib.test.sh",
     "prepare": "husky",
     "seed": "pnpm --filter @repo/api seed",
     "db:reset": "pnpm --filter @repo/api db:reset",

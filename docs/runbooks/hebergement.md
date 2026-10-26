@@ -90,10 +90,11 @@ Laisser `DEPLOY_ENABLED` à `false` jusqu'à l'étape 5.
    pnpm prod:secrets
    ```
 
-   | Secret               | Posé par                                           |
-   | -------------------- | -------------------------------------------------- |
-   | `BETTER_AUTH_SECRET` | tiré par `openssl` ; seulement dans Cloudflare     |
-   | `RESEND_API_KEY`     | saisi masqué ; sans lui, les emails ne partent pas |
+   | Secret                   | Posé par                                                  |
+   | ------------------------ | --------------------------------------------------------- |
+   | `BETTER_AUTH_SECRET`     | tiré par `openssl` ; seulement dans Cloudflare            |
+   | `BETTER_AUTH_SECRET_<N>` | tiré par `openssl`, à chaque rotation ; voir la section 8 |
+   | `RESEND_API_KEY`         | saisi masqué ; sans lui, les emails ne partent pas        |
 
    Chaque secret posé publie aussitôt une nouvelle version du Worker, avec le code déployé.
 
@@ -131,7 +132,7 @@ npx neonctl@2.47.0 branches delete pr-<N> --project-id <projet>
 pnpm prod:check
 ```
 
-Chaque contrôle doit être `OK` : rôles de la branche `production`, secrets GitHub et `DEPLOY_ENABLED`, secret du Worker, Hyperdrive connecté en `app` au compute de `production`, et `/health`.
+Chaque contrôle doit être `OK` : rôles de la branche `production`, secrets GitHub et `DEPLOY_ENABLED`, secret du Worker, Hyperdrive connecté en `app` au compute de `production`, et `/health`, qui répond 503 quand la base ne répond pas ou que la clé de signature des jetons est inutilisable.
 
 ## 8. Opérations courantes
 
@@ -143,12 +144,15 @@ pnpm roles:replace <branche>
 
 Sur `production`, passer d'abord `DEPLOY_ENABLED` à `false`, et répéter l'opération sur une copie de la branche. L'API répond 503 quelques secondes pendant le remplacement de `app`.
 
-### Changer `BETTER_AUTH_SECRET`
+### Changer le secret d'authentification
 
-better-auth chiffre la clé de signature des jetons, dans `identity_jwks`, avec `BETTER_AUTH_SECRET`. Après un changement de secret, il ne sait plus la déchiffrer et `/auth/oauth2/token` répond 500 (#127). Après `pnpm prod:secrets`, supprimer la clé dans le SQL Editor de Neon, sur la branche `production` ; better-auth en crée une avec le nouveau secret :
+better-auth chiffre la clé de signature des jetons, dans `identity_jwks`, avec le secret d'authentification. Le Worker lit `BETTER_AUTH_SECRET` et des versions `BETTER_AUTH_SECRET_<N>` : la version la plus haute chiffre les nouvelles clés, et chaque secret reste lu pour déchiffrer les clés qu'il a chiffrées. `BETTER_AUTH_SECRET` déchiffre les clés sans version.
 
-```sql
-DELETE FROM identity_jwks;
+Pour changer de secret, ajouter une version, sans jamais remplacer ni supprimer un secret existant :
+
+```
+pnpm prod:secrets
+pnpm prod:check
 ```
 
-Les jetons d'accès en cours deviennent invalides ; les refresh tokens n'en dépendent pas.
+`prod:secrets` propose `BETTER_AUTH_SECRET_<N+1>`. Les sessions web en cours se ferment, car leurs cookies sont signés avec le secret courant ; les jetons d'accès et les refresh tokens restent valides.

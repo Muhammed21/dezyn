@@ -34,6 +34,10 @@ secret_to_set() {
     confirm "$2 existe déjà. Le remplacer ?"
 }
 
+next_secret_version() {
+  sed -nE 's/^BETTER_AUTH_SECRET_([1-9][0-9]*)$/\1/p' | awk '$1 > max { max = $1 } END { print max + 1 }'
+}
+
 reserve_to_main() {
   local environment
   environment="repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/environments/$1"
