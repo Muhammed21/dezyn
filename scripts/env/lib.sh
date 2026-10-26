@@ -47,6 +47,10 @@ retirable_secret_versions() {
     grep -vxF -f <(printf '%s\n' "$2") | sed 's/^/BETTER_AUTH_SECRET_/' || true
 }
 
+stale_secret_versions() {
+  grep -vxF -e "$2" <<< "$1" || true
+}
+
 reserve_to_main() {
   local environment
   environment="repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/environments/$1"
@@ -80,6 +84,7 @@ provision_roles() {
 }
 
 PRODUCTION_BRANCH=production
+HEALTH_URL=https://api.dezyn.dev/health
 HYPERDRIVE_ID=ed807e2d1a7e437f9a17bb749123c6d2
 failed=0
 
@@ -93,6 +98,10 @@ neon_role_url() {
 
 inspect_roles() {
   DATABASE_URL_MIGRATOR=$1 node packages/db/scripts/replace-role.ts inspect
+}
+
+expire_signing_keys() {
+  DATABASE_URL_MIGRATOR=$1 node packages/db/scripts/expire-signing-keys.ts
 }
 
 secret_versions_in_use() {

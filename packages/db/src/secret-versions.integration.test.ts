@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { migrate } from "./migrate.ts";
-import { secretVersionsInUse } from "./secret-versions.ts";
+import { expireSigningKeys, secretVersionsInUse } from "./secret-versions.ts";
 import { onClient } from "./testing/clients.ts";
 import { withThrowawayDatabase } from "./testing/throwaway-database.ts";
 
@@ -13,7 +13,10 @@ const AFTER_NOW = new Date("2026-10-26T12:00:01Z");
 
 type SigningKey = { readonly envelope: string; readonly expiresAt: Date | null };
 
-const versionsInUseAmong = (keys: readonly SigningKey[]) =>
+const withSigningKeys = <T>(
+  keys: readonly SigningKey[],
+  run: (connectionString: string) => Promise<T>,
+): Promise<T> =>
   withThrowawayDatabase(async ({ migratorUrl }) => {
     await migrate({ connectionString: migratorUrl });
     await onClient(migratorUrl, (client) =>
@@ -28,7 +31,18 @@ const versionsInUseAmong = (keys: readonly SigningKey[]) =>
         Promise.resolve(),
       ),
     );
-    return secretVersionsInUse({ connectionString: migratorUrl, now: NOW });
+    return run(migratorUrl);
+  });
+
+const versionsInUseAmong = (keys: readonly SigningKey[]) =>
+  withSigningKeys(keys, (connectionString) => secretVersionsInUse({ connectionString, now: NOW }));
+
+const expiriesOf = (connectionString: string) =>
+  onClient(connectionString, async (client) => {
+    const { rows } = await client.query<{ private_key: string; expires_at: Date | null }>(
+      "SELECT private_key, expires_at FROM identity_jwks ORDER BY private_key",
+    );
+    return rows.map(({ private_key, expires_at }) => [JSON.parse(private_key), expires_at]);
   });
 
 describe("secretVersionsInUse", () => {
@@ -81,4 +95,31 @@ describe("secretVersionsInUse", () => {
   it("ne donne rien sans clé valide", async () => {
     expect(await versionsInUseAmong([])).toEqual([]);
   });
+});
+
+describe("expireSigningKeys", () => {
+  it("expire maintenant les clés valides, sans toucher aux clés déjà expirées", () =>
+    withSigningKeys(
+      [
+        { envelope: "$ba$1$a1b2c3", expiresAt: BEFORE_NOW },
+        { envelope: "$ba$2$a1b2c3", expiresAt: AFTER_NOW },
+        { envelope: "$ba$3$a1b2c3", expiresAt: null },
+      ],
+      async (connectionString) => {
+        expect(await expireSigningKeys({ connectionString, now: NOW })).toBe(2);
+
+        expect(await expiriesOf(connectionString)).toEqual([
+          ["$ba$1$a1b2c3", BEFORE_NOW],
+          ["$ba$2$a1b2c3", NOW],
+          ["$ba$3$a1b2c3", NOW],
+        ]);
+        expect(await secretVersionsInUse({ connectionString, now: NOW })).toEqual([]);
+      },
+    ));
+
+  it("n'expire rien sans clé valide", () =>
+    withSigningKeys([{ envelope: "$ba$1$a1b2c3", expiresAt: NOW }], async (connectionString) => {
+      expect(await expireSigningKeys({ connectionString, now: AFTER_NOW })).toBe(0);
+      expect(await expiriesOf(connectionString)).toEqual([["$ba$1$a1b2c3", NOW]]);
+    }));
 });

@@ -157,9 +157,17 @@ pnpm prod:check
 
 `prod:secrets` propose `BETTER_AUTH_SECRET_<N+1>`. Les sessions web en cours se ferment, car leurs cookies sont signés avec le secret courant ; les jetons d'accès et les refresh tokens restent valides.
 
+Une minute plus tard, une fois la nouvelle version du Worker propagée, terminer la rotation :
+
+```
+pnpm prod:secrets --expire-keys
+```
+
+La commande expire les clés de signature valides de la branche `production` et appelle `/health`, qui crée une clé chiffrée par la nouvelle version. Une clé expirée reste publiée un jour, ce qui couvre les jetons d'accès déjà émis. Sans cette étape, l'ancienne clé signe jusqu'à son expiration, au plus 90 jours. Expirer avant la propagation ferait répondre 500 aux instances encore sur l'ancienne version, qui ne déchiffrent pas la nouvelle clé. Si une clé dépend encore d'une ancienne version, la commande le dit : la relancer une minute plus tard.
+
 ### Retirer une ancienne version du secret
 
-better-auth ne déchiffre que la clé de signature valide la plus récente. Chaque clé expire 90 jours après sa création, et la suivante est chiffrée par la version la plus haute. Une version se retire quand aucune clé valide n'en dépend ; `pnpm prod:check` les liste :
+better-auth ne déchiffre que la clé de signature valide la plus récente. Chaque clé expire 90 jours après sa création, ou dès `pnpm prod:secrets --expire-keys`, et la suivante est chiffrée par la version la plus haute. Une version se retire quand aucune clé valide n'en dépend ; `pnpm prod:check` les liste :
 
 ```
 INFO  Versions retirables, aucune clé valide n'en dépend : BETTER_AUTH_SECRET_2

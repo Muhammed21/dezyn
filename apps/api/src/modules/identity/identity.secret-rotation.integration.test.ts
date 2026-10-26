@@ -5,15 +5,19 @@ import type { AuthSecret } from "#platform/api-config.ts";
 import type { LogRecord, LogSink } from "#platform/logging.ts";
 import {
   type App,
+  callMcp,
   obtainAccessToken,
   refreshTokens,
   startIdentityApp,
 } from "#testing/authorization-flow.ts";
-import { schema } from "@repo/db";
+import { expireSigningKeys, schema } from "@repo/db";
 import { withThrowawayDatabase, type ThrowawayDatabase } from "@repo/db/testing";
 
 const HISTORICAL_SECRET = "secret-historique-de-32-caracteres-au-moins";
 const SECOND_SECRET = "deuxieme-secret-de-32-caracteres-au-moins";
+const THIRD_SECRET = "troisieme-secret-de-32-caracteres-au-moins";
+const SECOND = { version: 2, value: SECOND_SECRET };
+const THIRD = { version: 3, value: THIRD_SECRET };
 
 const restartWith = async <T>(
   database: ThrowawayDatabase,
@@ -110,5 +114,38 @@ describe("rotation du secret d'authentification (#127)", () => {
           error: expect.stringContaining("Failed to decrypt private key"),
         }),
       );
+    }));
+});
+
+describe("une rotation termine aussitôt en expirant les clés valides (#156)", () => {
+  it("après l'expiration des clés, /health crée une clé que l'API sans l'ancienne version déchiffre", () =>
+    withThrowawayDatabase(async (database) => {
+      const tokens = await restartWith(database, [SECOND], (app) => obtainAccessToken(app));
+
+      await expireSigningKeys({ connectionString: database.migratorUrl, now: new Date() });
+      const health = await restartWith(database, [THIRD, SECOND], (app) => app.request("/health"));
+      const refreshed = await restartWith(database, [THIRD], (app) => refreshTokens(app, tokens));
+
+      expect(health.status).toBe(200);
+      expect(refreshed.status).toBe(200);
+    }));
+
+  it("un jeton d'accès signé par une clé expirée reste accepté pendant le délai de grâce", () =>
+    withThrowawayDatabase(async (database) => {
+      const { accessToken } = await restartWith(database, [SECOND], (app) =>
+        obtainAccessToken(app),
+      );
+
+      await expireSigningKeys({ connectionString: database.migratorUrl, now: new Date() });
+      const response = await restartWith(database, [THIRD, SECOND], async (app) => {
+        await app.request("/health");
+        return callMcp(app, {
+          token: accessToken,
+          method: "tools/call",
+          params: { name: "whoami", arguments: {} },
+        });
+      });
+
+      expect(response.status).toBe(200);
     }));
 });
