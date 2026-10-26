@@ -42,6 +42,7 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0034](0034-l-api-est-servie-par-un-worker-cloudflare.md)                                                    | L'API est servie par un Worker Cloudflare                                                                                     | Accepté — §6 remplacé par [0035](0035-les-emails-de-production-passent-par-resend.md)                                                                                                                                                                                                     |
 | [0035](0035-les-emails-de-production-passent-par-resend.md)                                                  | Les emails de production passent par Resend, appelé en HTTP depuis le Worker                                                  | Accepté                                                                                                                                                                                                                                                                                   |
 | [0036](0036-les-roles-postgresql-sont-crees-en-sql-jamais-par-neon.md)                                       | Les rôles PostgreSQL de dezyn sont créés en SQL par le propriétaire de la base, jamais par la console ou l'API de Neon        | Accepté                                                                                                                                                                                                                                                                                   |
+| [0037](0037-l-app-web-est-une-spa-react-servie-en-statique-par-cloudflare.md)                                | L'app web est une SPA React servie en statique par Cloudflare                                                                 | Proposé                                                                                                                                                                                                                                                                                   |
 
 ## Dépendances principales
 
@@ -153,6 +154,10 @@ graph TD
   0034 --> 0035[0035 Emails par Resend]
   0019 --> 0036[0036 Rôles créés en SQL]
   0034 --> 0036
+  0034 --> 0037[0037 App web SPA statique]
+  0008 --> 0037
+  0012 --> 0037
+  0035 --> 0037
 ```
 
 ## Points ouverts
@@ -168,3 +173,4 @@ graph TD
 - Les types `duration`, `cubicBezier`, `transition`, `border` et `strokeStyle`, qui attendent un import qui en contient (ADR 0028 §3).
 - La détection des doublons parmi les typographies et les ombres dont les champs sont des alias (ADR 0029, négatives).
 - L'exclusion éventuelle de clés changeantes de l'écriture identique (ADR 0030, risques).
+- Resend ou Cloudflare Email Service pour les emails de production, une fois l'API sur le plan Workers Paid (ADR 0037, risques).
