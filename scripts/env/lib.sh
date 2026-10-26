@@ -29,6 +29,23 @@ confirm() {
   [ "$answer" = o ] || [ "$answer" = O ]
 }
 
+secret_to_set() {
+  ! gh secret list --env "$1" --json name --jq '.[].name' | grep -qx "$2" ||
+    confirm "$2 existe déjà. Le remplacer ?"
+}
+
+reserve_to_main() {
+  local environment
+  environment="repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/environments/$1"
+  gh api -X PUT "$environment" \
+    -F "deployment_branch_policy[protected_branches]=false" \
+    -F "deployment_branch_policy[custom_branch_policies]=true" > /dev/null
+  if ! gh api "$environment/deployment-branch-policies" --jq '.branch_policies[].name' | grep -qx main; then
+    gh api -X POST "$environment/deployment-branch-policies" -f name=main -f type=branch > /dev/null
+  fi
+  echo "Environnement GitHub $1, réservé à main"
+}
+
 preview_variable() {
   gh variable get "$1" --env preview
 }
