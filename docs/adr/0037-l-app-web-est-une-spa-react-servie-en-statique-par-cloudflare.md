@@ -54,7 +54,6 @@ Problématique : quelle stack pour l'app web, et où la servir ?
 #### Option B — Un VPS qui sert l'app web et l'API
 
 - Avantage : pas de plafond de CPU par requête, et l'API n'est construite qu'une fois, au démarrage du processus.
-- Avantage : les limites de débit de better-auth, gardées en mémoire (ADR 0008), sont fiables sur un seul processus.
 - Inconvénient : l'exploitation (mises à jour, TLS, supervision, déploiement par SSH) revient à l'équipe.
 - Inconvénient : les previews par PR sont à reconstruire, et le serveur est une seule machine dans une seule région.
 - **Écartée** : avec une SPA, le frontend ne demande aucun serveur, et le plan Workers Paid règle le plafond de CPU de l'API pour 5 $/mois.
@@ -90,6 +89,7 @@ L'app web se connecte par les routes de better-auth sur `api.dezyn.dev`, et envo
 ### Risques et mitigations
 
 - Previews sur `workers.dev` : `workers.dev` est un suffixe public, donc une preview de l'app web et une preview de l'API sont deux sites différents, et le cookie `SameSite=Lax` ne passe pas entre elles. Mitigation à trancher quand la preview de l'app web arrive : un proxy même-origine (le Worker de l'app web relaie `/api` vers l'API de preview) ou des previews sous un sous-domaine de `dezyn.dev`.
+- Emails de production : l'ADR 0035 choisit Resend tant que le compte reste sur le plan Workers Free. Avec le plan Workers Paid, Cloudflare Email Service (son option B) redevient possible sans coût en plus. Resend reste en place, et le choix est un point ouvert.
 - CORS trop large : l'API n'accepte qu'une origine exacte, `WEB_URL`, et jamais `*` avec les cookies.
 
 ## Notes d'implémentation
@@ -104,3 +104,4 @@ L'app web se connecte par les routes de better-auth sur `api.dezyn.dev`, et envo
 - [ADR 0034](0034-l-api-est-servie-par-un-worker-cloudflare.md) — l'API est un Worker Cloudflare ; l'app web suit le même hébergeur.
 - [ADR 0008](0008-hono-pour-le-backend-better-auth-pour-l-authentification.md) — better-auth porte la session que l'app web utilise.
 - [ADR 0012](0012-les-ecritures-de-l-ia-sont-des-propositions-relues-par-un-editeur.md) — la relecture des propositions est l'un des écrans de l'app web.
+- [ADR 0035](0035-les-emails-de-production-passent-par-resend.md) — le plan Workers Paid retire sa prémisse ; le choix de Resend devient un point ouvert.

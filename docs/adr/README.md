@@ -157,6 +157,7 @@ graph TD
   0034 --> 0037[0037 App web SPA statique]
   0008 --> 0037
   0012 --> 0037
+  0035 --> 0037
 ```
 
 ## Points ouverts
@@ -172,3 +173,4 @@ graph TD
 - Les types `duration`, `cubicBezier`, `transition`, `border` et `strokeStyle`, qui attendent un import qui en contient (ADR 0028 §3).
 - La détection des doublons parmi les typographies et les ombres dont les champs sont des alias (ADR 0029, négatives).
 - L'exclusion éventuelle de clés changeantes de l'écriture identique (ADR 0030, risques).
+- Resend ou Cloudflare Email Service pour les emails de production, une fois l'API sur le plan Workers Paid (ADR 0037, risques).
