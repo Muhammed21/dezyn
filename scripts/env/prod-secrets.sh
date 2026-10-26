@@ -25,7 +25,7 @@ expire_keys() {
   stale=$(stale_secret_versions "$(secret_versions_in_use "$url")" "$current")
   if [ -n "$stale" ]; then
     echo "Des clés valides dépendent encore de : $(tr '\n' ' ' <<< "$stale")"
-    echo "La nouvelle version du Worker se propage : relancer dans une minute pnpm prod:secrets --expire-keys"
+    echo "Une instance servait encore l'ancienne version du Worker : relancer dans une minute pnpm prod:secrets --expire-keys"
   else
     echo "Les anciennes versions sont retirables : voir pnpm prod:check"
   fi
@@ -47,7 +47,8 @@ if ! has_secret BETTER_AUTH_SECRET; then
 elif confirm "Ajouter BETTER_AUTH_SECRET_$((current + 1)) ? Les sessions web en cours se fermeront."; then
   openssl rand -base64 48 | wrangler_api secret put "BETTER_AUTH_SECRET_$((current + 1))" --env="" > /dev/null
   echo "BETTER_AUTH_SECRET_$((current + 1)) posé"
-  expire_keys "$((current + 1))"
+  echo "Une fois la nouvelle version du Worker propagée, dans une minute, terminer la rotation :"
+  echo "  pnpm prod:secrets --expire-keys"
 fi
 
 if has_secret RESEND_API_KEY; then
