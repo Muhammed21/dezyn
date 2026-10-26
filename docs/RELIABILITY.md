@@ -25,7 +25,7 @@
 
 ## Health Checks & Metrics
 
-- `GET /health` vérifie la base par `SELECT 1` et répond 503 si elle ne répond pas ; liveness et readiness se séparent quand l'hébergeur fixe ses sondes.
+- `GET /health` vérifie la base par `SELECT 1`, puis la clé de signature des jetons en signant un jeton de test, qui crée la clé si `identity_jwks` est vide. Il répond 503 si la base ne répond pas ou si la clé est inutilisable, et journalise alors `signing key check failed` avec la cause ; liveness et readiness se séparent quand l'hébergeur fixe ses sondes.
 - Chaque requête produit une ligne JSON `request` : méthode, chemin, statut, `durationMs`, `correlationId`. Le `correlationId` se retrouve dans l'historique et dans les corps problem+json.
 - Les métriques RED par route, les alertes sur symptôme (p95 au-dessus du budget de [PERFORMANCE.md](PERFORMANCE.md#baselines--budgets)) et le suivi des erreurs arrivent avec l'hébergeur.
 
@@ -50,7 +50,7 @@ Les trois rôles sont créés en SQL par le propriétaire de la base, sans super
 
 `pnpm prod:github`, dans un terminal, monte l'environnement GitHub `production`, réservé à `main`. Il demande `DEPLOY_ENABLED` seulement s'il manque. Il fait saisir `CLOUDFLARE_API_TOKEN` masqué, et reconstruit `DATABASE_URL_MIGRATOR` depuis le rôle `migrator` de la branche Neon `production`, sans changer son mot de passe. Un secret déjà posé n'est remplacé que sur confirmation, et aucune valeur n'est affichée.
 
-`pnpm prod:secrets`, dans un terminal, pose les secrets du Worker `dezyn-api` : `BETTER_AUTH_SECRET`, tiré par `openssl`, et `RESEND_API_KEY`, facultatif et saisi masqué. Un secret déjà posé n'est remplacé que sur confirmation ; remplacer `BETTER_AUTH_SECRET` exige ensuite de vider `identity_jwks` ([guide](runbooks/hebergement.md#changer-better_auth_secret)). Chaque secret posé publie aussitôt une nouvelle version du Worker, avec le code déployé.
+`pnpm prod:secrets`, dans un terminal, pose les secrets du Worker `dezyn-api` : `BETTER_AUTH_SECRET`, tiré par `openssl`, et `RESEND_API_KEY`, facultatif et saisi masqué. Quand `BETTER_AUTH_SECRET` existe, il propose une rotation : un secret `BETTER_AUTH_SECRET_<N+1>`, qui chiffre les nouvelles clés de signature pendant que les anciens secrets déchiffrent les leurs ([guide](runbooks/hebergement.md#changer-le-secret-dauthentification)). `RESEND_API_KEY` n'est remplacé que sur confirmation. Chaque secret posé publie aussitôt une nouvelle version du Worker, avec le code déployé.
 
 `pnpm prod:db [branche]` crée en SQL ceux des rôles `migrator`, `app` et `history_maintainer` qui manquent sur la branche Neon (`production` par défaut), sans toucher aux rôles existants ni à leurs mots de passe, puis migre ; il ne seede jamais. Il refuse un rôle privilégié (voir `pnpm roles:replace`) et un rôle manquant sur une base déjà migrée, dont les droits ne reviendraient pas. Sur `production`, un `migrator` qu'il vient de créer est posé dans `DATABASE_URL_MIGRATOR`, et un `app` qu'il vient de créer dans Hyperdrive.
 

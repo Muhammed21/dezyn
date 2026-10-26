@@ -14,10 +14,15 @@ has_secret() {
   grep -qx "$1" <<< "$worker_secrets"
 }
 
-if ! has_secret BETTER_AUTH_SECRET ||
-  confirm "BETTER_AUTH_SECRET existe déjà. Le remplacer exige ensuite de vider identity_jwks (docs/runbooks/hebergement.md). Le remplacer ?"; then
+if ! has_secret BETTER_AUTH_SECRET; then
   openssl rand -base64 48 | wrangler_api secret put BETTER_AUTH_SECRET --env="" > /dev/null
   echo "BETTER_AUTH_SECRET posé"
+else
+  rotation=BETTER_AUTH_SECRET_$(next_secret_version <<< "$worker_secrets")
+  if confirm "Ajouter $rotation ? Les sessions web en cours se fermeront."; then
+    openssl rand -base64 48 | wrangler_api secret put "$rotation" --env="" > /dev/null
+    echo "$rotation posé"
+  fi
 fi
 
 if has_secret RESEND_API_KEY; then

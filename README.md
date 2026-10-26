@@ -39,4 +39,10 @@ pnpm test
 pnpm generate       # artefacts générés : catalogue de la documentation
 ```
 
+Quand `BETTER_AUTH_SECRET` change dans `.env`, la clé de signature de la base locale ne se déchiffre plus et `/health` répond 503. Vider la clé ; better-auth en crée une avec le nouveau secret :
+
+```sh
+docker compose exec -e PGPASSWORD=dev_migrator postgres psql -h 127.0.0.1 -U migrator -d dezyn -c 'DELETE FROM identity_jwks'
+```
+
 Les hooks git (husky) lancent secretlint, oxfmt et oxlint au commit, commitlint sur le message, puis le lint, le typage et les tests des paquets touchés au push.
