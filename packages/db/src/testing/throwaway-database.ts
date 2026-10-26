@@ -71,12 +71,12 @@ export const createThrowawayDatabase = async (): Promise<ThrowawayDatabase> => {
   };
 };
 
-export const withThrowawayDatabase = async (
-  run: (database: ThrowawayDatabase) => Promise<void>,
-): Promise<void> => {
+export const withThrowawayDatabase = async <T>(
+  run: (database: ThrowawayDatabase) => Promise<T>,
+): Promise<T> => {
   const database = await createThrowawayDatabase();
   try {
-    await run(database);
+    return await run(database);
   } finally {
     await database.drop();
   }

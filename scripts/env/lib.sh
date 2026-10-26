@@ -38,6 +38,15 @@ next_secret_version() {
   sed -nE 's/^BETTER_AUTH_SECRET_([1-9][0-9]*)$/\1/p' | awk '$1 > max { max = $1 } END { print max + 1 }'
 }
 
+secrets_for_versions() {
+  sed -E 's/^legacy$/BETTER_AUTH_SECRET/; s/^([0-9]+)$/BETTER_AUTH_SECRET_\1/'
+}
+
+retirable_secret_versions() {
+  sed -nE 's/^BETTER_AUTH_SECRET_([1-9][0-9]*)$/\1/p' <<< "$1" | sort -n | sed '$d' |
+    grep -vxF -f <(printf '%s\n' "$2") | sed 's/^/BETTER_AUTH_SECRET_/' || true
+}
+
 reserve_to_main() {
   local environment
   environment="repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/environments/$1"
@@ -84,6 +93,10 @@ neon_role_url() {
 
 inspect_roles() {
   DATABASE_URL_MIGRATOR=$1 node packages/db/scripts/replace-role.ts inspect
+}
+
+secret_versions_in_use() {
+  DATABASE_URL_MIGRATOR=$1 node packages/db/scripts/secret-versions.ts
 }
 
 wrangler_api() {
