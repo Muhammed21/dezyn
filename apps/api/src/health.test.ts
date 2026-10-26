@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { makeApp, makeDatabase } from "#testing/make-app.ts";
+import { makeApp, makeAuth, makeDatabase } from "#testing/make-app.ts";
+import { err } from "@repo/result";
 
 const UNREACHABLE = { ping: () => Promise.reject(new Error("connection timeout")) };
+const UNUSABLE_KEY = {
+  checkSigningKey: () => Promise.resolve(err<"unusable">("unusable")),
+};
 
 describe("GET /health", () => {
   it("répond 200 avec le statut ok quand la base répond", async () => {
@@ -28,5 +32,43 @@ describe("GET /health", () => {
       instance: "/health",
       correlationId: "sonde-1",
     });
+  });
+
+  it("répond 503 en problem+json et journalise la cause quand la clé de signature est inutilisable", async () => {
+    const { app, records } = makeApp({ auth: makeAuth(UNUSABLE_KEY) });
+
+    const response = await app.request("/health", { headers: { "x-correlation-id": "sonde-2" } });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      type: "about:blank",
+      title: "Service indisponible",
+      status: 503,
+      instance: "/health",
+      correlationId: "sonde-2",
+    });
+    expect(records).toContainEqual({
+      level: "error",
+      msg: "signing key unusable",
+      correlationId: "sonde-2",
+    });
+  });
+
+  it("ne contrôle pas la clé de signature quand la base ne répond pas", async () => {
+    const checks: string[] = [];
+    const { app } = makeApp({
+      db: makeDatabase(UNREACHABLE),
+      auth: makeAuth({
+        checkSigningKey: async () => {
+          checks.push("clé");
+          return err("unusable");
+        },
+      }),
+    });
+
+    const response = await app.request("/health");
+
+    expect(response.status).toBe(503);
+    expect(checks).toEqual([]);
   });
 });

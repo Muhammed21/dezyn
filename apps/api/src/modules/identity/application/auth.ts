@@ -9,4 +9,5 @@ export type Auth = {
   readonly verifyAccessToken: (
     token: string,
   ) => Promise<Result<AccessTokenIdentity, VerificationFailure>>;
+  readonly checkSigningKey: () => Promise<Result<void, "unusable">>;
 };

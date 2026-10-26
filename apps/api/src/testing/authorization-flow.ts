@@ -46,6 +46,7 @@ type IdentityAppOptions = {
   readonly createDatabase?: () => Promise<ThrowawayDatabase>;
   readonly secret?: string;
   readonly secrets?: readonly AuthSecret[];
+  readonly authLog?: LogSink;
 };
 
 export type IdentityApp = {
@@ -65,6 +66,7 @@ export const startIdentityApp = async ({
   createDatabase = createThrowawayDatabase,
   secret = "secret-de-test-de-32-caracteres-au-moins",
   secrets = [],
+  authLog = () => undefined,
 }: IdentityAppOptions = {}): Promise<IdentityApp> => {
   const database = await createDatabase();
   try {
@@ -96,7 +98,7 @@ export const startIdentityApp = async ({
       secrets,
       baseURL,
       trustedIpHeader: "x-forwarded-for",
-      log: () => undefined,
+      log: authLog,
       onUserCreated: wrapUserCreated(spaces.createPersonalSpace),
       clock,
     });
