@@ -38,16 +38,26 @@ if is_created migrator; then
 else
   migrator_url=$(neon_role_url "$project" "$branch" migrator)
 fi
-DATABASE_URL_MIGRATOR=$migrator_url pnpm --silent migrate
+repair_credentials() {
+  echo "Identifiants de production à reposer :" >&2
+  echo "- DATABASE_URL_MIGRATOR : pnpm prod:github" >&2
+  echo "- Hyperdrive : (cd apps/api && npx wrangler hyperdrive update $HYPERDRIVE_ID --origin-user app --origin-password \"\$(npx neonctl@$NEONCTL_VERSION connection-string $PRODUCTION_BRANCH --project-id $project --role-name app | sed -E 's#^[^:]*://[^:]*:([^@]*)@.*#\\1#')\")" >&2
+}
 
-if [ "$branch" = "$PRODUCTION_BRANCH" ] && is_created migrator; then
-  printf '%s' "$migrator_url" | gh secret set DATABASE_URL_MIGRATOR --env production
-  echo "Secret GitHub DATABASE_URL_MIGRATOR posé"
+if [ "$branch" = "$PRODUCTION_BRANCH" ]; then
+  trap repair_credentials ERR
+  if is_created migrator; then
+    printf '%s' "$migrator_url" | gh secret set DATABASE_URL_MIGRATOR --env production
+    echo "Secret GitHub DATABASE_URL_MIGRATOR posé"
+  fi
+  if is_created app; then
+    wrangler_api hyperdrive update "$HYPERDRIVE_ID" \
+      --origin-user app --origin-password "$app_password" > /dev/null
+    echo "Hyperdrive pointe sur app"
+  fi
+  trap - ERR
 fi
-if [ "$branch" = "$PRODUCTION_BRANCH" ] && is_created app; then
-  wrangler_api hyperdrive update "$HYPERDRIVE_ID" \
-    --origin-user app --origin-password "$app_password" > /dev/null
-  echo "Hyperdrive pointe sur app"
-fi
+
+DATABASE_URL_MIGRATOR=$migrator_url pnpm --silent migrate
 
 echo "Vérifier ensuite : pnpm prod:check $branch"
