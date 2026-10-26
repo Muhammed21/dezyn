@@ -3,8 +3,6 @@ set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 cd "$(dirname "$0")/../.."
 
-HEALTH_URL=https://api.dezyn.dev/health
-
 branch=${1:-$PRODUCTION_BRANCH}
 
 require_neon_login

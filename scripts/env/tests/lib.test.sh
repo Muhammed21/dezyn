@@ -61,4 +61,11 @@ expect_output "la version 1 ne se confond pas avec la 10" \
   BETTER_AUTH_SECRET_1 \
   "$(retirable_secret_versions $'BETTER_AUTH_SECRET_1\nBETTER_AUTH_SECRET_10\nBETTER_AUTH_SECRET_11' 10)"
 
+echo "stale_secret_versions"
+expect_output "les versions autres que la courante restent à expirer" \
+  $'legacy\n2' "$(stale_secret_versions $'legacy\n2\n3' 3)"
+expect_output "seule la version courante, rien à expirer" "" "$(stale_secret_versions 3 3)"
+expect_output "aucune clé valide, rien à expirer" "" "$(stale_secret_versions "" 3)"
+expect_output "la version 13 ne se confond pas avec la 3" 13 "$(stale_secret_versions $'3\n13' 3)"
+
 [ "$failures" -eq 0 ]
