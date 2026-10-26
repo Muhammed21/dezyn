@@ -156,3 +156,19 @@ pnpm prod:check
 ```
 
 `prod:secrets` propose `BETTER_AUTH_SECRET_<N+1>`. Les sessions web en cours se ferment, car leurs cookies sont signés avec le secret courant ; les jetons d'accès et les refresh tokens restent valides.
+
+### Retirer une ancienne version du secret
+
+better-auth ne déchiffre que la clé de signature valide la plus récente. Chaque clé expire 90 jours après sa création, et la suivante est chiffrée par la version la plus haute. Une version se retire quand aucune clé valide n'en dépend ; `pnpm prod:check` les liste :
+
+```
+INFO  Versions retirables, aucune clé valide n'en dépend : BETTER_AUTH_SECRET_2
+```
+
+Retirer chaque version listée, puis relancer `pnpm prod:check` :
+
+```
+(cd apps/api && npx wrangler secret delete BETTER_AUTH_SECRET_<N> --env="")
+```
+
+`prod:check` échoue si le Worker n'a plus un secret dont dépend une clé valide. `BETTER_AUTH_SECRET` et la version la plus haute ne se retirent pas.

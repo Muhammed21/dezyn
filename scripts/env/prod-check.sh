@@ -34,6 +34,8 @@ host_of() {
 echo "Base, branche Neon $branch"
 check_roles "$(inspect_roles "$(neon_role_url "$project" "$branch" migrator)")"
 
+versions_in_use=$(secret_versions_in_use "$(neon_role_url "$project" "$PRODUCTION_BRANCH" migrator)")
+
 echo "GitHub"
 github_secrets=$(gh secret list --env production --json name --jq '.[].name' 2> /dev/null || true)
 check "secrets de l'environnement production" \
@@ -50,6 +52,13 @@ esac
 echo "Worker dezyn-api"
 worker_secrets=$(wrangler_api secret list --env="" --format json 2> /dev/null | jq -r '.[].name' || true)
 check "secrets du Worker" "$(missing_from "$worker_secrets" BETTER_AUTH_SECRET)" ""
+# shellcheck disable=SC2046
+check "secrets dont dépendent les clés de signature valides" \
+  "$(missing_from "$worker_secrets" $(secrets_for_versions <<< "$versions_in_use"))" ""
+retirable=$(retirable_secret_versions "$worker_secrets" "$versions_in_use")
+if [ -n "$retirable" ]; then
+  info "Versions retirables, aucune clé valide n'en dépend : $(tr '\n' ' ' <<< "$retirable")"
+fi
 if [ -n "$(missing_from "$worker_secrets" RESEND_API_KEY)" ]; then
   info "RESEND_API_KEY absent : les emails ne partent pas, chacun est journalisé « email not sent »"
 fi
