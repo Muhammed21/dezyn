@@ -66,3 +66,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [Documentation du domaine](agents/domain.md) — _reference_ — Comment les skills d'ingénierie lisent la documentation du domaine de ce dépôt quand ils explorent le code.
 - [Suivi des tickets : GitHub](agents/issue-tracker.md) — _reference_ — Les tickets et les specs de ce dépôt vivent dans les GitHub Issues de `Muhammed21/dezyn`.
 - [Labels de triage](agents/triage-labels.md) — _reference_ — Les skills parlent en termes de cinq rôles de triage canoniques, chacun porté par un label des GitHub Issues du dépôt.
+
+## runbooks
+
+- [Recréer et vérifier l'hébergement](runbooks/hebergement.md) — _how-to_ — L'API tourne dans le Worker Cloudflare `dezyn-api`, sur `api.dezyn.dev`, et joint la branche Neon `production` par Hyperdrive (ADR 0034).
