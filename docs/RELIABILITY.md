@@ -52,4 +52,6 @@ Les trois rôles sont créés en SQL par le propriétaire de la base, sans super
 
 `pnpm prod:secrets`, dans un terminal, pose les secrets du Worker `dezyn-api` : `BETTER_AUTH_SECRET`, tiré par `openssl`, et `RESEND_API_KEY`, facultatif et saisi masqué. Un secret déjà posé n'est remplacé que sur confirmation ; remplacer `BETTER_AUTH_SECRET` déconnecte toutes les sessions. Chaque secret posé publie aussitôt une nouvelle version du Worker, avec le code déployé.
 
+`pnpm prod:db [branche]` crée en SQL ceux des rôles `migrator`, `app` et `history_maintainer` qui manquent sur la branche Neon (`production` par défaut), sans toucher aux rôles existants ni à leurs mots de passe, puis migre ; il ne seede jamais. Il refuse un rôle privilégié (voir `pnpm roles:replace`) et un rôle manquant sur une base déjà migrée, dont les droits ne reviendraient pas. Sur `production`, un `migrator` qu'il vient de créer est posé dans `DATABASE_URL_MIGRATOR`, et un `app` qu'il vient de créer dans Hyperdrive.
+
 Le Worker vérifie la version du schéma à la première requête de chaque isolat, et répond 503 tant qu'elle est en retard ; le serveur Node la vérifie au démarrage. Les releases (`v*.*.*`, `.github/workflows/release.yml`) publient des notes, sans déployer.

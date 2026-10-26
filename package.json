@@ -28,7 +28,8 @@
     "roles:replace": "./scripts/env/roles-replace.sh",
     "prod:check": "./scripts/env/prod-check.sh",
     "prod:github": "./scripts/env/prod-github.sh",
-    "prod:secrets": "./scripts/env/prod-secrets.sh"
+    "prod:secrets": "./scripts/env/prod-secrets.sh",
+    "prod:db": "./scripts/env/prod-db.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
