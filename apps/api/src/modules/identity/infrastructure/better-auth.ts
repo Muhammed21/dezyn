@@ -233,8 +233,9 @@ export const createIdentityAuth = async ({
       try {
         await auth.api.signJWT({ body: { payload: {} } });
         return ok(undefined);
-      } catch {
-        return err("undecryptable");
+      } catch (error) {
+        log({ level: "error", msg: "signing key check failed", ...errorDetails(error) });
+        return err("unusable");
       }
     },
     authorizationServerMetadata,

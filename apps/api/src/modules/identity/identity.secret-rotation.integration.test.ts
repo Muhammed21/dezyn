@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PostgresDatabase } from "#db";
 import type { AuthSecret } from "#platform/api-config.ts";
+import type { LogRecord, LogSink } from "#platform/logging.ts";
 import {
   type App,
   obtainAccessToken,
@@ -18,11 +19,13 @@ const restartWith = async <T>(
   database: ThrowawayDatabase,
   secrets: readonly AuthSecret[],
   run: (app: App, db: PostgresDatabase) => T | Promise<T>,
+  authLog?: LogSink,
 ): Promise<T> => {
   const { app, db, close } = await startIdentityApp({
     createDatabase: async () => ({ ...database, drop: async () => undefined }),
     secret: HISTORICAL_SECRET,
     secrets,
+    authLog,
   });
   try {
     return await run(app, db);
@@ -84,5 +87,28 @@ describe("rotation du secret d'authentification (#127)", () => {
       const health = await restartWith(database, [], (app) => app.request("/health"));
 
       expect(health.status).toBe(503);
+    }));
+
+  it("le contrôle de la clé journalise la cause de son échec", () =>
+    withThrowawayDatabase(async (database) => {
+      await restartWith(database, [{ version: 2, value: SECOND_SECRET }], (app) =>
+        app.request("/health"),
+      );
+      const records: LogRecord[] = [];
+
+      await restartWith(
+        database,
+        [],
+        (app) => app.request("/health"),
+        (record) => records.push(record),
+      );
+
+      expect(records).toContainEqual(
+        expect.objectContaining({
+          level: "error",
+          msg: "signing key check failed",
+          error: expect.stringContaining("Failed to decrypt private key"),
+        }),
+      );
     }));
 });

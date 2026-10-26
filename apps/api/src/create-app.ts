@@ -147,7 +147,7 @@ export const createApp = ({
     if (!signingKey.ok) {
       log({
         level: "error",
-        msg: "signing key undecryptable",
+        msg: "signing key unusable",
         correlationId: c.get("correlationId"),
       });
       return unavailable(c);

@@ -4,8 +4,8 @@ import { makeApp, makeAuth, makeDatabase } from "#testing/make-app.ts";
 import { err } from "@repo/result";
 
 const UNREACHABLE = { ping: () => Promise.reject(new Error("connection timeout")) };
-const UNDECRYPTABLE_KEY = {
-  checkSigningKey: () => Promise.resolve(err<"undecryptable">("undecryptable")),
+const UNUSABLE_KEY = {
+  checkSigningKey: () => Promise.resolve(err<"unusable">("unusable")),
 };
 
 describe("GET /health", () => {
@@ -34,8 +34,8 @@ describe("GET /health", () => {
     });
   });
 
-  it("répond 503 en problem+json et journalise la cause quand la clé de signature ne se déchiffre pas", async () => {
-    const { app, records } = makeApp({ auth: makeAuth(UNDECRYPTABLE_KEY) });
+  it("répond 503 en problem+json et journalise la cause quand la clé de signature est inutilisable", async () => {
+    const { app, records } = makeApp({ auth: makeAuth(UNUSABLE_KEY) });
 
     const response = await app.request("/health", { headers: { "x-correlation-id": "sonde-2" } });
 
@@ -49,7 +49,7 @@ describe("GET /health", () => {
     });
     expect(records).toContainEqual({
       level: "error",
-      msg: "signing key undecryptable",
+      msg: "signing key unusable",
       correlationId: "sonde-2",
     });
   });
@@ -61,7 +61,7 @@ describe("GET /health", () => {
       auth: makeAuth({
         checkSigningKey: async () => {
           checks.push("clé");
-          return err("undecryptable");
+          return err("unusable");
         },
       }),
     });
