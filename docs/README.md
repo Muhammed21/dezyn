@@ -14,6 +14,7 @@ Le catalogue page par page — titre, mode, statut et objet de chaque page — e
 | `synthese.md` | Synthèse de la discussion fondatrice du 13/10/2026             | reference   |
 | `adr/`        | Décisions durables : contexte, options, décision, conséquences | explanation |
 | `spikes/`     | Recherches bornées dans le temps, qui éclairent un ADR         | explanation |
+| `runbooks/`   | Procédures d'exploitation, pas à pas                           | how-to      |
 
 Le mode est le type [Diátaxis](https://diataxis.fr/) de la page : tutorial, how-to, reference ou explanation, un seul par page. Une page qui résiste à l'écriture mélange souvent deux modes : on la coupe en deux.
 
@@ -24,7 +25,7 @@ Le mode est le type [Diátaxis](https://diataxis.fr/) de la page : tutorial, how
 | Une décision technique ou produit durable     | `adr/`, au numéro suivant (règle `.claude/rules/adr-et-spikes.md`) |
 | Une décision qui change une décision acceptée | Un nouvel ADR qui remplace l'ancien ; l'ancien ne se réécrit pas   |
 | Une recherche qui doit aboutir à une décision | `spikes/AAAA-MM-JJ-sujet.md`                                       |
-| Une procédure d'exploitation (déployer, …)    | `runbooks/`, créé avec la première procédure                       |
+| Une procédure d'exploitation (déployer, …)    | `runbooks/`                                                        |
 | Un plan de travail découpé en PR              | `plans/`, hors de `docs/` ; supprimé une fois livré                |
 
 ## En-tête des pages

@@ -15,7 +15,7 @@ has_secret() {
 }
 
 if ! has_secret BETTER_AUTH_SECRET ||
-  confirm "BETTER_AUTH_SECRET existe déjà. Le remplacer déconnecte toutes les sessions. Le remplacer ?"; then
+  confirm "BETTER_AUTH_SECRET existe déjà. Le remplacer exige ensuite de vider identity_jwks (docs/runbooks/hebergement.md). Le remplacer ?"; then
   openssl rand -base64 48 | wrangler_api secret put BETTER_AUTH_SECRET --env="" > /dev/null
   echo "BETTER_AUTH_SECRET posé"
 fi
