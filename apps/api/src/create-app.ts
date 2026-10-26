@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
 import type { HistoryUseCases } from "#modules/history/application/history-use-cases.ts";
@@ -34,6 +34,9 @@ import { clientProblem, INTERNAL_ERROR, problemResponse } from "#platform/proble
 import { requestContext } from "#platform/request-context.ts";
 
 const MAX_BODY_BYTES = 1024 * 1024;
+
+const unavailable = (c: Context<AppEnv>) =>
+  problemResponse(c, { type: "about:blank", title: "Service indisponible", status: 503 });
 
 export const createApp = ({
   db,
@@ -138,11 +141,16 @@ export const createApp = ({
     try {
       await db.ping();
     } catch {
-      return problemResponse(c, {
-        type: "about:blank",
-        title: "Service indisponible",
-        status: 503,
+      return unavailable(c);
+    }
+    const signingKey = await auth.checkSigningKey();
+    if (!signingKey.ok) {
+      log({
+        level: "error",
+        msg: "signing key undecryptable",
+        correlationId: c.get("correlationId"),
       });
+      return unavailable(c);
     }
     return c.json({ status: "ok" });
   });

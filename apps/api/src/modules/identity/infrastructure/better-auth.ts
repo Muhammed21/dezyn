@@ -14,6 +14,7 @@ import type { Clock } from "#platform/clock.ts";
 import { errorDetails, type LogSink } from "#platform/logging.ts";
 import { createAccessTokenVerifier } from "@repo/auth-verifier";
 import { schema } from "@repo/db";
+import { err, ok } from "@repo/result";
 
 import type { Auth } from "../application/auth.ts";
 import { defaultToNativeForLoopback } from "../domain/client-registration.ts";
@@ -228,6 +229,14 @@ export const createIdentityAuth = async ({
     baseURL,
     handle: (request) => auth.handler(request),
     verifyAccessToken: verifier.verify,
+    checkSigningKey: async () => {
+      try {
+        await auth.api.signJWT({ body: { payload: {} } });
+        return ok(undefined);
+      } catch {
+        return err("undecryptable");
+      }
+    },
     authorizationServerMetadata,
     protectedResourceMetadata: async () =>
       Response.json({

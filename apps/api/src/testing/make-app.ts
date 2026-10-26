@@ -7,7 +7,7 @@ import type { SpaceUseCases } from "#modules/space/application/spaces.ts";
 import type { TokenUseCases } from "#modules/token/application/token-use-cases.ts";
 import type { Database } from "#platform/database.ts";
 import type { LogRecord } from "#platform/logging.ts";
-import { err } from "@repo/result";
+import { err, ok } from "@repo/result";
 
 export const makeDatabase = (overrides: Partial<Database> = {}): Database => ({
   ping: () => Promise.resolve(),
@@ -20,6 +20,7 @@ export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
   authorizationServerMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
   protectedResourceMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
   verifyAccessToken: () => Promise.resolve(err("invalid_token")),
+  checkSigningKey: () => Promise.resolve(ok(undefined)),
   ...overrides,
 });
 
