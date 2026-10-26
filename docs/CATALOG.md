@@ -55,7 +55,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0034 — L'API est servie par un Worker Cloudflare](adr/0034-l-api-est-servie-par-un-worker-cloudflare.md) — _explanation · Accepté_ — Où et comment l'API est-elle servie en production et dans les previews de PR ?
 - [0035 — Les emails de production passent par Resend, appelé en HTTP depuis le Worker](adr/0035-les-emails-de-production-passent-par-resend.md) — _explanation · Accepté_ — Par quoi passent les emails de production tant que le compte reste sur le plan Workers Free ?
 - [0036 — Les rôles PostgreSQL de dezyn sont créés en SQL par le propriétaire de la base, jamais par la console ou l'API de Neon](adr/0036-les-roles-postgresql-sont-crees-en-sql-jamais-par-neon.md) — _explanation · Accepté_ — Comment les rôles de dezyn obtiennent-ils exactement les droits que leur donnent les migrations, et rien de plus ?
-- [0037 — L'app web est une SPA React servie en statique par Cloudflare](adr/0037-l-app-web-est-une-spa-react-servie-en-statique-par-cloudflare.md) — _explanation · Proposé_ — Quelle stack pour l'app web, et où la servir ?
+- [0037 — L'app web est une SPA React servie en statique par Cloudflare](adr/0037-l-app-web-est-une-spa-react-servie-en-statique-par-cloudflare.md) — _explanation · Accepté_ — Quelle stack pour l'app web, et où la servir ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée

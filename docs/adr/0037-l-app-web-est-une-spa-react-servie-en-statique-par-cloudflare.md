@@ -1,6 +1,6 @@
 # 0037 — L'app web est une SPA React servie en statique par Cloudflare
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-26
 - Décideurs : Muhammed Cavus
 
