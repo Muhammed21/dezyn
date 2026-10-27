@@ -9,6 +9,7 @@ export type TokenCheckFailure =
       readonly refusals: readonly { readonly mode?: string; readonly refusal: ReferenceRefusal }[];
     }
   | { readonly code: "type_changed" }
+  | { readonly code: "name_conflict"; readonly other: string }
   | { readonly code: "duplicate_name" };
 
 export type TokenCheck = { readonly index: number; readonly failure: TokenCheckFailure };

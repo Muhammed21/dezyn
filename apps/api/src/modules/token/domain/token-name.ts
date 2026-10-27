@@ -15,3 +15,8 @@ export const tokenNameRefusal = (name: string): TokenNameRefusal | undefined =>
     .split(".")
     .map(segmentRefusal)
     .find((refusal) => refusal !== undefined);
+
+const isGroupOf = (group: string, name: string) => name.startsWith(`${group}.`);
+
+export const groupConflict = (name: string, others: readonly string[]): string | undefined =>
+  others.find((other) => isGroupOf(name, other) || isGroupOf(other, name));

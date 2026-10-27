@@ -39,7 +39,23 @@ const findOpenBatch = async (
   return batch === undefined ? undefined : { ...batch, state: "open" };
 };
 
+const proposalsOfProject = (tx: PostgresTransaction, projectId: string) =>
+  inArray(
+    proposal.batchId,
+    tx
+      .select({ id: proposalBatch.id })
+      .from(proposalBatch)
+      .where(eq(proposalBatch.projectId, projectId)),
+  );
+
 export const postgresProposalReplacer = (tx: PostgresTransaction) => ({
+  pendingNamesOf: async (projectId: string) =>
+    (
+      await tx
+        .select({ name: proposal.tokenName })
+        .from(proposal)
+        .where(and(eq(proposal.status, "proposed"), proposalsOfProject(tx, projectId)))
+    ).map(({ name }) => name),
   replace: async ({ projectId, name }: { readonly projectId: string; readonly name: string }) => {
     const [replaced] = await tx
       .update(proposal)
@@ -48,13 +64,7 @@ export const postgresProposalReplacer = (tx: PostgresTransaction) => ({
         and(
           eq(proposal.tokenName, name),
           eq(proposal.status, "proposed"),
-          inArray(
-            proposal.batchId,
-            tx
-              .select({ id: proposalBatch.id })
-              .from(proposalBatch)
-              .where(eq(proposalBatch.projectId, projectId)),
-          ),
+          proposalsOfProject(tx, projectId),
         ),
       )
       .returning({ id: proposal.id, batchId: proposal.batchId });

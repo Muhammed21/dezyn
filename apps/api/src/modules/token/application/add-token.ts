@@ -7,6 +7,7 @@ import type {
 } from "#modules/space/contracts/storage-alert.ts";
 import { err, ok, type Result } from "@repo/result";
 
+import { groupConflict } from "../domain/token-name.ts";
 import type { Token, TokenDefinition } from "../domain/token.ts";
 import {
   checkedValues,
@@ -25,6 +26,7 @@ export interface PendingProposals {
     readonly projectId: string;
     readonly name: string;
   }): Promise<ReplacedProposal | null>;
+  pendingNamesOf(projectId: string): Promise<readonly string[]>;
 }
 
 export interface TokenUnitOfWork {
@@ -40,7 +42,14 @@ export interface TokenUnitOfWork {
 
 export type AddedToken = Token & { readonly replaced: ReplacedProposal | null };
 
-export type TokenAdditionFailure = "not_found" | "name_taken" | InvalidModes | InvalidReferences;
+export type NameConflict = { readonly code: "name_conflict"; readonly other: string };
+
+export type TokenAdditionFailure =
+  | "not_found"
+  | "name_taken"
+  | NameConflict
+  | InvalidModes
+  | InvalidReferences;
 
 export const addToken =
   ({
@@ -75,9 +84,10 @@ export const addToken =
     if (project === undefined) {
       return err("not_found");
     }
+    const existing = await projectTokens.tokensOf(projectId);
     const checked = checkedValues(token, {
       projectModes: await modes.modesOf(projectId),
-      tokens: await projectTokens.tokensOf(projectId),
+      tokens: existing,
     });
     if (!checked.ok) {
       return checked;
@@ -102,6 +112,13 @@ export const addToken =
           TokenAdditionFailure
         >
       > => {
+        const other = groupConflict(token.name, [
+          ...existing.map(({ name }) => name),
+          ...(await proposals.pendingNamesOf(projectId)),
+        ]);
+        if (other !== undefined) {
+          return err({ code: "name_conflict", other });
+        }
         if ((await tokens.create(added, values.map(modeValueOf))) === "name_taken") {
           return err("name_taken");
         }
