@@ -160,7 +160,7 @@ describe("l'IA lit l'historique d'un projet par le MCP (ADR 0004 ยง3, ADR 0021 ย
         action: "mcp.read_history",
         spaceId,
         projectId,
-        author: { kind: "member", userId, name: ADA.name },
+        author: { kind: "member", userId, name: ADA.name, membership: "active" },
         clientId,
         before: null,
         after: { outcome: "success", input: { limit: 5 } },

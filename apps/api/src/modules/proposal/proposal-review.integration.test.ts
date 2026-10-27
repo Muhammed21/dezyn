@@ -398,7 +398,7 @@ describe("chaque relecture entre dans l'historique avec l'éditeur (ADR 0012 §7
         action: "proposal.validated",
         spaceId,
         projectId,
-        author: { kind: "member", userId, name: ADA.name },
+        author: { kind: "member", userId, name: ADA.name, membership: "active" },
         clientId: null,
         before: null,
         after: { proposalId: proposals[0].id, token },

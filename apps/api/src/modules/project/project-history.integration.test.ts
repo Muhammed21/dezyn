@@ -65,7 +65,7 @@ describe("un propriétaire crée un projet, et l'historique du projet le montre 
           action: "project.created",
           spaceId,
           projectId: project.id,
-          author: { kind: "member", userId, name: ADA.name },
+          author: { kind: "member", userId, name: ADA.name, membership: "active" },
           clientId: null,
           before: null,
           after: { name: "Site vitrine" },

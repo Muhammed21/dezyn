@@ -1,6 +1,6 @@
 # 0038 — L'auteur d'une entrée d'historique porte son appartenance actuelle à l'espace, quel que soit le client qui a agi
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-27
 - Décideurs : Muhammed Cavus
 - Amende : ADR 0027 (risques : le membre parti puis réinvité, et les entrées de l'IA autorisée par un membre parti)

@@ -106,7 +106,7 @@ describe("write_tokens entre dans l'historique et refuse ce qui ne lui revient p
         action: "mcp.write_tokens",
         spaceId,
         projectId,
-        author: { kind: "member", userId, name: ADA.name },
+        author: { kind: "member", userId, name: ADA.name, membership: "active" },
         clientId,
         before: null,
         after: { outcome: "success", input: { tokens } },

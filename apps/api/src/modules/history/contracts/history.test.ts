@@ -8,7 +8,12 @@ const makeEntry = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   action: "project.created",
   spaceId: "1c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
   projectId: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
-  author: { kind: "member", userId: "3e8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", name: "Ada Lovelace" },
+  author: {
+    kind: "member",
+    userId: "3e8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+    name: "Ada Lovelace",
+    membership: "active",
+  },
   clientId: null,
   before: null,
   after: { name: "Site vitrine" },
@@ -53,6 +58,23 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
     ).toBe(false);
   });
 
+  it("dit si l'auteur a quitté l'espace", () => {
+    const author = { ...makeEntry().author, membership: "left" };
+
+    expect(
+      HistoryOutput.parse({ nextCursor: null, entries: [makeEntry({ author })] }).entries[0]
+        ?.author,
+    ).toEqual(author);
+  });
+
+  it("accepte une appartenance ajoutée plus tard par le serveur", () => {
+    const author = { ...makeEntry().author, membership: "suspended" };
+
+    expect(
+      HistoryOutput.safeParse({ nextCursor: null, entries: [makeEntry({ author })] }).success,
+    ).toBe(true);
+  });
+
   it("annonce à l'IA les actions et les formes d'auteur connues", () => {
     expect(z.toJSONSchema(HistoryOutput)).toMatchObject({
       properties: {
@@ -77,7 +99,17 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
                   { type: "string" },
                 ],
               },
-              author: { anyOf: [{ properties: { kind: { const: "member" } } }, {}] },
+              author: {
+                anyOf: [
+                  {
+                    properties: {
+                      kind: { const: "member" },
+                      membership: { anyOf: [{ enum: ["active", "left"] }, { type: "string" }] },
+                    },
+                  },
+                  {},
+                ],
+              },
             },
           },
         },

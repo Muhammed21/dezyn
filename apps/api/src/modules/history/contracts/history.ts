@@ -3,7 +3,12 @@ import { z } from "zod";
 import { extensibleUnion, openEnum, Uuid } from "@repo/contracts";
 
 export const HistoryAuthor = extensibleUnion("kind", [
-  z.looseObject({ kind: z.literal("member"), userId: Uuid, name: z.string() }),
+  z.looseObject({
+    kind: z.literal("member"),
+    userId: Uuid,
+    name: z.string(),
+    membership: openEnum(["active", "left"]),
+  }),
 ]);
 
 export const HistoryEntryOutput = z.looseObject({

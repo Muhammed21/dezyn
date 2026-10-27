@@ -7,6 +7,7 @@ export type HistoryAuthor = {
   readonly kind: "member";
   readonly userId: string;
   readonly name: string;
+  readonly membership: "active" | "left";
 };
 
 export type HistoryEntry = {
