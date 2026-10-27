@@ -1,6 +1,6 @@
 # 0039 — L'export DTCG imbrique les tokens validés par groupes et décrit les modes par un document Resolver ; un nom de token n'est jamais le groupe d'un autre
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-27
 - Décideurs : Muhammed Cavus
 - Amende : ADR 0010 (§2 : l'export arrive avant l'import ; la forme de l'export et la valeur de `version` en sortie)
