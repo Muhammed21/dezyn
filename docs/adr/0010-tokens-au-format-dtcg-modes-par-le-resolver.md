@@ -1,6 +1,6 @@
 # 0010 — Tokens de design au format DTCG, modes décrits par le module Resolver
 
-- Statut : Accepté
+- Statut : Accepté — §2 (export avant l'import, forme de l'export) complété par [0039](0039-l-export-dtcg-imbrique-les-tokens-valides-et-decrit-les-modes-par-un-document-resolver.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 
