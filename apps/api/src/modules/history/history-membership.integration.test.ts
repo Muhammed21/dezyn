@@ -170,9 +170,10 @@ describe("l'historique dit si l'auteur d'une entrée est encore membre de l'espa
       async (app, db) => {
         const { ada, grace, spaceId, projectId } = await seedSharedProject(app, db, outbox);
 
-        await promoteToOwner(app, { owner: ada, spaceId, member: grace });
+        const promoted = await promoteToOwner(app, { owner: ada, spaceId, member: grace });
         const entries = await historyByApi(app, { reader: ada, projectId });
 
+        expect(promoted.status).toBe(200);
         expect(membershipsOf(entries, grace)).toEqual([
           { action: "token.created", membership: "active" },
         ]);
