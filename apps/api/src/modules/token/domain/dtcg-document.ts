@@ -16,8 +16,8 @@ const headOf = (name: string) => {
 const entryOf = ({ $type, $value, $description, $extensions }: DtcgToken) => ({
   $type,
   $value,
-  $description,
-  $extensions,
+  ...($description === undefined ? {} : { $description }),
+  ...($extensions === undefined ? {} : { $extensions }),
 });
 
 export const dtcgDocumentOf = (tokens: readonly DtcgToken[]): DtcgGroup =>
