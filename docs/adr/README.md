@@ -176,7 +176,7 @@ graph TD
 - Le rappel à l'éditeur quand une variante reste sans version validée (ADR 0014, risques).
 - Le contenu d'une entrée d'historique qui contient une donnée personnelle d'un compte supprimé (ADR 0015, risques).
 - La valeur du champ `version` acceptée à l'import d'un fichier Resolver, que le module contredit (ADR 0010, risques).
-- L'export vers les outils qui ne lisent pas encore le module Resolver (ADR 0010, risques).
+- L'export des projets à modes vers les outils qui ne lisent pas encore le module Resolver (ADR 0010, risques) ; un projet sans modes s'exporte en document DTCG simple (ADR 0039 §3).
 - Les types `duration`, `cubicBezier`, `transition`, `border` et `strokeStyle`, qui attendent un import qui en contient (ADR 0028 §3).
 - La détection des doublons parmi les typographies et les ombres dont les champs sont des alias (ADR 0029, négatives).
 - L'exclusion éventuelle de clés changeantes de l'écriture identique (ADR 0030, risques).

@@ -124,7 +124,7 @@ Un projet dont deux tokens validés sont déjà en conflit de nom ne s'exporte p
 
 ### Risques et mitigations
 
-- **Un outil attend `2025-11-01`** : la valeur vit dans une seule constante ; l'import acceptera les deux valeurs. La valeur acceptée à l'import reste un point ouvert.
+- **Un outil attend `2025-11-01`** : la valeur vit dans une seule constante. La valeur acceptée à l'import reste un point ouvert (#167).
 - **Des projets ont déjà un conflit de nom** : l'export répond 409 en nommant les tokens, que le membre renomme ou supprime.
 - **Deux propositions en conflit validées dans le même lot** : la validation refait la vérification contre les tokens validés, token par token, dans l'ordre du lot.
 
