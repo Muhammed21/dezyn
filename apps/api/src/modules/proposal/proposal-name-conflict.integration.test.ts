@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { PostgresDatabase } from "#db";
 import { type App, BASE_URL, callMcp, withIdentityApp } from "#testing/authorization-flow.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
-import { addToken, historyOf, makeColorToken } from "#testing/token-fixtures.ts";
+import {
+  addToken,
+  historyOf,
+  makeColorToken,
+  seedValidatedToken,
+} from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
 
 const writeTokens = async (
@@ -163,5 +168,101 @@ describe("write_tokens refuse un nom qui est le groupe d'un autre (ADR 0039 §1)
       });
 
       expect(result.structuredContent.replaced).toMatchObject([{ name: "couleur.fond" }]);
+    }));
+});
+
+const post = (app: App, { accessToken, path }: { accessToken: string; path: string }) =>
+  app.request(`${BASE_URL}/v1${path}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+const closeBatch = (
+  app: App,
+  { accessToken, projectId }: { accessToken: string; projectId: string },
+) =>
+  callMcp(app, {
+    token: accessToken,
+    method: "tools/call",
+    params: { name: "close_proposal_batch", arguments: { projectId } },
+  });
+
+describe("la validation d'une proposition en conflit de groupe est refusée (ADR 0039 §1)", () => {
+  it("valider une création en conflit avec un token validé entre-temps répond 409 sur name, et la proposition reste en attente", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const written = await writeTokens(app, {
+        accessToken,
+        projectId,
+        tokens: [makeColorToken({ name: "couleur" })],
+      });
+      await seedValidatedToken(db, { projectId, name: "couleur.fond" });
+
+      const response = await post(app, {
+        accessToken,
+        path: `/proposals/${written.structuredContent.proposals[0].id}/validate`,
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        title: "Proposition invalide",
+        errors: [{ path: "name", message: "Nom en conflit de groupe avec le token couleur.fond" }],
+      });
+      expect(await pendingNames(db)).toEqual(["couleur:proposed"]);
+    }));
+
+  it("valider un lot qui contient une création en conflit répond 409 sur cette proposition, et annule tout le lot", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const written = await writeTokens(app, {
+        accessToken,
+        projectId,
+        tokens: [makeColorToken({ name: "taille.base" }), makeColorToken({ name: "couleur" })],
+      });
+      await closeBatch(app, { accessToken, projectId });
+      await seedValidatedToken(db, { projectId, name: "couleur.fond" });
+      const { batch, proposals } = written.structuredContent;
+
+      const response = await post(app, {
+        accessToken,
+        path: `/proposal-batches/${batch.id}/validate`,
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        title: "Lot invalide",
+        errors: [
+          {
+            path: `proposals.${proposals[1].id}.name`,
+            message: "Nom en conflit de groupe avec le token couleur.fond",
+          },
+        ],
+      });
+      expect(await pendingNames(db)).toEqual(["couleur:proposed", "taille.base:proposed"]);
+    }));
+
+  it("une mise à jour d'un token validé n'est pas concernée", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await addToken(app, { accessToken, projectId, token: makeColorToken({ name: "couleur" }) });
+      const written = await writeTokens(app, {
+        accessToken,
+        projectId,
+        tokens: [
+          makeColorToken({
+            name: "couleur",
+            $value: { colorSpace: "srgb", components: [1, 1, 1] },
+          }),
+        ],
+      });
+      await seedValidatedToken(db, { projectId, name: "couleur.fond" });
+
+      const response = await post(app, {
+        accessToken,
+        path: `/proposals/${written.structuredContent.proposals[0].id}/validate`,
+      });
+
+      expect(response.status).toBe(200);
     }));
 });
