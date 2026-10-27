@@ -56,7 +56,7 @@ Chaque tranche suit RED → GREEN → MUTATE → KILL MUTANTS → REFACTOR, et f
 ### Tranche 5 : un projet à modes s'exporte en document Resolver
 
 **Valeur** : les modes d'un projet sortent sans perte.
-**Chemin** : `exportTokens` → document Resolver, `version` à `2025-10-01`, un contexte par mode.
+**Chemin** : `exportTokens` → document Resolver, `version` à `2025.10` (ADR 0040), un contexte par mode.
 **Critères** : à valider avant la tranche.
 
 ### Tranche 6 : l'IA exporte par `export_tokens`

@@ -44,7 +44,8 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0036](0036-les-roles-postgresql-sont-crees-en-sql-jamais-par-neon.md)                                       | Les rôles PostgreSQL de dezyn sont créés en SQL par le propriétaire de la base, jamais par la console ou l'API de Neon                                 | Accepté                                                                                                                                                                                                                                                                                   |
 | [0037](0037-l-app-web-est-une-spa-react-servie-en-statique-par-cloudflare.md)                                | L'app web est une SPA React servie en statique par Cloudflare                                                                                          | Accepté                                                                                                                                                                                                                                                                                   |
 | [0038](0038-l-auteur-d-une-entree-d-historique-porte-son-appartenance-actuelle-a-l-espace.md)                | L'auteur d'une entrée d'historique porte son appartenance actuelle à l'espace, quel que soit le client qui a agi                                       | Accepté                                                                                                                                                                                                                                                                                   |
-| [0039](0039-l-export-dtcg-imbrique-les-tokens-valides-et-decrit-les-modes-par-un-document-resolver.md)       | L'export DTCG imbrique les tokens validés par groupes et décrit les modes par un document Resolver ; un nom de token n'est jamais le groupe d'un autre | Accepté                                                                                                                                                                                                                                                                                   |
+| [0039](0039-l-export-dtcg-imbrique-les-tokens-valides-et-decrit-les-modes-par-un-document-resolver.md)       | L'export DTCG imbrique les tokens validés par groupes et décrit les modes par un document Resolver ; un nom de token n'est jamais le groupe d'un autre | Accepté — valeur de `version` du §3 remplacée par [0040](0040-le-document-resolver-exporte-porte-la-version-2025-10-de-la-specification-publiee.md)                                                                                                                                       |
+| [0040](0040-le-document-resolver-exporte-porte-la-version-2025-10-de-la-specification-publiee.md)            | Le document Resolver exporté porte la version `2025.10` de la spécification publiée                                                                    | Proposé                                                                                                                                                                                                                                                                                   |
 
 ## Dépendances principales
 
@@ -153,6 +154,7 @@ graph TD
   0007 --> 0039
   0026 --> 0039
   0029 --> 0039
+  0039 --> 0040[0040 Version du Resolver]
   0006 --> 0032[0032 Compteur de stockage]
   0011 --> 0032
   0016 --> 0032
@@ -175,7 +177,7 @@ graph TD
 - Les chantiers et les sélections, issus de l'outil de sélections d'Axel, ne sont pas tranchés (synthèse §6). Le partage d'une direction artistique entre projets est écarté pour l'instant (ADR 0011 §2).
 - Le rappel à l'éditeur quand une variante reste sans version validée (ADR 0014, risques).
 - Le contenu d'une entrée d'historique qui contient une donnée personnelle d'un compte supprimé (ADR 0015, risques).
-- La valeur du champ `version` acceptée à l'import d'un fichier Resolver, que le module contredit (ADR 0010, risques).
+- Les valeurs du champ `version` acceptées à l'import d'un fichier Resolver ; l'export écrit `2025.10` (ADR 0040).
 - L'export des projets à modes vers les outils qui ne lisent pas encore le module Resolver (ADR 0010, risques) ; un projet sans modes s'exporte en document DTCG simple (ADR 0039 §3).
 - Les types `duration`, `cubicBezier`, `transition`, `border` et `strokeStyle`, qui attendent un import qui en contient (ADR 0028 §3).
 - La détection des doublons parmi les typographies et les ombres dont les champs sont des alias (ADR 0029, négatives).
