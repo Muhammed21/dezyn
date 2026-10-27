@@ -1,6 +1,6 @@
 # 0040 — Le document Resolver exporté porte la version `2025.10` de la spécification publiée
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-28
 - Décideurs : Muhammed Cavus
 - Amende : ADR 0039 (§3 : la valeur de `version` du document Resolver)
