@@ -1,6 +1,6 @@
 # 0027 — Un membre parti reste nommé dans l'historique de chaque projet de l'espace
 
-- Statut : Accepté — §2 (source de la mention) complété par [0031](0031-un-membre-retire-par-un-proprietaire-est-ferme-avec-la-raison-removed.md)
+- Statut : Accepté — §2 (source de la mention) complété par [0031](0031-un-membre-retire-par-un-proprietaire-est-ferme-avec-la-raison-removed.md) ; risques (membre réinvité, entrées de l'IA) tranchés par [0038](0038-l-auteur-d-une-entree-d-historique-porte-son-appartenance-actuelle-a-l-espace.md)
 - Date : 2026-10-17
 - Décideurs : Muhammed
 - Amende : ADR 0015 (§2 : le membre parti reste nommé dans l'historique de chaque projet de l'espace, et non plus dans l'historique de l'espace ; la mention vient de la table des membres)
