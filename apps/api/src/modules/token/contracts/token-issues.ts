@@ -61,6 +61,8 @@ export const issuesOfCheck = (
       return [{ path: "name", message: "Token déjà nommé dans cet appel" }];
     case "name_taken":
       return [{ path: "name", message: "Nom déjà pris dans le projet" }];
+    case "name_conflict":
+      return [{ path: "name", message: `Nom en conflit de groupe avec le token ${failure.other}` }];
     default:
       return [{ path: "$type", message: "Type différent du token validé" }];
   }
