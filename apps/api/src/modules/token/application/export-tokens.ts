@@ -1,31 +1,35 @@
+import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import { type DtcgGroup, dtcgDocumentOf } from "../domain/dtcg-document.ts";
 import { type GroupConflict, groupConflicts } from "../domain/token-name.ts";
-import type { ProjectTokens } from "./read-tokens.ts";
+import type { readValidatedTokens } from "./read-tokens.ts";
 
 export type ExportFailure = "not_found" | { readonly conflicts: readonly GroupConflict[] };
 
 export const exportTokens =
   ({
-    readProjectTokens,
+    access,
+    readValidatedTokens: read,
   }: {
-    readonly readProjectTokens: (input: {
-      readonly projectId: string;
-      readonly userId: string;
-    }) => Promise<Result<ProjectTokens, "not_found">>;
+    readonly access: ProjectAccess;
+    readonly readValidatedTokens: ReturnType<typeof readValidatedTokens>;
   }) =>
-  async (input: {
+  async ({
+    projectId,
+    userId,
+  }: {
     readonly projectId: string;
     readonly userId: string;
   }): Promise<Result<DtcgGroup, ExportFailure>> => {
-    const read = await readProjectTokens(input);
-    if (!read.ok) {
-      return read;
+    const project = await access({ projectId, userId, action: "space.read" });
+    if (project === undefined) {
+      return err("not_found");
     }
-    const conflicts = groupConflicts(read.value.tokens.map(({ name }) => name));
+    const { tokens } = await read(projectId);
+    const conflicts = groupConflicts(tokens.map(({ name }) => name));
     if (conflicts.length > 0) {
       return err({ conflicts });
     }
-    return ok(dtcgDocumentOf(read.value.tokens));
+    return ok(dtcgDocumentOf(tokens));
   };
