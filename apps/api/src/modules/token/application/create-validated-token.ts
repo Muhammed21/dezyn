@@ -1,4 +1,5 @@
 import type { ValidatedToken, ValidatedTokenWriter } from "../domain/token-check.ts";
+import { groupConflict } from "../domain/token-name.ts";
 import {
   checkedValues,
   type ModeReader,
@@ -33,6 +34,13 @@ export const validatedTokenWriter = ({
 }): ValidatedTokenWriter => ({
   create: async (validated) => {
     const { projectId, token, createdAt } = validated;
+    const other = groupConflict(
+      token.name,
+      (await projectTokens.tokensOf(projectId)).map(({ name }) => name),
+    );
+    if (other !== undefined) {
+      return { code: "name_conflict", other };
+    }
     const checked = await checkedFor({ modes, projectTokens }, validated);
     if (!checked.ok) {
       return checked.error;
