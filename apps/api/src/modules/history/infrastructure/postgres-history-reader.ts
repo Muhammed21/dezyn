@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
 import { z } from "zod";
 
 import type { PostgresDatabase } from "#db";
@@ -6,7 +6,7 @@ import { schema } from "@repo/db";
 
 import type { HistoryReader } from "../application/read-history.ts";
 
-const { historyAuthor, historyEntry, identityUser } = schema;
+const { historyAuthor, historyEntry, identityUser, spaceMember } = schema;
 
 const StoredEntry = z.object({
   id: z.string(),
@@ -15,6 +15,7 @@ const StoredEntry = z.object({
   projectId: z.string(),
   userId: z.string(),
   name: z.string(),
+  openMembershipId: z.string().nullable(),
   clientId: z.string().nullable(),
   before: z.unknown(),
   after: z.unknown(),
@@ -32,6 +33,7 @@ export const postgresHistoryReader = (db: PostgresDatabase): HistoryReader => ({
         projectId: historyEntry.projectId,
         userId: historyAuthor.userId,
         name: identityUser.name,
+        openMembershipId: spaceMember.id,
         clientId: historyEntry.clientId,
         before: historyEntry.before,
         after: historyEntry.after,
@@ -41,6 +43,14 @@ export const postgresHistoryReader = (db: PostgresDatabase): HistoryReader => ({
       .from(historyEntry)
       .innerJoin(historyAuthor, eq(historyAuthor.id, historyEntry.authorId))
       .innerJoin(identityUser, eq(identityUser.id, historyAuthor.userId))
+      .leftJoin(
+        spaceMember,
+        and(
+          eq(spaceMember.spaceId, historyEntry.spaceId),
+          eq(spaceMember.userId, historyAuthor.userId),
+          isNull(spaceMember.closedAt),
+        ),
+      )
       .where(
         and(
           eq(historyEntry.projectId, projectId),
@@ -55,8 +65,16 @@ export const postgresHistoryReader = (db: PostgresDatabase): HistoryReader => ({
       .orderBy(desc(historyEntry.occurredAt), desc(historyEntry.id))
       .limit(take);
     return rows.map((row) => {
-      const { userId, name, ...entry } = StoredEntry.parse(row);
-      return { ...entry, author: { kind: "member", userId, name } };
+      const { userId, name, openMembershipId, ...entry } = StoredEntry.parse(row);
+      return {
+        ...entry,
+        author: {
+          kind: "member",
+          userId,
+          name,
+          membership: openMembershipId === null ? "left" : "active",
+        },
+      };
     });
   },
 });

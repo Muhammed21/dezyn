@@ -148,7 +148,7 @@ describe("l'IA lit les tokens validés d'un projet par le MCP (ADR 0012 §6)", (
         action: "mcp.read_tokens",
         spaceId,
         projectId,
-        author: { kind: "member", userId, name: ADA.name },
+        author: { kind: "member", userId, name: ADA.name, membership: "active" },
         clientId,
         before: null,
         after: { outcome: "success", input: {} },
