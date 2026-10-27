@@ -58,6 +58,7 @@ Chaque page de `docs/`, une ligne chacune : titre, [mode](README.md#carte), stat
 - [0037 — L'app web est une SPA React servie en statique par Cloudflare](adr/0037-l-app-web-est-une-spa-react-servie-en-statique-par-cloudflare.md) — _explanation · Accepté_ — Quelle stack pour l'app web, et où la servir ?
 - [0038 — L'auteur d'une entrée d'historique porte son appartenance actuelle à l'espace, quel que soit le client qui a agi](adr/0038-l-auteur-d-une-entree-d-historique-porte-son-appartenance-actuelle-a-l-espace.md) — _explanation · Accepté_ — Sous quelle forme l'historique rend-il la mention, et que dit-il d'un membre réinvité et des entrées de l'IA d'un membre parti ?
 - [0039 — L'export DTCG imbrique les tokens validés par groupes et décrit les modes par un document Resolver ; un nom de token n'est jamais le groupe d'un autre](adr/0039-l-export-dtcg-imbrique-les-tokens-valides-et-decrit-les-modes-par-un-document-resolver.md) — _explanation · Accepté_ — Sous quelle forme dezyn exporte-t-il les tokens d'un projet, par quel point d'entrée, et comment garantit-il qu'un export imbriqué ne perd rien ?
+- [0040 — Le document Resolver exporté porte la version `2025.10` de la spécification publiée](adr/0040-le-document-resolver-exporte-porte-la-version-2025-10-de-la-specification-publiee.md) — _explanation · Accepté_ — Quelle valeur de `version` porte le document Resolver que dezyn exporte ?
 - [Décisions d'architecture](adr/README.md) — _explanation_ — Format et circuit : voir `.claude/rules/adr-et-spikes.md`.
 
 ## Spikes — recherche bornée
