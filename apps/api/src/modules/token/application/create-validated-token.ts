@@ -1,3 +1,4 @@
+import type { ProjectToken } from "../domain/reference.ts";
 import type { ValidatedToken, ValidatedTokenWriter } from "../domain/token-check.ts";
 import { groupConflict } from "../domain/token-name.ts";
 import {
@@ -9,15 +10,12 @@ import {
 } from "./token-values.ts";
 
 const checkedFor = async (
-  {
-    modes,
-    projectTokens,
-  }: { readonly modes: ModeReader; readonly projectTokens: ProjectTokenReader },
+  { modes, tokens }: { readonly modes: ModeReader; readonly tokens: readonly ProjectToken[] },
   { projectId, token, pending }: ValidatedToken,
 ) =>
   checkedValues(token, {
     projectModes: await modes.modesOf(projectId),
-    tokens: await projectTokens.tokensOf(projectId),
+    tokens,
     pending,
   });
 
@@ -34,14 +32,15 @@ export const validatedTokenWriter = ({
 }): ValidatedTokenWriter => ({
   create: async (validated) => {
     const { projectId, token, createdAt } = validated;
+    const existing = await projectTokens.tokensOf(projectId);
     const other = groupConflict(
       token.name,
-      (await projectTokens.tokensOf(projectId)).map(({ name }) => name),
+      existing.map(({ name }) => name),
     );
     if (other !== undefined) {
       return { code: "name_conflict", other };
     }
-    const checked = await checkedFor({ modes, projectTokens }, validated);
+    const checked = await checkedFor({ modes, tokens: existing }, validated);
     if (!checked.ok) {
       return checked.error;
     }
@@ -52,7 +51,10 @@ export const validatedTokenWriter = ({
     return outcome === "name_taken" ? { code: "name_taken" } : undefined;
   },
   replace: async (validated) => {
-    const checked = await checkedFor({ modes, projectTokens }, validated);
+    const checked = await checkedFor(
+      { modes, tokens: await projectTokens.tokensOf(validated.projectId) },
+      validated,
+    );
     if (!checked.ok) {
       return checked.error;
     }
