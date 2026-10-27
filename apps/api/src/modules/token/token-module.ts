@@ -14,7 +14,8 @@ import { addToken, type PendingProposals } from "./application/add-token.ts";
 import { checkTokens } from "./application/check-tokens.ts";
 import { validatedTokenWriter } from "./application/create-validated-token.ts";
 import { declareFigmaStates, type FigmaProposals } from "./application/declare-figma-states.ts";
-import { readProjectTokens, readTokens } from "./application/read-tokens.ts";
+import { exportTokens } from "./application/export-tokens.ts";
+import { readProjectTokens, readTokens, readValidatedTokens } from "./application/read-tokens.ts";
 import { parseTokenDefinition } from "./contracts/token-definition.ts";
 import {
   postgresFigmaStateReader,
@@ -88,6 +89,13 @@ export const tokenModule = ({
     checkTokens: check,
     readTokens: read,
     readProjectTokens: readProjectTokens({ access, readTokens: read }),
+    exportTokens: exportTokens({
+      access,
+      readValidatedTokens: readValidatedTokens({
+        modes: postgresModeReader(db.orm),
+        tokens: postgresValidatedTokenReader(db),
+      }),
+    }),
     declareFigmaStates: declareFigmaStates({
       access,
       projectTokens: postgresProjectTokenReader(db.orm),

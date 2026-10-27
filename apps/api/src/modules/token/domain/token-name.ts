@@ -20,3 +20,10 @@ const isGroupOf = (group: string, name: string) => name.startsWith(`${group}.`);
 
 export const groupConflict = (name: string, others: readonly string[]): string | undefined =>
   others.find((other) => isGroupOf(name, other) || isGroupOf(other, name));
+
+export type GroupConflict = { readonly name: string; readonly other: string };
+
+export const groupConflicts = (names: readonly string[]): readonly GroupConflict[] =>
+  names.flatMap((name) =>
+    names.filter((other) => isGroupOf(name, other)).map((other) => ({ name, other })),
+  );

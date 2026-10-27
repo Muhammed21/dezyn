@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
 import type { AuthenticatedEnv } from "#platform/access-token.ts";
-import { invalidRequest, problemResponse } from "#platform/problem.ts";
+import { invalidRequest, type Problem, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
@@ -9,6 +9,7 @@ import type { AddedToken } from "../application/add-token.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import { TokenDefinitionInput } from "../contracts/token-definition.ts";
 import { issuesOfCheck } from "../contracts/token-issues.ts";
+import type { GroupConflict } from "../domain/token-name.ts";
 import { tokensOutputOf } from "./tokens-output.ts";
 
 const tokenOutputOf = ({
@@ -33,7 +34,19 @@ const tokenOutputOf = ({
   replaced,
 });
 
-export const tokensRoutes = ({ addToken, readProjectTokens }: TokenUseCases) =>
+const exportConflict = (conflicts: readonly GroupConflict[]): Problem => ({
+  type: "about:blank",
+  title: "Export impossible",
+  status: 409,
+  errors: conflicts.flatMap(({ name, other }) =>
+    issuesOfCheck({ code: "name_conflict", other }).map(({ message }) => ({
+      path: `tokens.${name}`,
+      message,
+    })),
+  ),
+});
+
+export const tokensRoutes = ({ addToken, readProjectTokens, exportTokens }: TokenUseCases) =>
   new Hono<AuthenticatedEnv>()
     .get("/:projectId/tokens", async (c) => {
       const projectId = Uuid.safeParse(c.req.param("projectId")).data;
@@ -42,6 +55,19 @@ export const tokensRoutes = ({ addToken, readProjectTokens }: TokenUseCases) =>
       }
       const read = await readProjectTokens({ projectId, userId: c.get("identity").userId });
       return read.ok ? c.json(tokensOutputOf(read.value)) : c.notFound();
+    })
+    .get("/:projectId/tokens/export", async (c) => {
+      const projectId = Uuid.safeParse(c.req.param("projectId")).data;
+      if (projectId === undefined) {
+        return c.notFound();
+      }
+      const exported = await exportTokens({ projectId, userId: c.get("identity").userId });
+      if (exported.ok) {
+        return c.json(exported.value);
+      }
+      return exported.error === "not_found"
+        ? c.notFound()
+        : problemResponse(c, exportConflict(exported.error.conflicts));
     })
     .post("/:projectId/tokens", validate("json", TokenDefinitionInput), async (c) => {
       const projectId = Uuid.safeParse(c.req.param("projectId")).data;

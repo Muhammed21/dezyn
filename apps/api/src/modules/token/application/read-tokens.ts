@@ -69,7 +69,7 @@ const figmaOf = (
   return { figma };
 };
 
-const tokenOf = (values: TokenValues, figmaStates: readonly TokenFigmaState[]): ReadToken => {
+const tokenOf = (values: TokenValues): ReadToken => {
   const { tokenId, name, $type, $description, $extensions, mode } = values[0];
   return {
     id: tokenId,
@@ -81,7 +81,6 @@ const tokenOf = (values: TokenValues, figmaStates: readonly TokenFigmaState[]): 
     ...($description === null ? {} : { $description }),
     ...(isExtensions($extensions) ? { $extensions } : {}),
     status: "validated",
-    ...figmaOf(tokenId, figmaStates),
   };
 };
 
@@ -93,31 +92,44 @@ const byToken = (values: readonly StoredValue[]): readonly TokenValues[] =>
       : [...groups, [value]];
   }, []);
 
-export const readTokens =
-  ({
-    modes,
-    tokens,
-    figmaStates,
-  }: {
-    readonly modes: ModeReader;
-    readonly tokens: ValidatedTokenReader;
-    readonly figmaStates: FigmaStateReader;
-  }) =>
+export const readValidatedTokens =
+  ({ modes, tokens }: { readonly modes: ModeReader; readonly tokens: ValidatedTokenReader }) =>
   async (projectId: string): Promise<ProjectTokens> => {
-    const [projectModes, values, figma] = await Promise.all([
+    const [projectModes, values] = await Promise.all([
       modes.modesOf(projectId),
       tokens.validatedValuesOf(projectId),
-      figmaStates.figmaStatesOf(projectId),
     ]);
-    const read = byToken(values).map((value) => tokenOf(value, figma));
     return {
       modes: projectModes.map(({ name }) => name),
+      tokens: byToken(values).map(tokenOf),
+    };
+  };
+
+export const readTokens = ({
+  modes,
+  tokens,
+  figmaStates,
+}: {
+  readonly modes: ModeReader;
+  readonly tokens: ValidatedTokenReader;
+  readonly figmaStates: FigmaStateReader;
+}) => {
+  const readValidated = readValidatedTokens({ modes, tokens });
+  return async (projectId: string): Promise<ProjectTokens> => {
+    const [validated, figma] = await Promise.all([
+      readValidated(projectId),
+      figmaStates.figmaStatesOf(projectId),
+    ]);
+    const read = validated.tokens.map((token) => ({ ...token, ...figmaOf(token.id, figma) }));
+    return {
+      modes: validated.modes,
       tokens: read.map((token) => {
         const duplicates = duplicatesOf({ token, among: read });
         return duplicates.length === 0 ? token : { ...token, duplicates };
       }),
     };
   };
+};
 
 export const readProjectTokens =
   ({
