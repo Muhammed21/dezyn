@@ -26,6 +26,7 @@ export interface PendingProposals {
     readonly projectId: string;
     readonly name: string;
   }): Promise<ReplacedProposal | null>;
+  pendingNamesOf(projectId: string): Promise<readonly string[]>;
 }
 
 export interface TokenUnitOfWork {
@@ -84,13 +85,6 @@ export const addToken =
       return err("not_found");
     }
     const existing = await projectTokens.tokensOf(projectId);
-    const other = groupConflict(
-      token.name,
-      existing.map(({ name }) => name),
-    );
-    if (other !== undefined) {
-      return err({ code: "name_conflict", other });
-    }
     const checked = checkedValues(token, {
       projectModes: await modes.modesOf(projectId),
       tokens: existing,
@@ -118,6 +112,13 @@ export const addToken =
           TokenAdditionFailure
         >
       > => {
+        const other = groupConflict(token.name, [
+          ...existing.map(({ name }) => name),
+          ...(await proposals.pendingNamesOf(projectId)),
+        ]);
+        if (other !== undefined) {
+          return err({ code: "name_conflict", other });
+        }
         if ((await tokens.create(added, values.map(modeValueOf))) === "name_taken") {
           return err("name_taken");
         }
