@@ -1,6 +1,7 @@
 import type { ModeRefusal } from "../domain/mode-completeness.ts";
 import type { ReferenceRefusal } from "../domain/reference.ts";
 import type { ValidatedTokenFailure } from "../domain/token-check.ts";
+export { groupConflict } from "../domain/token-name.ts";
 export type {
   CheckTokens,
   TokenCheck,

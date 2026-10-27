@@ -94,6 +94,7 @@ export const postgresProposalStore = (
   tx: PostgresTransaction,
   meter: StorageMeter,
 ): ProposalStore => ({
+  pendingNamesOf: postgresProposalReplacer(tx).pendingNamesOf,
   pendingOf: async (projectId, names) => {
     await [...new Set(names)]
       .toSorted()
