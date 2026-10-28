@@ -35,3 +35,33 @@ export const dtcgDocumentOf = (tokens: readonly DtcgToken[]): DtcgGroup =>
       ];
     }),
   );
+
+export const RESOLVER_VERSION = "2025.10";
+
+export type ModalToken = Omit<DtcgToken, "$value"> & {
+  readonly modes?: Readonly<Record<string, unknown>>;
+};
+
+const tokensIn = (mode: string, tokens: readonly ModalToken[]): readonly DtcgToken[] =>
+  tokens.map(({ modes, ...token }) => ({ ...token, $value: modes?.[mode] }));
+
+export const resolverDocumentOf = ({
+  modifier,
+  modes,
+  tokens,
+}: {
+  readonly modifier: string;
+  readonly modes: readonly string[];
+  readonly tokens: readonly ModalToken[];
+}) => ({
+  version: RESOLVER_VERSION,
+  modifiers: {
+    [modifier]: {
+      contexts: Object.fromEntries(
+        modes.map((mode) => [mode, [dtcgDocumentOf(tokensIn(mode, tokens))]]),
+      ),
+      default: modes[0],
+    },
+  },
+  resolutionOrder: [{ $ref: `#/modifiers/${modifier}` }],
+});

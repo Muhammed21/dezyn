@@ -15,6 +15,7 @@ import type {
   FigmaUnitOfWork,
   RejectedValueReader,
 } from "../application/declare-figma-states.ts";
+import type { ModifierReader } from "../application/export-tokens.ts";
 import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
 import type {
   ModeReader,
@@ -35,6 +36,16 @@ export const postgresProjectTokenReader = (orm: Queryable): ProjectTokenReader =
       .select({ id: token.id, name: token.name, $type: token.type, status: token.status })
       .from(token)
       .where(eq(token.projectId, projectId)),
+});
+
+export const postgresModifierReader = (orm: Queryable): ModifierReader => ({
+  modifierOf: async (projectId) => {
+    const [row] = await orm
+      .select({ name: modifier.name })
+      .from(modifier)
+      .where(eq(modifier.projectId, projectId));
+    return row?.name;
+  },
 });
 
 export const postgresModeReader = (orm: Queryable): ModeReader => ({

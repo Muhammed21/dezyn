@@ -11,7 +11,7 @@ import {
   obtainAccessToken,
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
-import { seedProject } from "#testing/project-fixtures.ts";
+import { seedModes, seedProject } from "#testing/project-fixtures.ts";
 import { addToken, makeColorToken, PRIMARY_BLUE } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
 
@@ -157,6 +157,145 @@ describe("un membre exporte un projet sans modes en document DTCG (ADR 0039 §2)
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
         type: "about:blank",
+        title: "Export impossible",
+        errors: [
+          {
+            path: "tokens.couleur",
+            message: "Nom en conflit de groupe avec le token couleur.fond",
+          },
+        ],
+      });
+    }));
+});
+
+const resolverOf = (modes: Readonly<Record<string, object>>, defaultMode: string) => ({
+  version: "2025.10",
+  modifiers: {
+    apparence: {
+      contexts: Object.fromEntries(Object.entries(modes).map(([mode, tokens]) => [mode, [tokens]])),
+      default: defaultMode,
+    },
+  },
+  resolutionOrder: [{ $ref: "#/modifiers/apparence" }],
+});
+
+describe("un membre exporte un projet à modes en document Resolver (ADR 0039 §3, ADR 0040)", () => {
+  it("chaque mode devient un contexte du modificateur, avec tous les tokens et leur valeur dans ce mode", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["clair", "sombre"] });
+      const $extensions = { "com.figma": { italic: true } };
+      await addToken(app, {
+        accessToken,
+        projectId,
+        token: {
+          name: "couleur.fond",
+          $type: "color",
+          modes: { clair: PRIMARY_BLUE, sombre: NIGHT_BLUE },
+          $description: "Fond de page",
+          $extensions,
+        },
+      });
+      await addToken(app, {
+        accessToken,
+        projectId,
+        token: {
+          name: "couleur.texte",
+          $type: "color",
+          modes: { clair: NIGHT_BLUE, sombre: "{couleur.fond}" },
+        },
+      });
+
+      const response = await exportTokens(app, { accessToken, projectId });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(
+        resolverOf(
+          {
+            clair: {
+              couleur: {
+                fond: {
+                  $type: "color",
+                  $value: PRIMARY_BLUE,
+                  $description: "Fond de page",
+                  $extensions,
+                },
+                texte: { $type: "color", $value: NIGHT_BLUE },
+              },
+            },
+            sombre: {
+              couleur: {
+                fond: {
+                  $type: "color",
+                  $value: NIGHT_BLUE,
+                  $description: "Fond de page",
+                  $extensions,
+                },
+                texte: { $type: "color", $value: "{couleur.fond}" },
+              },
+            },
+          },
+          "clair",
+        ),
+      );
+    }));
+
+  it("les contextes suivent l'ordre des modes, et default désigne le premier", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["sombre", "clair"] });
+
+      const response = await exportTokens(app, { accessToken, projectId });
+      const document = await response.json();
+
+      expect(Object.keys(document.modifiers.apparence.contexts)).toEqual(["sombre", "clair"]);
+      expect(document.modifiers.apparence.default).toBe("sombre");
+    }));
+
+  it("un projet à modes sans token validé donne des contextes vides", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["clair", "sombre"] });
+
+      const response = await exportTokens(app, { accessToken, projectId });
+
+      expect(await response.json()).toEqual(resolverOf({ clair: {}, sombre: {} }, "clair"));
+    }));
+
+  it("une proposition en attente n'est pas exportée", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["clair", "sombre"] });
+      await callMcp(app, {
+        token: accessToken,
+        method: "tools/call",
+        params: {
+          name: "write_tokens",
+          arguments: {
+            projectId,
+            tokens: [
+              { name: "rouge", $type: "color", modes: { clair: PRIMARY_BLUE, sombre: NIGHT_BLUE } },
+            ],
+          },
+        },
+      });
+
+      const response = await exportTokens(app, { accessToken, projectId });
+
+      expect(await response.json()).toEqual(resolverOf({ clair: {}, sombre: {} }, "clair"));
+    }));
+
+  it("deux tokens validés déjà en conflit de groupe font répondre 409", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["clair", "sombre"] });
+      await seedValidatedColor(db, { projectId, name: "couleur" });
+      await seedValidatedColor(db, { projectId, name: "couleur.fond" });
+
+      const response = await exportTokens(app, { accessToken, projectId });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
         title: "Export impossible",
         errors: [
           {
