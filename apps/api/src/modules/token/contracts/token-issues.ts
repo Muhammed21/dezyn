@@ -1,6 +1,7 @@
 import type { ModeRefusal } from "../domain/mode-completeness.ts";
 import type { ReferenceRefusal } from "../domain/reference.ts";
 import type { ValidatedTokenFailure } from "../domain/token-check.ts";
+import type { GroupConflict } from "../domain/token-name.ts";
 export { groupConflict } from "../domain/token-name.ts";
 export type {
   CheckTokens,
@@ -68,3 +69,13 @@ export const issuesOfCheck = (
       return [{ path: "$type", message: "Type différent du token validé" }];
   }
 };
+
+export const issuesOfConflicts = (
+  conflicts: readonly GroupConflict[],
+): readonly { readonly path: string; readonly message: string }[] =>
+  conflicts.flatMap(({ name, other }) =>
+    issuesOfCheck({ code: "name_conflict", other }).map(({ message }) => ({
+      path: `tokens.${name}`,
+      message,
+    })),
+  );
