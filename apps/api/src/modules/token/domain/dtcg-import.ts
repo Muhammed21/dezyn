@@ -25,26 +25,55 @@ export const tokenIssuePath = (name: string, path: string) =>
 
 const pathOf = (name: string, key: string) => (name === "" ? key : `${name}.${key}`);
 
-const tokenOf = (name: string, own: readonly (readonly [string, unknown])[]): FlatDocument => {
-  const candidate = Object.fromEntries(own);
+const UNSUPPORTED = ["$deprecated", "$root"];
+
+type Own = readonly (readonly [string, unknown])[];
+
+const unsupportedOf = (name: string, own: Own): readonly ImportIssue[] =>
+  own
+    .filter(([key]) => UNSUPPORTED.includes(key))
+    .map(([key]) => ({
+      path: `tokens.${pathOf(name, key)}`,
+      message: "Propriété non prise en charge",
+    }));
+
+const tokenOf = (name: string, own: Own, inheritedType: unknown): FlatDocument => {
+  const candidate = {
+    ...(inheritedType === undefined ? {} : { $type: inheritedType }),
+    ...Object.fromEntries(own.filter(([key]) => !UNSUPPORTED.includes(key))),
+  };
+  const unsupported = unsupportedOf(name, own);
   return "$type" in candidate
-    ? { candidates: [{ name, candidate }], issues: [] }
-    : { candidates: [], issues: [{ path: `tokens.${name}.$type`, message: "Type manquant" }] };
+    ? { candidates: [{ name, candidate }], issues: unsupported }
+    : {
+        candidates: [],
+        issues: [...unsupported, { path: `tokens.${name}.$type`, message: "Type manquant" }],
+      };
 };
 
-const groupOf = (name: string, own: readonly (readonly [string, unknown])[]): FlatDocument => ({
+const groupOf = (name: string, own: Own): FlatDocument => ({
   candidates: [],
-  issues: own.map(([key]) => ({
-    path: `tokens.${pathOf(name, key)}`,
-    message: "Propriété de groupe non prise en charge",
-  })),
+  issues: own
+    .filter(([key]) => key !== "$type")
+    .map(([key]) => ({
+      path: `tokens.${pathOf(name, key)}`,
+      message: UNSUPPORTED.includes(key)
+        ? "Propriété non prise en charge"
+        : "Propriété de groupe non prise en charge",
+    })),
 });
 
-const nodeOf = (name: string, node: Readonly<Record<string, unknown>>): FlatDocument => {
+const nodeOf = (
+  name: string,
+  node: Readonly<Record<string, unknown>>,
+  inheritedType: unknown,
+): FlatDocument => {
   const entries = Object.entries(node);
   const own = entries.filter(([key]) => key.startsWith("$"));
   const children = entries.filter(([key]) => !key.startsWith("$"));
-  const self = "$value" in node ? tokenOf(name, own) : groupOf(name, own);
+  const isToken = "$value" in node;
+  const self = isToken ? tokenOf(name, own, inheritedType) : groupOf(name, own);
+  const childType = isToken || !("$type" in node) ? inheritedType : node.$type;
   return children.reduce<FlatDocument>((flat, [key, child]) => {
     const childName = pathOf(name, key);
     return merged(
@@ -55,7 +84,7 @@ const nodeOf = (name: string, node: Readonly<Record<string, unknown>>): FlatDocu
             issues: [{ path: `tokens.${childName}`, message: "Point interdit dans un nom" }],
           }
         : isObject(child)
-          ? nodeOf(childName, child)
+          ? nodeOf(childName, child, childType)
           : {
               candidates: [],
               issues: [{ path: `tokens.${childName}`, message: "Ni un token ni un groupe" }],
@@ -75,5 +104,5 @@ export const flattenDocument = (document: Readonly<Record<string, unknown>>): Fl
       })),
     };
   }
-  return nodeOf("", document);
+  return nodeOf("", document, undefined);
 };

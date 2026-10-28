@@ -468,8 +468,78 @@ describe("un membre importe un document DTCG dans un projet sans modes (ADR 0041
     }));
 });
 
-describe("l'import refuse ce qu'il ne prend pas encore en charge (ADR 0041)", () => {
-  it("un token sans $type répond 400 sur son $type", () =>
+describe("un token sans $type prend celui de son groupe le plus proche (ADR 0041)", () => {
+  it("un token sans $type prend le $type de son groupe", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { couleur: { $type: "color", bleu: { $value: PRIMARY_BLUE } } },
+      });
+
+      expect(response.status).toBe(201);
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({
+        couleur: { bleu: color(PRIMARY_BLUE) },
+      });
+    }));
+
+  it("le groupe le plus proche qui porte un $type l'emporte sur les groupes plus haut", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: {
+          $type: "dimension",
+          couleur: { $type: "color", fond: { bleu: { $value: PRIMARY_BLUE } } },
+          espace: { moyen: { $value: SIXTEEN_PX } },
+        },
+      });
+
+      expect(response.status).toBe(201);
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({
+        couleur: { fond: { bleu: color(PRIMARY_BLUE) } },
+        espace: { moyen: { $type: "dimension", $value: SIXTEEN_PX } },
+      });
+    }));
+
+  it("le $type propre au token l'emporte sur celui de son groupe", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { espace: { $type: "color", moyen: { $type: "dimension", $value: SIXTEEN_PX } } },
+      });
+
+      expect(response.status).toBe(201);
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({
+        espace: { moyen: { $type: "dimension", $value: SIXTEEN_PX } },
+      });
+    }));
+
+  it("une valeur qui ne correspond pas au $type hérité répond 400 sur sa valeur", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { couleur: { $type: "color", bleu: { $value: 12 } } },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path: "tokens.couleur.bleu.$value", message: expect.any(String) }]),
+      );
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({});
+    }));
+
+  it("un token sans $type, dans des groupes sans $type, répond 400 sur son $type", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
 
@@ -484,15 +554,92 @@ describe("l'import refuse ce qu'il ne prend pas encore en charge (ADR 0041)", ()
         invalidDocument([{ path: "tokens.couleur.bleu.$type", message: "Type manquant" }]),
       );
     }));
+});
 
-  it("une propriété posée sur un groupe répond 400 avec son chemin", () =>
+describe("l'import refuse ce que dezyn ne stocke pas (ADR 0041)", () => {
+  it.each([["$description"], ["$extensions"], ["$inconnu"]])(
+    "%s posé sur un groupe répond 400 avec son chemin",
+    (property) =>
+      withIdentityApp(async (app, db) => {
+        const { accessToken, projectId } = await seedProject(app, db);
+
+        const response = await importTokens(app, {
+          accessToken,
+          projectId,
+          document: { couleur: { [property]: {}, bleu: color(PRIMARY_BLUE) } },
+        });
+
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject(
+          invalidDocument([
+            {
+              path: `tokens.couleur.${property}`,
+              message: "Propriété de groupe non prise en charge",
+            },
+          ]),
+        );
+        expect(await exportedDocument(app, { accessToken, projectId })).toEqual({});
+      }),
+  );
+
+  it.each([
+    [
+      "un token",
+      { couleur: { bleu: { ...color(PRIMARY_BLUE), $deprecated: true } } },
+      "tokens.couleur.bleu.$deprecated",
+    ],
+    [
+      "un groupe",
+      { couleur: { $deprecated: true, bleu: color(PRIMARY_BLUE) } },
+      "tokens.couleur.$deprecated",
+    ],
+  ])("$deprecated posé sur %s répond 400 avec son chemin", (_, document, path) =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, { accessToken, projectId, document });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path, message: "Propriété non prise en charge" }]),
+      );
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({});
+    }),
+  );
+
+  it("$root répond 400 avec son chemin", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
 
       const response = await importTokens(app, {
         accessToken,
         projectId,
-        document: { couleur: { $description: "Couleurs", bleu: color(PRIMARY_BLUE) } },
+        document: { couleur: { $root: color(PRIMARY_BLUE), nuit: color(NIGHT_BLUE) } },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "tokens.couleur.$root", message: "Propriété non prise en charge" },
+        ]),
+      );
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({});
+    }));
+
+  it("toutes les propriétés refusées reviennent dans le même 400", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: {
+          couleur: {
+            $description: "Couleurs",
+            $root: color(PRIMARY_BLUE),
+            nuit: { ...color(NIGHT_BLUE), $deprecated: true },
+          },
+        },
       });
 
       expect(response.status).toBe(400);
@@ -502,6 +649,8 @@ describe("l'import refuse ce qu'il ne prend pas encore en charge (ADR 0041)", ()
             path: "tokens.couleur.$description",
             message: "Propriété de groupe non prise en charge",
           },
+          { path: "tokens.couleur.$root", message: "Propriété non prise en charge" },
+          { path: "tokens.couleur.nuit.$deprecated", message: "Propriété non prise en charge" },
         ]),
       );
     }));
