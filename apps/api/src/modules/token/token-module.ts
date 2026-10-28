@@ -22,6 +22,7 @@ import {
   postgresFigmaStateSynchronizer,
   postgresFigmaUnitOfWork,
   postgresModeReader,
+  postgresModifierReader,
   postgresProjectTokenReader,
   postgresRejectedValueReader,
   postgresTokenUnitOfWork,
@@ -91,6 +92,7 @@ export const tokenModule = ({
     readProjectTokens: readProjectTokens({ access, readTokens: read }),
     exportTokens: exportTokens({
       access,
+      modifiers: postgresModifierReader(db.orm),
       readValidatedTokens: readValidatedTokens({
         modes: postgresModeReader(db.orm),
         tokens: postgresValidatedTokenReader(db),
