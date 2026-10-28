@@ -118,7 +118,7 @@ L'import est vérifié en entier avant d'écrire, puis écrit en une transaction
 
 ### 3. Un document Resolver crée les modes d'un projet vide
 
-Un document DTCG simple s'importe dans un projet sans modes. Un document Resolver s'importe dans un projet sans modes ni token validé, en créant le modificateur sous son nom et les modes dans l'ordre des contextes ; dans un projet à modes, il exige le même modificateur et le même ensemble de modes, l'ordre du projet faisant foi. Les autres combinaisons sont refusées en 400. L'export échappe `~` et `/` dans le nom du modificateur qu'il écrit dans `$ref`.
+Un document DTCG simple s'importe dans un projet sans modes. Un document Resolver s'importe dans un projet sans modes, sans token validé ni proposition en attente, en créant le modificateur sous son nom et les modes dans l'ordre des contextes ; une proposition en attente refuse l'import en 400, car elle ne pourrait plus être validée sans valeur par mode. La création laisse une entrée `modes.created`, sans état avant, avec le modificateur et ses modes après, le membre pour auteur et le `correlationId` de l'import ; dans un projet à modes, il exige le même modificateur et le même ensemble de modes, l'ordre du projet faisant foi. Les autres combinaisons sont refusées en 400. L'export échappe `~` et `/` dans le nom du modificateur qu'il écrit dans `$ref`.
 
 ### 4. L'import accepte la forme de l'export
 
@@ -146,6 +146,7 @@ Un token sans `$type` prend celui de son groupe le plus proche. Une `$descriptio
 
 - **Un fichier réel utilise une forme refusée** : le 400 nomme le champ ; la forme s'ajoute quand un tel fichier se présente.
 - **Un import de 500 tokens dépasse le temps CPU du Worker** : le passage au plan Workers Paid (#161) relève le plafond ; la limite de 500 se baisse sinon.
+- **Des propositions attendent dans un projet sans modes** : le 400 demande de les relire avant d'importer un document Resolver.
 - **Deux imports concurrents écrivent le même nom** : la contrainte d'unicité du nom en base fait échouer la seconde transaction, qui répond 409.
 
 ## Notes d'implémentation
@@ -153,7 +154,7 @@ Un token sans `$type` prend celui de son groupe le plus proche. Une `$descriptio
 1. Un document DTCG simple dans un projet sans modes : création validée, 409 des noms existants, références, limite, historique.
 2. Le `$type` hérité d'un groupe, et le refus des propriétés non stockées.
 3. Un document Resolver dans un projet qui a déjà les mêmes modes.
-4. Un document Resolver qui crée le modificateur et les modes d'un projet vide, et l'échappement du `$ref` à l'export.
+4. Un document Resolver qui crée le modificateur et les modes d'un projet vide, avec l'entrée `modes.created`, et l'échappement du `$ref` à l'export.
 
 ## Liens
 

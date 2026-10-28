@@ -38,5 +38,5 @@ Chaque tranche suit RED → GREEN → MUTATE → KILL MUTANTS → REFACTOR, et f
 ### Tranche 4 : un document Resolver crée le modificateur et les modes d'un projet vide
 
 **Valeur** : un projet à modes peut naître par l'API ; l'aller-retour export → import → export ressort identique avec modes.
-**Chemin** : projet sans modes ni token validé → création du modificateur sous le nom du document et des modes dans l'ordre des contextes, dans la transaction de l'import → l'export échappe `~` et `/` dans le `$ref`. Un document Resolver dans un projet qui a des tokens sans modes, ou un document simple dans un projet à modes, répond 400.
+**Chemin** : projet sans modes, sans token validé ni proposition en attente → création du modificateur sous le nom du document et des modes dans l'ordre des contextes, dans la transaction de l'import, avec une entrée `modes.created` → l'export échappe `~` et `/` dans le `$ref`. Un document Resolver dans un projet qui a des tokens sans modes, un document simple dans un projet à modes, ou une proposition en attente dans le projet vide, répond 400.
 **Critères** : à valider avant la tranche. La dernière PR supprime ce plan et clôt #167.
