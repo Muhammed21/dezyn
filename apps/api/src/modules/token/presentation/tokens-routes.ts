@@ -8,7 +8,7 @@ import { Uuid } from "@repo/contracts";
 import type { AddedToken } from "../application/add-token.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import { TokenDefinitionInput } from "../contracts/token-definition.ts";
-import { issuesOfCheck } from "../contracts/token-issues.ts";
+import { issuesOfCheck, issuesOfConflicts } from "../contracts/token-issues.ts";
 import type { GroupConflict } from "../domain/token-name.ts";
 import { tokensOutputOf } from "./tokens-output.ts";
 
@@ -38,12 +38,7 @@ const exportConflict = (conflicts: readonly GroupConflict[]): Problem => ({
   type: "about:blank",
   title: "Export impossible",
   status: 409,
-  errors: conflicts.flatMap(({ name, other }) =>
-    issuesOfCheck({ code: "name_conflict", other }).map(({ message }) => ({
-      path: `tokens.${name}`,
-      message,
-    })),
-  ),
+  errors: issuesOfConflicts(conflicts),
 });
 
 export const tokensRoutes = ({ addToken, readProjectTokens, exportTokens }: TokenUseCases) =>

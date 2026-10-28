@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PostgresDatabase } from "#db";
 import {
+  ADA,
   type App,
   BASE_URL,
   callMcp,
@@ -12,7 +13,7 @@ import {
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
 import { seedModes, seedProject } from "#testing/project-fixtures.ts";
-import { addToken, makeColorToken, PRIMARY_BLUE } from "#testing/token-fixtures.ts";
+import { addToken, historyOf, makeColorToken, PRIMARY_BLUE } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
 
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
@@ -327,4 +328,121 @@ describe("seul un membre du projet exporte ses tokens", () => {
       expect(response.status).toBe(404);
     }),
   );
+});
+
+const EXPORT_CORRELATION_ID = "export-des-tokens-1";
+
+const EXPORT_DESCRIPTION =
+  "Exporte les tokens validés d'un projet : un document DTCG imbriqué par groupes, ou, si le projet a des modes, un document Resolver (version 2025.10) avec un contexte par mode. Le document revient dans document. Un projet dont deux tokens sont en conflit de groupe ne s'exporte pas.";
+
+const exportByMcp = async (
+  app: App,
+  { accessToken, projectId }: { accessToken: string; projectId: string },
+) => {
+  const response = await callMcp(app, {
+    token: accessToken,
+    method: "tools/call",
+    params: { name: "export_tokens", arguments: { projectId } },
+    correlationId: EXPORT_CORRELATION_ID,
+  });
+  const { result } = await response.json();
+  return result;
+};
+
+describe("l'IA exporte les tokens d'un projet par export_tokens (ADR 0039 §4)", () => {
+  it("export_tokens rend le même document que la route, en texte et dans document", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await addToken(app, { accessToken, projectId, token: makeColorToken() });
+      const exported = await (await exportTokens(app, { accessToken, projectId })).json();
+
+      const result = await exportByMcp(app, { accessToken, projectId });
+
+      expect(result.isError).toBeUndefined();
+      expect(result.structuredContent).toEqual({ document: exported });
+      expect(JSON.parse(result.content[0].text)).toEqual(exported);
+    }));
+
+  it("l'appel laisse une entrée mcp.export_tokens avec l'auteur et le client OAuth", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, clientId, userId, spaceId, projectId } = await seedProject(app, db);
+
+      await exportByMcp(app, { accessToken, projectId });
+
+      expect((await historyOf(app, { accessToken, projectId }))[0]).toEqual({
+        id: expect.any(String),
+        action: "mcp.export_tokens",
+        spaceId,
+        projectId,
+        author: { kind: "member", userId, name: ADA.name, membership: "active" },
+        clientId,
+        before: null,
+        after: { outcome: "success", input: {} },
+        occurredAt: expect.any(String),
+        correlationId: EXPORT_CORRELATION_ID,
+      });
+    }));
+
+  it("un conflit de groupe rend une erreur, une ligne par conflit, et l'appel entre dans l'historique en échec", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedValidatedColor(db, { projectId, name: "couleur" });
+      await seedValidatedColor(db, { projectId, name: "couleur.fond" });
+      await seedValidatedColor(db, { projectId, name: "taille" });
+      await seedValidatedColor(db, { projectId, name: "taille.base" });
+
+      const result = await exportByMcp(app, { accessToken, projectId });
+
+      expect(result).toEqual({
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: [
+              "tokens.couleur : Nom en conflit de groupe avec le token couleur.fond",
+              "tokens.taille : Nom en conflit de groupe avec le token taille.base",
+            ].join("\n"),
+          },
+        ],
+      });
+      expect((await historyOf(app, { accessToken, projectId }))[0]).toMatchObject({
+        action: "mcp.export_tokens",
+        after: { outcome: "error" },
+      });
+    }));
+
+  it("l'IA d'un non-membre reçoit « Projet introuvable »", () =>
+    withIdentityApp(async (app, db) => {
+      const { projectId } = await seedProject(app, db);
+      const grace = await obtainAccessToken(app, { user: GRACE });
+
+      const result = await exportByMcp(app, { accessToken: grace.accessToken, projectId });
+
+      expect(result).toEqual({
+        isError: true,
+        content: [{ type: "text", text: "Projet introuvable" }],
+      });
+    }));
+
+  it("tools/list annonce export_tokens, son entrée et sa sortie", () =>
+    withIdentityApp(async (app) => {
+      const { accessToken } = await obtainAccessToken(app);
+
+      const response = await callMcp(app, { token: accessToken, method: "tools/list" });
+
+      expect(await response.json()).toMatchObject({
+        result: {
+          tools: expect.arrayContaining([
+            expect.objectContaining({
+              name: "export_tokens",
+              description: EXPORT_DESCRIPTION,
+              inputSchema: expect.objectContaining({ required: ["projectId"] }),
+              outputSchema: expect.objectContaining({
+                properties: expect.objectContaining({ document: expect.anything() }),
+              }),
+            }),
+          ]),
+        },
+      });
+    }));
 });
