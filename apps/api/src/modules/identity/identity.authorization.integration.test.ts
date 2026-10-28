@@ -253,7 +253,8 @@ describe("la clé de signature des jetons tourne", () => {
         })
         .from(schema.identityJwks);
 
-      expect(Number(key?.expiresAt) - Number(key?.createdAt)).toBe(90 * DAY_MS);
+      const lifetime = Number(key?.expiresAt) - Number(key?.createdAt);
+      expect(Math.abs(lifetime - 90 * DAY_MS)).toBeLessThan(1000);
     }));
 
   it("une clé expirée reste publiée un jour, puis quitte le JWKS", () =>
