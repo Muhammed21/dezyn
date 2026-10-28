@@ -15,6 +15,7 @@ import { checkTokens } from "./application/check-tokens.ts";
 import { validatedTokenWriter } from "./application/create-validated-token.ts";
 import { declareFigmaStates, type FigmaProposals } from "./application/declare-figma-states.ts";
 import { exportTokens } from "./application/export-tokens.ts";
+import { importTokens } from "./application/import-tokens.ts";
 import { readProjectTokens, readTokens, readValidatedTokens } from "./application/read-tokens.ts";
 import { parseTokenDefinition } from "./contracts/token-definition.ts";
 import {
@@ -23,6 +24,7 @@ import {
   postgresFigmaUnitOfWork,
   postgresModeReader,
   postgresModifierReader,
+  postgresTokenImportUnitOfWork,
   postgresProjectTokenReader,
   postgresRejectedValueReader,
   postgresTokenUnitOfWork,
@@ -90,6 +92,21 @@ export const tokenModule = ({
     checkTokens: check,
     readTokens: read,
     readProjectTokens: readProjectTokens({ access, readTokens: read }),
+    importTokens: importTokens({
+      access,
+      modes: postgresModeReader(db.orm),
+      projectTokens: postgresProjectTokenReader(db.orm),
+      unitOfWork: postgresTokenImportUnitOfWork({
+        db,
+        historyWriterOn,
+        proposalReplacerOn,
+        storageMeterOn,
+        newId: randomUUID,
+      }),
+      parseTokenDefinition,
+      newId: randomUUID,
+      now: clock,
+    }),
     exportTokens: exportTokens({
       access,
       modifiers: postgresModifierReader(db.orm),

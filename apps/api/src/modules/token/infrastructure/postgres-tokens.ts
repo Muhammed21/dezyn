@@ -7,6 +7,7 @@ import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { StorageAlertDecision } from "#modules/space/contracts/storage-alert.ts";
 import { schema } from "@repo/db";
+import type { Err, Result } from "@repo/result";
 
 import type { PendingProposals, TokenUnitOfWork } from "../application/add-token.ts";
 import type {
@@ -16,6 +17,7 @@ import type {
   RejectedValueReader,
 } from "../application/declare-figma-states.ts";
 import type { ModifierReader } from "../application/export-tokens.ts";
+import type { TokenImportUnit, TokenImportUnitOfWork } from "../application/import-tokens.ts";
 import type { FigmaStateReader, ValidatedTokenReader } from "../application/read-tokens.ts";
 import type {
   ModeReader,
@@ -183,6 +185,49 @@ export const postgresTokenUnitOfWork = ({
         storageAlert: storageAlertOn(tx),
       }),
     ),
+});
+
+export const postgresTokenImportUnitOfWork = ({
+  db,
+  historyWriterOn,
+  proposalReplacerOn,
+  storageMeterOn,
+  newId,
+}: {
+  readonly db: PostgresDatabase;
+  readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
+  readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
+  readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
+  readonly newId: () => string;
+}): TokenImportUnitOfWork => ({
+  async run<T, E>(work: (unit: TokenImportUnit) => Promise<Result<T, E>>): Promise<Result<T, E>> {
+    class RolledBack extends Error {
+      readonly failure: Err<E>;
+
+      constructor(failure: Err<E>) {
+        super("Transaction annulée");
+        this.failure = failure;
+      }
+    }
+    return db.orm
+      .transaction(async (tx) => {
+        const outcome = await work({
+          tokens: postgresTokenWriter(tx, { newId, meter: storageMeterOn(tx) }),
+          history: historyWriterOn(tx),
+          proposals: proposalReplacerOn(tx),
+        });
+        if (!outcome.ok) {
+          throw new RolledBack(outcome);
+        }
+        return outcome;
+      })
+      .catch((error: unknown) => {
+        if (error instanceof RolledBack) {
+          return error.failure;
+        }
+        throw error;
+      });
+  },
 });
 
 const referenced = alias(token, "referenced");

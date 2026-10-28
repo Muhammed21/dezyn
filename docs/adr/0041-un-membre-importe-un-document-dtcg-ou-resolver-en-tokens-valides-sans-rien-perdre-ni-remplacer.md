@@ -1,6 +1,6 @@
 # 0041 — Un membre importe un document DTCG ou Resolver en tokens validés, sans rien perdre ni remplacer
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-10-28
 - Décideurs : Muhammed Cavus
 

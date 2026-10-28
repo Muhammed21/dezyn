@@ -1,4 +1,4 @@
-import { referencedNames } from "#modules/token/contracts/token-definition.ts";
+import { referencesFirst } from "#modules/token/contracts/token-definition.ts";
 
 import type { BatchState, Proposal } from "./proposal.ts";
 
@@ -6,23 +6,6 @@ export type BatchPlan =
   | { readonly refusal: "batch_open" }
   | { readonly refusal: "unknown_propositions"; readonly ids: readonly string[] }
   | { readonly toValidate: readonly Proposal[]; readonly toReject: readonly Proposal[] };
-
-const targetsFirst = (
-  remaining: readonly Proposal[],
-  placed: readonly Proposal[] = [],
-): readonly Proposal[] => {
-  const waiting = new Set(remaining.map(({ name }) => name));
-  const ready = remaining.find((proposal) =>
-    referencedNames(proposal.token).every((name) => !waiting.has(name)),
-  );
-  if (ready === undefined) {
-    return [...placed, ...remaining];
-  }
-  return targetsFirst(
-    remaining.filter((proposal) => proposal !== ready),
-    [...placed, ready],
-  );
-};
 
 export const planBatchValidation = ({
   batchState,
@@ -42,7 +25,10 @@ export const planBatchValidation = ({
   }
   const proposed = proposals.filter(({ status }) => status === "proposed");
   return {
-    toValidate: targetsFirst(proposed.filter(({ id }) => !rejected.includes(id))),
+    toValidate: referencesFirst(
+      proposed.filter(({ id }) => !rejected.includes(id)),
+      ({ token }) => token,
+    ),
     toReject: proposed.filter(({ id }) => rejected.includes(id)),
   };
 };
