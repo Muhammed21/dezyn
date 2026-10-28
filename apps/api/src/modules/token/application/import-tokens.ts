@@ -5,8 +5,10 @@ import { err, ok, type Result } from "@repo/result";
 import {
   candidateIssuePath,
   distinct,
-  flattenDocument,
+  type ImportedResolver,
   type ImportIssue,
+  readDocument,
+  type ReadDocument,
   tokenIssuePath,
 } from "../domain/dtcg-import.ts";
 import { inCycle, referencesFirst } from "../domain/reference-order.ts";
@@ -15,6 +17,7 @@ import type { ValidatedTokenFailure } from "../domain/token-check.ts";
 import { groupConflict } from "../domain/token-name.ts";
 import type { TokenDefinition } from "../domain/token.ts";
 import type { PendingProposals } from "./add-token.ts";
+import type { ModifierReader } from "./export-tokens.ts";
 import {
   checkedValues,
   type ModeReader,
@@ -56,11 +59,7 @@ const invalidDocument = (
   checks: readonly TokenCheckOfImport[] = [],
 ): ImportFailure => ({ issues, checks });
 
-const parsedDocument = (
-  document: Readonly<Record<string, unknown>>,
-  parse: ParseTokenDefinition,
-) => {
-  const { candidates, issues } = flattenDocument(document);
+const parsedDocument = ({ candidates, issues }: ReadDocument, parse: ParseTokenDefinition) => {
   const parsed = candidates.map((imported) => ({
     imported,
     parsed: parse({ ...imported.candidate, name: imported.name }),
@@ -84,10 +83,24 @@ const parsedDocument = (
   };
 };
 
+const sameModes = (first: readonly string[], second: readonly string[]) =>
+  first.length === second.length && first.every((mode) => second.includes(mode));
+
+const modesMismatch = (
+  resolver: ImportedResolver | undefined,
+  project: { readonly modifier: string | undefined; readonly modes: readonly string[] },
+): readonly ImportIssue[] =>
+  resolver === undefined ||
+  resolver.modifier === undefined ||
+  (resolver.modifier === project.modifier && sameModes(resolver.modes, project.modes))
+    ? []
+    : [{ path: "modifiers", message: "Modes différents de ceux du projet" }];
+
 export const importTokens =
   ({
     access,
     modes,
+    modifiers,
     projectTokens,
     unitOfWork,
     parseTokenDefinition,
@@ -96,6 +109,7 @@ export const importTokens =
   }: {
     readonly access: ProjectAccess;
     readonly modes: ModeReader;
+    readonly modifiers: ModifierReader;
     readonly projectTokens: ProjectTokenReader;
     readonly unitOfWork: TokenImportUnitOfWork;
     readonly parseTokenDefinition: ParseTokenDefinition;
@@ -117,7 +131,8 @@ export const importTokens =
     if (project === undefined) {
       return err("not_found");
     }
-    const { count, definitions, issues } = parsedDocument(document, parseTokenDefinition);
+    const read = readDocument(document);
+    const { count, definitions, issues } = parsedDocument(read, parseTokenDefinition);
     if (count > MAX_TOKENS_PER_IMPORT) {
       return err(
         invalidDocument([
@@ -125,10 +140,22 @@ export const importTokens =
         ]),
       );
     }
-    const [projectModes, existing] = await Promise.all([
+    const [projectModes, projectModifier, existing] = await Promise.all([
       modes.modesOf(projectId),
+      modifiers.modifierOf(projectId),
       projectTokens.tokensOf(projectId),
     ]);
+    if (read.resolver !== undefined && projectModifier === undefined) {
+      return err(
+        invalidDocument([
+          { path: "modifiers", message: "Document Resolver dans un projet sans modes" },
+        ]),
+      );
+    }
+    const modesIssues = modesMismatch(read.resolver, {
+      modifier: projectModifier,
+      modes: projectModes.map(({ name }) => name),
+    });
     const createdAt = now();
     const ordered = referencesFirst(definitions, (token) => token).map((token) => ({
       token,
@@ -174,8 +201,8 @@ export const importTokens =
         path: tokenIssuePath(name, "$value"),
         message: "Référence circulaire",
       }));
-      if (issues.length > 0 || cycles.length > 0 || checks.length > 0) {
-        return err(invalidDocument([...issues, ...cycles], checks));
+      if (modesIssues.length > 0 || issues.length > 0 || cycles.length > 0 || checks.length > 0) {
+        return err(invalidDocument([...modesIssues, ...issues, ...cycles], checks));
       }
       const taken = definitions
         .filter(({ name }) => existing.some((token) => token.name === name))

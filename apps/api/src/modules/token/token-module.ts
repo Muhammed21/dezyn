@@ -95,6 +95,7 @@ export const tokenModule = ({
     importTokens: importTokens({
       access,
       modes: postgresModeReader(db.orm),
+      modifiers: postgresModifierReader(db.orm),
       projectTokens: postgresProjectTokenReader(db.orm),
       unitOfWork: postgresTokenImportUnitOfWork({
         db,

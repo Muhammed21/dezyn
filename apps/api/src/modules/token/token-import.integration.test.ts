@@ -10,7 +10,7 @@ import {
   obtainAccessToken,
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
-import { seedProject, seedProjectAsEditor } from "#testing/project-fixtures.ts";
+import { seedModes, seedProject, seedProjectAsEditor } from "#testing/project-fixtures.ts";
 import { addToken, historyOf, makeColorToken, PRIMARY_BLUE } from "#testing/token-fixtures.ts";
 import { schema } from "@repo/db";
 
@@ -749,23 +749,447 @@ describe("l'import refuse ce que dezyn ne stocke pas (ADR 0041)", () => {
     }),
   );
 
-  it.each([["version"], ["resolutionOrder"]])(
-    "un document Resolver, reconnu à son champ %s, répond 400",
-    (field) =>
+  it("un document Resolver dans un projet sans modes répond 400", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({ clair: {}, sombre: {} }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "modifiers", message: "Document Resolver dans un projet sans modes" },
+        ]),
+      );
+    }));
+});
+
+const resolverOf = (
+  contexts: Readonly<Record<string, object>>,
+  { modifier = "apparence" }: { readonly modifier?: string } = {},
+) => ({
+  version: "2025.10",
+  modifiers: {
+    [modifier]: {
+      contexts: Object.fromEntries(
+        Object.entries(contexts).map(([mode, tokens]) => [mode, [tokens]]),
+      ),
+      default: Object.keys(contexts)[0],
+    },
+  },
+  resolutionOrder: [{ $ref: `#/modifiers/${modifier}` }],
+});
+
+const seedModalProject = async (app: App, db: Parameters<typeof seedModes>[0]) => {
+  const project = await seedProject(app, db);
+  await seedModes(db, { projectId: project.projectId, modes: ["clair", "sombre"] });
+  return project;
+};
+
+describe("un membre importe un document Resolver dans un projet qui a les mêmes modes (ADR 0041)", () => {
+  it("un document exporté d'un projet à modes, importé dans un projet aux mêmes modes, ressort identique", () =>
+    withIdentityApp(async (app, db) => {
+      const source = await seedModalProject(app, db);
+      const $extensions = { "com.figma": { italic: true } };
+      await addToken(app, {
+        ...source,
+        token: {
+          name: "couleur.fond",
+          $type: "color",
+          modes: { clair: PRIMARY_BLUE, sombre: NIGHT_BLUE },
+          $description: "Fond de page",
+          $extensions,
+        },
+      });
+      await addToken(app, {
+        ...source,
+        token: {
+          name: "couleur.texte",
+          $type: "color",
+          modes: { clair: NIGHT_BLUE, sombre: "{couleur.fond}" },
+        },
+      });
+      const exported = await exportedDocument(app, source);
+      const target = await seedProjectAsEditor(app, db, { user: GRACE });
+      await seedModes(db, { projectId: target.projectId, modes: ["clair", "sombre"] });
+
+      const response = await importTokens(app, { ...target, document: exported });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ imported: 2, modes: ["clair", "sombre"] });
+      expect(await exportedDocument(app, target)).toEqual(exported);
+    }));
+
+  it("des contextes dans un autre ordre que les modes s'importent, et l'ordre du projet fait foi", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await seedModes(db, { projectId, modes: ["sombre", "clair"] });
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: color(PRIMARY_BLUE) },
+          sombre: { fond: color(NIGHT_BLUE) },
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ imported: 1, modes: ["sombre", "clair"] });
+      expect(
+        Object.keys(
+          (await exportedDocument(app, { accessToken, projectId })).modifiers.apparence.contexts,
+        ),
+      ).toEqual(["sombre", "clair"]);
+    }));
+
+  it("dans chaque contexte, un token hérite le $type de son groupe et référence un token du projet", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+      await addToken(app, {
+        accessToken,
+        projectId,
+        token: { name: "base", $type: "color", modes: { clair: PRIMARY_BLUE, sombre: NIGHT_BLUE } },
+      });
+      const context = { couleur: { $type: "color", texte: { $value: "{base}" } } };
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({ clair: context, sombre: context }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(
+        (await exportedDocument(app, { accessToken, projectId })).modifiers.apparence.contexts
+          .sombre,
+      ).toEqual([{ base: color(NIGHT_BLUE), couleur: { texte: color("{base}") } }]);
+    }));
+
+  it("un token absent d'un contexte répond 400 sur ce mode, sans rien écrire", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: color(PRIMARY_BLUE), texte: color(NIGHT_BLUE) },
+          sombre: { fond: color(NIGHT_BLUE) },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "tokens.texte.modes.sombre", message: "Valeur manquante pour ce mode" },
+        ]),
+      );
+      expect(await tokenCreations(app, { accessToken, projectId })).toEqual([]);
+    }));
+
+  it.each([
+    ["$description", "Fond", "Fond sombre"],
+    ["$extensions", { "com.figma": { italic: true } }, { "com.figma": { italic: false } }],
+  ])(
+    "%s différent d'un contexte à l'autre répond 400 sur cette propriété",
+    (property, clair, sombre) =>
       withIdentityApp(async (app, db) => {
-        const { accessToken, projectId } = await seedProject(app, db);
+        const { accessToken, projectId } = await seedModalProject(app, db);
 
         const response = await importTokens(app, {
           accessToken,
           projectId,
-          document: { [field]: field === "version" ? "2025.10" : [] },
+          document: resolverOf({
+            clair: { fond: { ...color(PRIMARY_BLUE), [property]: clair } },
+            sombre: { fond: { ...color(NIGHT_BLUE), [property]: sombre } },
+          }),
         });
 
         expect(response.status).toBe(400);
         expect(await response.json()).toMatchObject(
-          invalidDocument([{ path: field, message: "Document Resolver non pris en charge" }]),
+          invalidDocument([
+            { path: `tokens.fond.${property}`, message: "Propriété différente selon le mode" },
+          ]),
         );
       }),
+  );
+
+  it("une propriété présente dans un seul contexte répond 400 sur cette propriété", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: { ...color(PRIMARY_BLUE), $description: "Fond" } },
+          sombre: { fond: color(NIGHT_BLUE) },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "tokens.fond.$description", message: "Propriété différente selon le mode" },
+        ]),
+      );
+    }));
+
+  it("un $type différent d'un contexte à l'autre répond 400 sur le $type", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: color(PRIMARY_BLUE) },
+          sombre: { fond: { $type: "dimension", $value: SIXTEEN_PX } },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect((await response.json()).errors).toContainEqual({
+        path: "tokens.fond.$type",
+        message: "Propriété différente selon le mode",
+      });
+    }));
+
+  it("une référence cassée dans un contexte répond 400 sur ce mode", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: color(PRIMARY_BLUE) },
+          sombre: { fond: color("{inconnu}") },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "tokens.fond.modes.sombre", message: "Référence vers un token inexistant" },
+        ]),
+      );
+    }));
+
+  it("une erreur répétée d'un contexte à l'autre n'apparaît qu'une fois, les autres restent", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+      const context = {
+        couleur: { $description: "Couleurs", fond: color(PRIMARY_BLUE) },
+        espace: { $description: "Espaces" },
+        "bord.fin": color(PRIMARY_BLUE),
+        bord: { fin: 1 },
+      };
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({ clair: context, sombre: context }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          {
+            path: "tokens.couleur.$description",
+            message: "Propriété de groupe non prise en charge",
+          },
+          {
+            path: "tokens.espace.$description",
+            message: "Propriété de groupe non prise en charge",
+          },
+          { path: "tokens.bord.fin", message: "Point interdit dans un nom" },
+          { path: "tokens.bord.fin", message: "Ni un token ni un groupe" },
+        ]),
+      );
+    }));
+
+  it("un nom déjà validé répond 409, et un import réussi laisse une entrée token.created par token", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+      const document = resolverOf({
+        clair: { fond: color(PRIMARY_BLUE), texte: color(NIGHT_BLUE) },
+        sombre: { fond: color(NIGHT_BLUE), texte: color(PRIMARY_BLUE) },
+      });
+
+      const first = await importTokens(app, { accessToken, projectId, document });
+      const second = await importTokens(app, { accessToken, projectId, document });
+
+      expect(first.status).toBe(201);
+      expect(await tokenCreations(app, { accessToken, projectId })).toHaveLength(2);
+      expect(second.status).toBe(409);
+    }));
+
+  it("500 tokens présents dans deux contextes s'importent : la limite compte les tokens", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({ clair: documentOf(500), sombre: documentOf(500) }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ imported: 500, modes: ["clair", "sombre"] });
+    }));
+
+  it("501 tokens répondent 400", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({ clair: documentOf(501), sombre: documentOf(501) }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path: "tokens", message: "500 tokens au plus par import" }]),
+      );
+    }));
+});
+
+const VALID_RESOLVER = resolverOf({ clair: {}, sombre: {} });
+
+describe("l'import refuse un document Resolver qui ne correspond pas au projet (ADR 0041)", () => {
+  it.each([
+    ["un autre modificateur", resolverOf({ clair: {}, sombre: {} }, { modifier: "theme" })],
+    ["un mode en moins", resolverOf({ clair: {} })],
+    ["un mode en plus", resolverOf({ clair: {}, sombre: {}, contraste: {} })],
+    ["un mode remplacé", resolverOf({ clair: {}, contraste: {} })],
+    ["aucun contexte", { ...VALID_RESOLVER, modifiers: { apparence: {} } }],
+  ])("%s répond 400 sur modifiers", (_, document) =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, { accessToken, projectId, document });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path: "modifiers", message: "Modes différents de ceux du projet" }]),
+      );
+    }),
+  );
+
+  const VALID = VALID_RESOLVER;
+  const APPARENCE = VALID.modifiers.apparence;
+
+  it.each([
+    ["une autre version", { ...VALID, version: "2024.1" }, "version", "Version 2025.10 attendue"],
+    ["des sets", { ...VALID, sets: {} }, "sets", "Ensembles non pris en charge"],
+    [
+      "un document sans version",
+      { modifiers: VALID.modifiers, resolutionOrder: VALID.resolutionOrder },
+      "version",
+      "Version 2025.10 attendue",
+    ],
+    [
+      "un document sans resolutionOrder",
+      { version: VALID.version, modifiers: VALID.modifiers },
+      "resolutionOrder",
+      "Le seul modificateur du document attendu",
+    ],
+    [
+      "un resolutionOrder qui n'est pas une liste",
+      { ...VALID, resolutionOrder: { $ref: "#/modifiers/apparence" } },
+      "resolutionOrder",
+      "Le seul modificateur du document attendu",
+    ],
+    [
+      "aucun modificateur",
+      { ...VALID, modifiers: {} },
+      "modifiers",
+      "Un seul modificateur attendu",
+    ],
+    [
+      "des modificateurs en liste",
+      { ...VALID, modifiers: [APPARENCE] },
+      "modifiers",
+      "Un seul modificateur attendu",
+    ],
+    [
+      "un contexte qui n'est pas une liste",
+      {
+        ...VALID,
+        modifiers: { apparence: { ...APPARENCE, contexts: { clair: {}, sombre: [{}] } } },
+      },
+      "modifiers.apparence.contexts.clair",
+      "Une seule source en ligne attendue",
+    ],
+    [
+      "deux modificateurs",
+      { ...VALID, modifiers: { apparence: APPARENCE, densite: APPARENCE } },
+      "modifiers",
+      "Un seul modificateur attendu",
+    ],
+    [
+      "un contexte à deux sources",
+      {
+        ...VALID,
+        modifiers: { apparence: { ...APPARENCE, contexts: { clair: [{}, {}], sombre: [{}] } } },
+      },
+      "modifiers.apparence.contexts.clair",
+      "Une seule source en ligne attendue",
+    ],
+    [
+      "un contexte sans source",
+      {
+        ...VALID,
+        modifiers: { apparence: { ...APPARENCE, contexts: { clair: [], sombre: [{}] } } },
+      },
+      "modifiers.apparence.contexts.clair",
+      "Une seule source en ligne attendue",
+    ],
+    [
+      "une source en $ref",
+      {
+        ...VALID,
+        modifiers: {
+          apparence: { ...APPARENCE, contexts: { clair: [{ $ref: "clair.json" }], sombre: [{}] } },
+        },
+      },
+      "modifiers.apparence.contexts.clair",
+      "Une seule source en ligne attendue",
+    ],
+    [
+      "un resolutionOrder qui ne vise pas le modificateur",
+      { ...VALID, resolutionOrder: [{ $ref: "#/modifiers/theme" }] },
+      "resolutionOrder",
+      "Le seul modificateur du document attendu",
+    ],
+    [
+      "un resolutionOrder à deux entrées",
+      { ...VALID, resolutionOrder: [...VALID.resolutionOrder, ...VALID.resolutionOrder] },
+      "resolutionOrder",
+      "Le seul modificateur du document attendu",
+    ],
+    [
+      "un default qui ne nomme aucun contexte",
+      { ...VALID, modifiers: { apparence: { ...APPARENCE, default: "contraste" } } },
+      "modifiers.apparence.default",
+      "Contexte inconnu",
+    ],
+  ])("%s répond 400 avec son chemin", (_, document, path, message) =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, { accessToken, projectId, document });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(invalidDocument([{ path, message }]));
+    }),
   );
 });
 
