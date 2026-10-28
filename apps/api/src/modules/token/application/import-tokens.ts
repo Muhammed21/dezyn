@@ -3,7 +3,7 @@ import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
 import { flattenDocument, type ImportIssue, tokenIssuePath } from "../domain/dtcg-import.ts";
-import { referencesFirst } from "../domain/reference-order.ts";
+import { inCycle, referencesFirst } from "../domain/reference-order.ts";
 import type { ProjectToken } from "../domain/reference.ts";
 import type { ValidatedTokenFailure } from "../domain/token-check.ts";
 import { groupConflict } from "../domain/token-name.ts";
@@ -164,8 +164,12 @@ export const importTokens =
           ...(values.ok ? [] : [{ name: token.name, failure: values.error }]),
         ],
       );
-      if (issues.length > 0 || checks.length > 0) {
-        return err(invalidDocument(issues, checks));
+      const cycles = inCycle(definitions, (token) => token).map(({ name }) => ({
+        path: tokenIssuePath(name, "$value"),
+        message: "Référence circulaire",
+      }));
+      if (issues.length > 0 || cycles.length > 0 || checks.length > 0) {
+        return err(invalidDocument([...issues, ...cycles], checks));
       }
       const taken = definitions
         .filter(({ name }) => existing.some((token) => token.name === name))

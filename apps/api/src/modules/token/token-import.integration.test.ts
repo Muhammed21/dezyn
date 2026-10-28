@@ -233,6 +233,68 @@ describe("un membre importe un document DTCG dans un projet sans modes (ADR 0041
       );
     }));
 
+  it("deux tokens qui se référencent l'un l'autre répondent 400 sur chacun, sans rien écrire", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { fond: color("{texte}"), texte: color("{fond}") },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "tokens.fond.$value", message: "Référence circulaire" },
+          { path: "tokens.texte.$value", message: "Référence circulaire" },
+        ]),
+      );
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({});
+    }));
+
+  it("un cycle de trois tokens répond 400 sur ses membres, pas sur le token qui le référence", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: {
+          bordure: color("{fond}"),
+          fond: color("{texte}"),
+          texte: color("{lien}"),
+          lien: color("{fond}"),
+        },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "tokens.fond.$value", message: "Référence circulaire" },
+          { path: "tokens.texte.$value", message: "Référence circulaire" },
+          { path: "tokens.lien.$value", message: "Référence circulaire" },
+        ]),
+      );
+    }));
+
+  it("une clé qui contient un point répond 400 sur cette clé", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { "couleur.bleu": color(PRIMARY_BLUE), couleur: { bleu: color(NIGHT_BLUE) } },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path: "tokens.couleur.bleu", message: "Point interdit dans un nom" }]),
+      );
+      expect(await exportedDocument(app, { accessToken, projectId })).toEqual({});
+    }));
+
   it("un token qui référence un token du document et un token du projet s'écrit après le premier", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);

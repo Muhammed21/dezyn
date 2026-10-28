@@ -49,12 +49,17 @@ const nodeOf = (name: string, node: Readonly<Record<string, unknown>>): FlatDocu
     const childName = pathOf(name, key);
     return merged(
       flat,
-      isObject(child)
-        ? nodeOf(childName, child)
-        : {
+      key.includes(".")
+        ? {
             candidates: [],
-            issues: [{ path: `tokens.${childName}`, message: "Ni un token ni un groupe" }],
-          },
+            issues: [{ path: `tokens.${childName}`, message: "Point interdit dans un nom" }],
+          }
+        : isObject(child)
+          ? nodeOf(childName, child)
+          : {
+              candidates: [],
+              issues: [{ path: `tokens.${childName}`, message: "Ni un token ni un groupe" }],
+            },
     );
   }, self);
 };
