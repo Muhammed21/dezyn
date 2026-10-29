@@ -27,9 +27,9 @@ const RESOLVER_FIELDS = ["version", "resolutionOrder"];
 const isObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const merged = (first: FlatDocument, second: FlatDocument): FlatDocument => ({
-  candidates: [...first.candidates, ...second.candidates],
-  issues: [...first.issues, ...second.issues],
+const merged = (flats: readonly FlatDocument[]): FlatDocument => ({
+  candidates: flats.flatMap(({ candidates }) => candidates),
+  issues: flats.flatMap(({ issues }) => issues),
 });
 
 export const tokenIssuePath = (name: string, path: string) =>
@@ -37,13 +37,9 @@ export const tokenIssuePath = (name: string, path: string) =>
 
 const pathOf = (name: string, key: string) => (name === "" ? key : `${name}.${key}`);
 
-export const distinct = (issues: readonly ImportIssue[]) =>
-  issues.filter(
-    (candidate, index) =>
-      issues.findIndex(
-        ({ path, message }) => path === candidate.path && message === candidate.message,
-      ) === index,
-  );
+export const distinct = (issues: readonly ImportIssue[]): readonly ImportIssue[] => [
+  ...new Map(issues.map((found) => [JSON.stringify([found.path, found.message]), found])).values(),
+];
 
 export const candidateIssuePath = ({ name, typeFrom }: ImportedCandidate, path: string) =>
   path === "$type" && typeFrom !== undefined
@@ -100,11 +96,11 @@ const nodeOf = (
   const isToken = "$value" in node;
   const self = isToken ? tokenOf(name, own, inherited) : groupOf(name, own);
   const childType = isToken || !("$type" in node) ? inherited : { type: node.$type, from: name };
-  return children.reduce<FlatDocument>((flat, [key, child]) => {
-    const childName = pathOf(name, key);
-    return merged(
-      flat,
-      key.includes(".")
+  return merged([
+    self,
+    ...children.map(([key, child]) => {
+      const childName = pathOf(name, key);
+      return key.includes(".")
         ? {
             candidates: [],
             issues: [{ path: `tokens.${childName}`, message: "Point interdit dans un nom" }],
@@ -114,9 +110,9 @@ const nodeOf = (
           : {
               candidates: [],
               issues: [{ path: `tokens.${childName}`, message: "Ni un token ni un groupe" }],
-            },
-    );
-  }, self);
+            };
+    }),
+  ]);
 };
 
 const issue = (path: string, message: string): readonly ImportIssue[] => [{ path, message }];
@@ -124,15 +120,13 @@ const issue = (path: string, message: string): readonly ImportIssue[] => [{ path
 const assembled = (
   contexts: readonly { readonly mode: string; readonly flat: FlatDocument }[],
 ): FlatDocument => {
-  const names = [
-    ...new Set(contexts.flatMap(({ flat }) => flat.candidates.map(({ name }) => name))),
-  ];
-  const tokens = names.map((name) => {
-    const present = contexts.flatMap(({ mode, flat }) =>
-      flat.candidates
-        .filter((candidate) => candidate.name === name)
-        .map(({ candidate, typeFrom }) => ({ mode, candidate, typeFrom })),
+  const byName = contexts
+    .flatMap(({ mode, flat }) => flat.candidates.map((imported) => ({ ...imported, mode })))
+    .reduce(
+      (groups, entry) => groups.set(entry.name, [...(groups.get(entry.name) ?? []), entry]),
+      new Map<string, readonly (ImportedCandidate & { readonly mode: string })[]>(),
     );
+  const tokens = [...byName].map(([name, present]) => {
     const shared = Object.fromEntries(
       present
         .flatMap(({ candidate }) => Object.entries(candidate))

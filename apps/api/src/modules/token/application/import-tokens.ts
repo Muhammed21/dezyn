@@ -65,7 +65,6 @@ const parsedDocument = ({ candidates, issues }: ReadDocument, parse: ParseTokenD
     parsed: parse({ ...imported.candidate, name: imported.name }),
   }));
   return {
-    count: candidates.length,
     definitions: parsed.flatMap(({ parsed: result }) =>
       "definition" in result ? [result.definition] : [],
     ),
@@ -132,14 +131,14 @@ export const importTokens =
       return err("not_found");
     }
     const read = readDocument(document);
-    const { count, definitions, issues } = parsedDocument(read, parseTokenDefinition);
-    if (count > MAX_TOKENS_PER_IMPORT) {
+    if (read.candidates.length > MAX_TOKENS_PER_IMPORT) {
       return err(
         invalidDocument([
           { path: "tokens", message: `${MAX_TOKENS_PER_IMPORT} tokens au plus par import` },
         ]),
       );
     }
+    const { definitions, issues } = parsedDocument(read, parseTokenDefinition);
     const [projectModes, projectModifier, existing] = await Promise.all([
       modes.modesOf(projectId),
       modifiers.modifierOf(projectId),
