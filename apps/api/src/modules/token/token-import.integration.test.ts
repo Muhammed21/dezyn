@@ -539,6 +539,80 @@ describe("un token sans $type prend celui de son groupe le plus proche (ADR 0041
       expect(await exportedDocument(app, { accessToken, projectId })).toEqual({});
     }));
 
+  it("un $type de groupe invalide répond 400 une fois, sur le $type du groupe", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: {
+          couleur: {
+            $type: "colour",
+            bleu: { $value: PRIMARY_BLUE },
+            rouge: { $value: NIGHT_BLUE },
+            nuit: color(NIGHT_BLUE),
+          },
+        },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path: "tokens.couleur.$type", message: expect.any(String) }]),
+      );
+    }));
+
+  it("un $type propre invalide, dans un groupe typé, répond 400 sur le $type du token", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { couleur: { $type: "color", bleu: { $type: "colour", $value: PRIMARY_BLUE } } },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path: "tokens.couleur.bleu.$type", message: expect.any(String) }]),
+      );
+    }));
+
+  it("deux erreurs différentes au même chemin restent toutes les deux", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { "bord.fin": color(PRIMARY_BLUE), bord: { fin: 1 } },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "tokens.bord.fin", message: "Point interdit dans un nom" },
+          { path: "tokens.bord.fin", message: "Ni un token ni un groupe" },
+        ]),
+      );
+    }));
+
+  it("un $type invalide à la racine du document répond 400 sur tokens.$type", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { $type: "colour", bleu: { $value: PRIMARY_BLUE } },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([{ path: "tokens.$type", message: expect.any(String) }]),
+      );
+    }));
+
   it("un token sans $type, dans des groupes sans $type, répond 400 sur son $type", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);

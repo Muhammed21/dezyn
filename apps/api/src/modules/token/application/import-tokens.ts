@@ -2,7 +2,13 @@ import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import { err, ok, type Result } from "@repo/result";
 
-import { flattenDocument, type ImportIssue, tokenIssuePath } from "../domain/dtcg-import.ts";
+import {
+  candidateIssuePath,
+  distinct,
+  flattenDocument,
+  type ImportIssue,
+  tokenIssuePath,
+} from "../domain/dtcg-import.ts";
 import { inCycle, referencesFirst } from "../domain/reference-order.ts";
 import type { ProjectToken } from "../domain/reference.ts";
 import type { ValidatedTokenFailure } from "../domain/token-check.ts";
@@ -55,26 +61,26 @@ const parsedDocument = (
   parse: ParseTokenDefinition,
 ) => {
   const { candidates, issues } = flattenDocument(document);
-  const parsed = candidates.map(({ name, candidate }) => ({
-    name,
-    parsed: parse({ ...candidate, name }),
+  const parsed = candidates.map((imported) => ({
+    imported,
+    parsed: parse({ ...imported.candidate, name: imported.name }),
   }));
   return {
     count: candidates.length,
     definitions: parsed.flatMap(({ parsed: result }) =>
       "definition" in result ? [result.definition] : [],
     ),
-    issues: [
+    issues: distinct([
       ...issues,
-      ...parsed.flatMap(({ name, parsed: result }) =>
+      ...parsed.flatMap(({ imported, parsed: result }) =>
         "issues" in result
           ? result.issues.map(({ path, message }) => ({
-              path: tokenIssuePath(name, path),
+              path: candidateIssuePath(imported, path),
               message,
             }))
           : [],
       ),
-    ],
+    ]),
   };
 };
 
