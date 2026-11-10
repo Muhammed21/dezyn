@@ -1,1 +1,1 @@
-export const LATEST_MIGRATION = { tag: "0014_identity_rate_limit", when: 1792863885749 };
+export const LATEST_MIGRATION = { tag: "0015_history_purge", when: 1794312852880 };

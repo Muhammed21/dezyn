@@ -1,1 +1,1 @@
-export type { StorageMeter } from "../domain/storage.ts";
+export { type StorageMeter, storedSize } from "../domain/storage.ts";
