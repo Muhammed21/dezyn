@@ -1,3 +1,4 @@
+import type { ProjectLock } from "#modules/project/contracts/project-lock.ts";
 import type {
   StorageAlertDecision,
   StorageAlertSender,
@@ -45,7 +46,11 @@ export interface ProposalStore {
 
 export interface ProposalUnitOfWork {
   run<T>(
-    work: (store: ProposalStore, storageAlert: StorageAlertDecision) => Promise<T>,
+    work: (
+      store: ProposalStore,
+      storageAlert: StorageAlertDecision,
+      project: ProjectLock,
+    ) => Promise<T>,
   ): Promise<T>;
 }
 
@@ -162,12 +167,14 @@ export const writeTokens =
     readonly spaceId: string;
     readonly tokens: readonly TokenDefinition[];
   }): Promise<Result<Written, UncheckedTokens>> => {
-    const checks = await checkTokens({ projectId: writer.projectId, tokens });
-    if (checks.length > 0) {
-      return err({ code: "unchecked_tokens", checks });
-    }
-    const validated = await validatedTokensOf(writer.projectId);
-    const outcome = await unitOfWork.run(async (store, storageAlert) => {
+    const outcome = await unitOfWork.run(async (store, storageAlert, project) => {
+      await project.write(writer.projectId);
+      const checks = await checkTokens({ projectId: writer.projectId, tokens });
+      if (checks.length > 0) {
+        const unchecked: UncheckedTokens = { code: "unchecked_tokens", checks };
+        return err(unchecked);
+      }
+      const validated = await validatedTokensOf(writer.projectId);
       const conflicts = nameConflicts(tokens, [
         ...validated.map(({ name }) => name),
         ...(await store.pendingNamesOf(writer.projectId)),

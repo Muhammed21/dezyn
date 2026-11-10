@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectLock } from "#modules/project/contracts/project-lock.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type {
@@ -44,6 +45,7 @@ export const proposalWriterOn = (tx: PostgresTransaction, meter: StorageMeter) =
 export const proposalModule = ({
   db,
   access,
+  projectLockOn,
   checkTokens,
   validatedTokensOf,
   historyWriterOn,
@@ -56,6 +58,7 @@ export const proposalModule = ({
 }: {
   readonly db: PostgresDatabase;
   readonly access: ProjectAccess;
+  readonly projectLockOn: (tx: PostgresTransaction) => ProjectLock;
   readonly checkTokens: CheckTokens;
   readonly validatedTokensOf: ValidatedTokensOf;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
@@ -72,7 +75,12 @@ export const proposalModule = ({
     proposals: postgresProposalReader(db),
     now,
   };
-  const unitOfWork = postgresProposalUnitOfWork({ db, storageMeterOn, storageAlertOn });
+  const unitOfWork = postgresProposalUnitOfWork({
+    db,
+    projectLockOn,
+    storageMeterOn,
+    storageAlertOn,
+  });
   const reviewUnitOfWork = postgresReviewUnitOfWork({
     db,
     historyWriterOn,

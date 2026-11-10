@@ -766,6 +766,11 @@ const resolverOf = (
   resolutionOrder: [{ $ref: `#/modifiers/${modifier}` }],
 });
 
+const MODAL_DOCUMENT = resolverOf({
+  clair: { fond: color(PRIMARY_BLUE) },
+  sombre: { fond: color(NIGHT_BLUE) },
+});
+
 const seedModalProject = async (app: App, db: Parameters<typeof seedModes>[0]) => {
   const project = await seedProject(app, db);
   await seedModes(db, { projectId: project.projectId, modes: ["clair", "sombre"] });
@@ -1343,6 +1348,40 @@ describe("un document Resolver crée le modificateur et les modes d'un projet vi
         ]),
       );
       expect(await db.orm.select().from(schema.modifier)).toEqual([]);
+    }));
+
+  it("un token ajouté pendant la création des modes : un seul des deux réussit", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const [imported, added] = await Promise.all([
+        importTokens(app, { accessToken, projectId, document: MODAL_DOCUMENT }),
+        addToken(app, { accessToken, projectId, token: makeColorToken({ name: "bleu" }) }),
+      ]);
+
+      expect([imported.status, added.status].toSorted((first, second) => first - second)).toEqual([
+        201, 400,
+      ]);
+    }));
+
+  it("une proposition écrite pendant la création des modes : un seul des deux réussit", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const [imported] = await Promise.all([
+        importTokens(app, { accessToken, projectId, document: MODAL_DOCUMENT }),
+        callMcp(app, {
+          token: accessToken,
+          method: "tools/call",
+          params: {
+            name: "write_tokens",
+            arguments: { projectId, tokens: [makeColorToken({ name: "bleu" })] },
+          },
+        }),
+      ]);
+      const proposed = await db.orm.select().from(schema.proposal);
+
+      expect([imported.status === 201, proposed.length > 0].filter(Boolean)).toHaveLength(1);
     }));
 
   it("un projet sans modes qui a déjà des tokens répond 400 sans créer de modes", () =>

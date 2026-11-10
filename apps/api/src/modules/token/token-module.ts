@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectLock } from "#modules/project/contracts/project-lock.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type {
@@ -45,6 +46,7 @@ export const validatedTokenWriterOn = (tx: PostgresTransaction, meter: StorageMe
 export const tokenModule = ({
   db,
   access,
+  projectLockOn,
   historyWriterOn,
   proposalReplacerOn,
   proposalWriterOn,
@@ -55,6 +57,7 @@ export const tokenModule = ({
 }: {
   readonly db: PostgresDatabase;
   readonly access: ProjectAccess;
+  readonly projectLockOn: (tx: PostgresTransaction) => ProjectLock;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
   readonly proposalWriterOn: (tx: PostgresTransaction) => FigmaProposals;
@@ -75,10 +78,9 @@ export const tokenModule = ({
   return {
     addToken: addToken({
       access,
-      modes: postgresModeReader(db.orm),
-      projectTokens: postgresProjectTokenReader(db.orm),
       unitOfWork: postgresTokenUnitOfWork({
         db,
+        projectLockOn,
         historyWriterOn,
         proposalReplacerOn,
         storageMeterOn,
@@ -96,6 +98,7 @@ export const tokenModule = ({
       access,
       unitOfWork: postgresTokenImportUnitOfWork({
         db,
+        projectLockOn,
         historyWriterOn,
         proposalReplacerOn,
         storageMeterOn,

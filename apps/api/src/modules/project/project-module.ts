@@ -6,6 +6,7 @@ import type { MembershipReader } from "#modules/space/contracts/membership.ts";
 
 import { createProject } from "./application/create-project.ts";
 import { listProjects } from "./application/list-projects.ts";
+import { postgresProjectLock } from "./infrastructure/postgres-project-lock.ts";
 import {
   postgresProjectFinder,
   postgresProjectLister,
@@ -14,6 +15,8 @@ import {
 import { postgresStorageMeter } from "./infrastructure/postgres-storage-meter.ts";
 
 export const storageMeterOn = postgresStorageMeter;
+
+export const projectLockOn = postgresProjectLock;
 
 const now = () => new Date();
 
