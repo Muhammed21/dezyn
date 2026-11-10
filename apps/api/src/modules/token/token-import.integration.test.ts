@@ -919,6 +919,22 @@ describe("un membre importe un document Resolver dans un projet qui a les mêmes
       }),
   );
 
+  it("des $extensions égales écrites dans un ordre de clés différent s'importent", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: { ...color(PRIMARY_BLUE), $extensions: { "com.a": 1, "com.b": 2 } } },
+          sombre: { fond: { ...color(NIGHT_BLUE), $extensions: { "com.b": 2, "com.a": 1 } } },
+        }),
+      });
+
+      expect(response.status).toBe(201);
+    }));
+
   it("une propriété présente dans un seul contexte répond 400 sur cette propriété", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedModalProject(app, db);
