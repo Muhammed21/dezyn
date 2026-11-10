@@ -6,7 +6,9 @@ import { schema } from "@repo/db";
 
 import type { HistoryReader } from "../application/read-history.ts";
 
-const { historyAuthor, historyEntry, identityUser, spaceMember } = schema;
+const { historyAuthor, historyEntry, identityUser, project, spaceMember } = schema;
+
+const PurgeTrace = z.object({ purgedBefore: z.date().nullable() });
 
 const StoredEntry = z.object({
   id: z.string(),
@@ -24,6 +26,13 @@ const StoredEntry = z.object({
 });
 
 export const postgresHistoryReader = (db: PostgresDatabase): HistoryReader => ({
+  purgedBeforeOf: async (projectId) => {
+    const [row] = await db.orm
+      .select({ purgedBefore: project.historyPurgedBefore })
+      .from(project)
+      .where(eq(project.id, projectId));
+    return PurgeTrace.parse(row).purgedBefore;
+  },
   entriesOf: async (projectId, { after, take }) => {
     const rows = await db.orm
       .select({

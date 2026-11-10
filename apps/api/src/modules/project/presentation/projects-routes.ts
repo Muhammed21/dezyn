@@ -21,10 +21,11 @@ export const projectsRoutes = ({ createProject, listProjects }: ProjectUseCases)
       const listed = await listProjects({ spaceId, userId: c.get("identity").userId });
       return listed.ok
         ? c.json({
-            projects: listed.value.map(({ id, name, createdAt }) => ({
+            projects: listed.value.map(({ id, name, createdAt, historyPurgedAt }) => ({
               id,
               name,
               createdAt: createdAt.toISOString(),
+              historyPurgedAt: historyPurgedAt?.toISOString() ?? null,
             })),
           })
         : c.notFound();

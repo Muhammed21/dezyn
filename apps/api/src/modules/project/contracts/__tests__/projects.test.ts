@@ -6,6 +6,7 @@ const makeProject = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   id: "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
   name: "Site vitrine",
   createdAt: "2026-10-19T09:00:00.000Z",
+  historyPurgedAt: null,
   ...overrides,
 });
 
@@ -25,6 +26,24 @@ describe("sortie de la liste des projets d'un espace", () => {
   it("refuse une date de création qui n'est pas une date ISO", () => {
     expect(
       ProjectsOutput.safeParse({ projects: [makeProject({ createdAt: "hier" })] }).success,
+    ).toBe(false);
+  });
+
+  it("décode la date de la dernière purge de l'historique", () => {
+    const purged = { projects: [makeProject({ historyPurgedAt: "2026-11-10T08:00:00.000Z" })] };
+
+    expect(ProjectsOutput.parse(purged)).toEqual(purged);
+  });
+
+  it("refuse un projet qui ne dit pas quand son historique a été purgé", () => {
+    const { historyPurgedAt: _, ...withoutTrace } = makeProject();
+
+    expect(ProjectsOutput.safeParse({ projects: [withoutTrace] }).success).toBe(false);
+  });
+
+  it("refuse une date de purge qui n'est pas une date ISO", () => {
+    expect(
+      ProjectsOutput.safeParse({ projects: [makeProject({ historyPurgedAt: "hier" })] }).success,
     ).toBe(false);
   });
 });

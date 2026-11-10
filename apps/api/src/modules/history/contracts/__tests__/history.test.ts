@@ -24,19 +24,40 @@ const makeEntry = (overrides: Readonly<Record<string, unknown>> = {}) => ({
 
 describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
   it("décode une page d'entrées et le curseur de la suivante", () => {
-    const page = { entries: [makeEntry()], nextCursor: "eyJpZCI6IjEifQ" };
+    const page = {
+      entries: [makeEntry()],
+      nextCursor: "eyJpZCI6IjEifQ",
+      purgedBefore: "2026-10-24T13:57:39.007Z",
+    };
 
     expect(HistoryOutput.parse(page)).toEqual(page);
   });
 
   it("refuse une page sans curseur suivant", () => {
-    expect(HistoryOutput.safeParse({ entries: [makeEntry()] }).success).toBe(false);
+    expect(HistoryOutput.safeParse({ entries: [makeEntry()], purgedBefore: null }).success).toBe(
+      false,
+    );
+  });
+
+  it("refuse une page qui ne dit pas jusqu'où l'historique a été purgé", () => {
+    expect(HistoryOutput.safeParse({ entries: [makeEntry()], nextCursor: null }).success).toBe(
+      false,
+    );
+  });
+
+  it("refuse une date de purge qui n'est pas une date ISO", () => {
+    expect(
+      HistoryOutput.safeParse({ entries: [], nextCursor: null, purgedBefore: "hier" }).success,
+    ).toBe(false);
   });
 
   it("accepte une action ajoutée plus tard par le serveur", () => {
     expect(
-      HistoryOutput.safeParse({ nextCursor: null, entries: [makeEntry({ action: "token.added" })] })
-        .success,
+      HistoryOutput.safeParse({
+        nextCursor: null,
+        purgedBefore: null,
+        entries: [makeEntry({ action: "token.added" })],
+      }).success,
     ).toBe(true);
   });
 
@@ -44,8 +65,11 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
     const author = { kind: "deleted_member", number: 3 };
 
     expect(
-      HistoryOutput.parse({ nextCursor: null, entries: [makeEntry({ author })] }).entries[0]
-        ?.author,
+      HistoryOutput.parse({
+        nextCursor: null,
+        purgedBefore: null,
+        entries: [makeEntry({ author })],
+      }).entries[0]?.author,
     ).toEqual(author);
   });
 
@@ -53,6 +77,7 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
     expect(
       HistoryOutput.safeParse({
         nextCursor: null,
+        purgedBefore: null,
         entries: [makeEntry({ author: { name: "Ada Lovelace" } })],
       }).success,
     ).toBe(false);
@@ -62,8 +87,11 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
     const author = { ...makeEntry().author, membership: "left" };
 
     expect(
-      HistoryOutput.parse({ nextCursor: null, entries: [makeEntry({ author })] }).entries[0]
-        ?.author,
+      HistoryOutput.parse({
+        nextCursor: null,
+        purgedBefore: null,
+        entries: [makeEntry({ author })],
+      }).entries[0]?.author,
     ).toEqual(author);
   });
 
@@ -71,7 +99,11 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
     const author = { ...makeEntry().author, membership: "suspended" };
 
     expect(
-      HistoryOutput.safeParse({ nextCursor: null, entries: [makeEntry({ author })] }).success,
+      HistoryOutput.safeParse({
+        nextCursor: null,
+        purgedBefore: null,
+        entries: [makeEntry({ author })],
+      }).success,
     ).toBe(true);
   });
 

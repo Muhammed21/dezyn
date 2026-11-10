@@ -58,8 +58,18 @@ describe("un membre liste les projets d'un espace (ADR 0025)", () => {
       expect(listed.status).toBe(200);
       expect(await listed.json()).toEqual({
         projects: [
-          { id: boutique.id, name: "Boutique", createdAt: expect.any(String) },
-          { id: vitrine.id, name: "Site vitrine", createdAt: expect.any(String) },
+          {
+            id: boutique.id,
+            name: "Boutique",
+            createdAt: expect.any(String),
+            historyPurgedAt: null,
+          },
+          {
+            id: vitrine.id,
+            name: "Site vitrine",
+            createdAt: expect.any(String),
+            historyPurgedAt: null,
+          },
         ],
       });
     }));
@@ -92,8 +102,18 @@ describe("l'IA liste les projets d'un espace par le MCP (ADR 0025)", () => {
       expect(result.isError).toBeUndefined();
       expect(result.structuredContent).toEqual({
         projects: [
-          { id: boutique.id, name: "Boutique", createdAt: expect.any(String) },
-          { id: vitrine.id, name: "Site vitrine", createdAt: expect.any(String) },
+          {
+            id: boutique.id,
+            name: "Boutique",
+            createdAt: expect.any(String),
+            historyPurgedAt: null,
+          },
+          {
+            id: vitrine.id,
+            name: "Site vitrine",
+            createdAt: expect.any(String),
+            historyPurgedAt: null,
+          },
         ],
       });
       expect(JSON.parse(result.content[0].text)).toEqual(result.structuredContent);

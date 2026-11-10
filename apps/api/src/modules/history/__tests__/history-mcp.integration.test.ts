@@ -126,7 +126,7 @@ describe("l'IA lit l'historique d'un projet par le MCP (ADR 0004 §3, ADR 0021 �
             expect.objectContaining({
               name: "read_history",
               description:
-                "Lit l'historique d'un projet, des entrées les plus récentes aux plus anciennes, page par page : renvoyer nextCursor en cursor pour la page suivante.",
+                "Lit l'historique d'un projet, des entrées les plus récentes aux plus anciennes, page par page : renvoyer nextCursor en cursor pour la page suivante. purgedBefore : les entrées antérieures à cette date ont été supprimées par la purge du stockage ; null si l'historique est complet.",
               inputSchema: expect.objectContaining({
                 required: ["projectId"],
                 properties: expect.objectContaining({

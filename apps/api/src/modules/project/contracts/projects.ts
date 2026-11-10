@@ -8,6 +8,7 @@ export const ProjectsOutput = z.looseObject({
       id: Uuid,
       name: z.string(),
       createdAt: z.iso.datetime(),
+      historyPurgedAt: z.iso.datetime().nullable(),
     }),
   ),
 });
