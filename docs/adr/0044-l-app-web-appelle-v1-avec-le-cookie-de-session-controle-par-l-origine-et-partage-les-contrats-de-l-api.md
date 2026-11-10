@@ -112,11 +112,11 @@ Une requête vers `/v1` est authentifiée par un jeton d'accès JWT dans `Author
 
 ### 2. Une écriture par cookie exige l'origine de l'app web
 
-Une requête `POST`, `PUT`, `PATCH` ou `DELETE` authentifiée par cookie est refusée en 403 si son en-tête `Origin` n'est pas exactement `WEB_URL`, ou s'il manque. Une requête authentifiée par Bearer n'est pas soumise à ce contrôle.
+Une requête authentifiée par cookie dont la méthode n'est ni `GET`, ni `HEAD`, ni `OPTIONS` est refusée en 403 si son en-tête `Origin` n'est pas exactement l'origine de `WEB_URL` (`new URL(WEB_URL).origin`), ou s'il manque. Une requête authentifiée par Bearer n'est pas soumise à ce contrôle.
 
 ### 3. Le CORS de l'API ne répond qu'à `WEB_URL`
 
-L'API répond au CORS de l'origine exacte `WEB_URL`, avec `Access-Control-Allow-Credentials: true`, sur `/v1` et `/auth/*`. Aucune autre origine ne reçoit d'en-tête CORS. better-auth ajoute `WEB_URL` à ses `trustedOrigins`.
+L'API répond au CORS de l'origine exacte de `WEB_URL` (`new URL(WEB_URL).origin`), pas à `WEB_URL` telle qu'écrite, avec `Access-Control-Allow-Credentials: true`, sur `/v1` et `/auth/*`. Aucune autre origine ne reçoit d'en-tête CORS. better-auth ajoute cette origine à ses `trustedOrigins`.
 
 ### 4. Les contrats HTTP vivent dans `@repo/contracts`
 
