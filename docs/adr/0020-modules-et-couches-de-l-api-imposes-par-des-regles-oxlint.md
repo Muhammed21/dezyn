@@ -1,6 +1,6 @@
 # 0020 — Modules et couches de l'API imposés par des règles oxlint
 
-- Statut : Accepté
+- Statut : Accepté — portée des règles étendue à `apps/web` par [0044](0044-l-app-web-appelle-v1-avec-le-cookie-de-session-controle-par-l-origine-et-partage-les-contrats-de-l-api.md)
 - Date : 2026-10-15
 - Décideurs : Muhammed
 
