@@ -16,6 +16,7 @@ export const HistoryEntryOutput = z.looseObject({
   action: openEnum([
     "project.created",
     "token.created",
+    "modes.created",
     "proposal.validated",
     "proposal.rejected",
     "mcp.read_history",

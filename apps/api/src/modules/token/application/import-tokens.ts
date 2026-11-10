@@ -22,6 +22,7 @@ import {
   checkedValues,
   type ModeReader,
   modeValueOf,
+  type ProjectMode,
   type ProjectTokenReader,
   type TokenWriter,
 } from "./token-values.ts";
@@ -32,7 +33,18 @@ export type ParseTokenDefinition = (
   candidate: Readonly<Record<string, unknown>>,
 ) => { readonly definition: TokenDefinition } | { readonly issues: readonly ImportIssue[] };
 
+export type CreatedModes = {
+  readonly projectId: string;
+  readonly modifier: string;
+  readonly modes: readonly ProjectMode[];
+};
+
+export interface ModesWriter {
+  create(created: CreatedModes): Promise<void>;
+}
+
 export type TokenImportUnit = {
+  readonly modes: ModesWriter;
   readonly tokens: TokenWriter;
   readonly history: HistoryWriter;
   readonly proposals: PendingProposals;
@@ -144,16 +156,18 @@ export const importTokens =
       modifiers.modifierOf(projectId),
       projectTokens.tokensOf(projectId),
     ]);
-    if (read.resolver !== undefined && projectModifier === undefined) {
-      return err(
-        invalidDocument([
-          { path: "modifiers", message: "Document Resolver dans un projet sans modes" },
-        ]),
-      );
-    }
+    const createdModes =
+      read.resolver?.modifier !== undefined && projectModifier === undefined
+        ? {
+            projectId,
+            modifier: read.resolver.modifier,
+            modes: read.resolver.modes.map((name) => ({ id: newId(), name })),
+          }
+        : undefined;
+    const targetModes = createdModes?.modes ?? projectModes;
     const modesIssues = modesMismatch(read.resolver, {
-      modifier: projectModifier,
-      modes: projectModes.map(({ name }) => name),
+      modifier: createdModes?.modifier ?? projectModifier,
+      modes: targetModes.map(({ name }) => name),
     });
     const createdAt = now();
     const ordered = referencesFirst(definitions, (token) => token).map((token) => ({
@@ -169,7 +183,7 @@ export const importTokens =
         status: "validated",
       })),
     ];
-    return unitOfWork.run(async ({ tokens, history, proposals }) => {
+    return unitOfWork.run(async ({ modes: modesWriter, tokens, history, proposals }) => {
       const pendingNames = await proposals.pendingNamesOf(projectId);
       const otherNames = [
         ...existing.map(({ name }) => name),
@@ -185,7 +199,7 @@ export const importTokens =
           id,
           conflict,
           values: checkedValues(token, {
-            projectModes,
+            projectModes: targetModes,
             tokens: placed.filter((candidate) => candidate.id !== id),
           }),
         };
@@ -200,14 +214,54 @@ export const importTokens =
         path: tokenIssuePath(name, "$value"),
         message: "Référence circulaire",
       }));
-      if (modesIssues.length > 0 || issues.length > 0 || cycles.length > 0 || checks.length > 0) {
-        return err(invalidDocument([...modesIssues, ...issues, ...cycles], checks));
+      const creationIssues: readonly ImportIssue[] =
+        createdModes === undefined
+          ? []
+          : [
+              ...(existing.length > 0
+                ? [
+                    {
+                      path: "modifiers",
+                      message: "Document Resolver dans un projet sans modes qui a déjà des tokens",
+                    },
+                  ]
+                : []),
+              ...(pendingNames.length > 0
+                ? [
+                    {
+                      path: "modifiers",
+                      message:
+                        "Propositions en attente : relisez-les avant d'importer un document Resolver",
+                    },
+                  ]
+                : []),
+            ];
+      const documentIssues = [...modesIssues, ...creationIssues, ...issues, ...cycles];
+      if (documentIssues.length > 0 || checks.length > 0) {
+        return err(invalidDocument(documentIssues, checks));
       }
       const taken = definitions
         .filter(({ name }) => existing.some((token) => token.name === name))
         .map(({ name }) => name);
       if (taken.length > 0) {
         return err({ names: taken });
+      }
+      if (createdModes !== undefined) {
+        await modesWriter.create(createdModes);
+        await history.append({
+          spaceId: project.spaceId,
+          projectId,
+          action: "modes.created",
+          userId,
+          clientId: null,
+          before: null,
+          after: {
+            modifier: createdModes.modifier,
+            modes: createdModes.modes.map(({ name }) => name),
+          },
+          correlationId,
+          occurredAt: createdAt,
+        });
       }
       const writable = checked.flatMap(({ token, id, values }) =>
         values.ok ? [{ token, id, values: values.value }] : [],
@@ -242,7 +296,7 @@ export const importTokens =
         Promise.resolve(ok(0)),
       );
       return written.ok
-        ? ok({ imported: written.value, modes: projectModes.map(({ name }) => name) })
+        ? ok({ imported: written.value, modes: targetModes.map(({ name }) => name) })
         : written;
     });
   };
