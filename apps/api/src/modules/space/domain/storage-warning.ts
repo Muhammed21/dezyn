@@ -11,7 +11,7 @@ export type DecidedStorageAlert = {
   readonly owners: readonly string[];
 };
 
-const sizeOf = (bytes: number) =>
+export const sizeOf = (bytes: number): string =>
   bytes < 1_000_000_000
     ? `${Math.floor(bytes / 1_000_000)} Mo`
     : `${String(Math.floor(bytes / 100_000_000) / 10).replace(".", ",")} Go`;

@@ -19,7 +19,7 @@ Chaque tranche suit RED → GREEN → MUTATE → KILL MUTANTS → REFACTOR, et f
 ### Tranche 1 : la purge ramène un espace à 90 % de sa limite
 
 **Valeur** : un espace qui atteint sa limite cesse de grossir par son historique.
-**Chemin** : `pnpm --filter @repo/api purge` (connexion `DATABASE_URL_HISTORY_MAINTAINER`) → cas d'usage `purgeHistory` du module history → espaces dont le stockage (somme de `project.stored_bytes`) atteint la limite de leur plan (`storageLimitOf`, exposée par `space/contracts`) → pour chaque espace, projets triés par `stored_bytes` décroissant → lots de 500 entrées, chacun dans sa transaction : `pg_try_advisory_xact_lock` sur l'espace, relecture du stockage et des plus anciennes entrées, suppression, `StorageMeter.remove` avec les lignes supprimées, mise à jour de `history_purged_before` et `history_purged_at` → arrêt à 90 % de la limite, quand plus aucun projet n'a d'entrée, ou au budget de 30 s → le passage renvoie, par espace, les projets purgés, le nombre d'entrées supprimées et la date de la plus récente. Migration : colonnes `history_purged_before` et `history_purged_at` sur `project`, droits de l'ADR 0042 §7. Hors tranche : email, exposition par l'API, Worker et cron.
+**Chemin** : `pnpm --filter @repo/api run purge` (connexion `DATABASE_URL_HISTORY_MAINTAINER`) → cas d'usage `purgeHistory` du module history → espaces dont le stockage (somme de `project.stored_bytes`) atteint la limite de leur plan (`storageLimitOf`, exposée par `space/contracts`) → pour chaque espace, projets triés par `stored_bytes` décroissant → lots de 500 entrées, chacun dans sa transaction : `pg_try_advisory_xact_lock` sur l'espace, relecture du stockage et des plus anciennes entrées, suppression, `StorageMeter.remove` avec les lignes supprimées, mise à jour de `history_purged_before` et `history_purged_at` → arrêt à 90 % de la limite, quand plus aucun projet n'a d'entrée, ou au budget de 30 s → le passage renvoie, par espace, les projets purgés, le nombre d'entrées supprimées et la date de la plus récente. Migration : colonnes `history_purged_before` et `history_purged_at` sur `project`, droits de l'ADR 0042 §7. Hors tranche : email, exposition par l'API, Worker et cron.
 **Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`.
 **Critères** :
 
@@ -40,8 +40,16 @@ Décision prise pendant la tranche : un passage ne reprend qu'un espace encore �
 ### Tranche 2 : les propriétaires reçoivent un email après un passage qui supprime
 
 **Valeur** : un propriétaire apprend que l'historique de son espace a été purgé, et lequel.
-**Chemin** : résultat du passage → pour chaque espace purgé, propriétaires ouverts → un email en français par propriétaire (ADR 0042 §5) → échec journalisé, sans nouvel essai.
-**Critères** : à valider avant la tranche.
+**Chemin** : résultat du passage (noms de l'espace et des projets compris) → pour chaque espace purgé, relecture du stockage et des propriétaires ouverts → un email en français par propriétaire (ADR 0042 §5) → échec journalisé, sans nouvel essai.
+**Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`.
+**Critères** :
+
+1. Après un passage qui supprime des entrées d'un espace, chaque propriétaire ouvert reçoit un seul email, même après plusieurs lots.
+2. Un éditeur, un propriétaire parti (`closed_at`) et un non-membre ne reçoivent rien.
+3. Un espace non purgé (sous sa limite, verrouillé, sans entrée) ne déclenche aucun email.
+4. Le sujet est « L'historique de l'espace « X » a été purgé sur dezyn ». Le texte donne, pour chaque projet purgé, son nom, le nombre d'entrées supprimées (« 1 entrée », « 2 entrées ») et la date de la plus récente (« 10 novembre 2026 », UTC) ; le stockage de l'espace après la purge et sa limite ; en Free, les 20 Go du plan Team.
+5. Un échec d'envoi est journalisé (`history_purge_email_unsent`, avec l'espace et le destinataire), sans nouvel essai ; les autres propriétaires reçoivent leur email et la purge n'est pas défaite.
+6. `pnpm --filter @repo/api run purge` envoie par le mailer SMTP de l'API (`SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`).
 
 ### Tranche 3 : l'API dit jusqu'où l'historique a été purgé
 

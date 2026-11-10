@@ -10,19 +10,24 @@ import {
 
 export type SpaceStorage = { readonly plan: Plan; readonly storedBytes: number };
 
+export type CandidateProject = { readonly id: string; readonly name: string };
+
 export type PurgeCandidate = SpaceStorage & {
   readonly spaceId: string;
-  readonly projectIds: readonly string[];
+  readonly name: string;
+  readonly projects: readonly CandidateProject[];
 };
 
 export type PurgedProject = {
   readonly projectId: string;
+  readonly name: string;
   readonly deletedEntries: number;
   readonly purgedBefore: Date;
 };
 
 export type PurgedSpace = {
   readonly spaceId: string;
+  readonly name: string;
   readonly projects: readonly PurgedProject[];
 };
 
@@ -55,35 +60,42 @@ const reachesLimit = ({ plan, storedBytes }: SpaceStorage) => storedBytes >= sto
 
 const oldestOfFirstWithEntries = async (
   unit: PurgeBatch,
-  [projectId, ...others]: readonly string[],
+  [project, ...others]: readonly CandidateProject[],
 ): Promise<
-  | { readonly projectId: string; readonly oldest: readonly [PurgeableEntry, ...PurgeableEntry[]] }
+  | {
+      readonly project: CandidateProject;
+      readonly oldest: readonly [PurgeableEntry, ...PurgeableEntry[]];
+    }
   | undefined
 > => {
-  if (projectId === undefined) {
+  if (project === undefined) {
     return undefined;
   }
-  const [first, ...rest] = await unit.oldestEntriesOf(projectId, PURGE_BATCH_SIZE);
+  const [first, ...rest] = await unit.oldestEntriesOf(project.id, PURGE_BATCH_SIZE);
   return first === undefined
     ? oldestOfFirstWithEntries(unit, others)
-    : { projectId, oldest: [first, ...rest] };
+    : { project, oldest: [first, ...rest] };
 };
 
 const purgeBatch = async (
   unit: PurgeBatch,
-  { projectIds, purgedAt }: { readonly projectIds: readonly string[]; readonly purgedAt: Date },
+  {
+    projects,
+    purgedAt,
+  }: { readonly projects: readonly CandidateProject[]; readonly purgedAt: Date },
 ): Promise<PurgedProject | undefined> => {
   const excess = excessOf(await unit.storage());
   if (excess <= 0) {
     return undefined;
   }
-  const found = await oldestOfFirstWithEntries(unit, projectIds);
+  const found = await oldestOfFirstWithEntries(unit, projects);
   if (found === undefined) {
     return undefined;
   }
+  const { id: projectId, name } = found.project;
   const { ids, purgedBefore } = entriesToPurge({ oldest: found.oldest, excess });
-  await unit.purge({ projectId: found.projectId, entryIds: ids, purgedBefore, purgedAt });
-  return { projectId: found.projectId, deletedEntries: ids.length, purgedBefore };
+  await unit.purge({ projectId, entryIds: ids, purgedBefore, purgedAt });
+  return { projectId, name, deletedEntries: ids.length, purgedBefore };
 };
 
 const withBatch = (purged: readonly PurgedProject[], batch: PurgedProject) => {
@@ -112,23 +124,25 @@ export const purgeHistory =
     const startedAt = now();
     const withinBudget = () => now().getTime() - startedAt.getTime() < budgetMs;
     const purgeSpace = async (
-      { spaceId, projectIds }: Pick<PurgeCandidate, "spaceId" | "projectIds">,
+      { spaceId, projects }: Pick<PurgeCandidate, "spaceId" | "projects">,
       purged: readonly PurgedProject[],
     ): Promise<readonly PurgedProject[]> => {
       if (!withinBudget()) {
         return purged;
       }
       const batch = await unitOfWork.batch(spaceId, (unit) =>
-        purgeBatch(unit, { projectIds, purgedAt: startedAt }),
+        purgeBatch(unit, { projects, purgedAt: startedAt }),
       );
       return batch === undefined
         ? purged
-        : purgeSpace({ spaceId, projectIds }, withBatch(purged, batch));
+        : purgeSpace({ spaceId, projects }, withBatch(purged, batch));
     };
     const spaces = (await candidates.list()).filter(reachesLimit);
     return spaces.reduce<Promise<readonly PurgedSpace[]>>(async (previous, candidate) => {
       const report = await previous;
       const projects = await purgeSpace(candidate, []);
-      return projects.length === 0 ? report : [...report, { spaceId: candidate.spaceId, projects }];
+      return projects.length === 0
+        ? report
+        : [...report, { spaceId: candidate.spaceId, name: candidate.name, projects }];
     }, Promise.resolve([]));
   };
