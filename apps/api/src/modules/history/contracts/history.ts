@@ -38,4 +38,5 @@ export const HistoryEntryOutput = z.looseObject({
 export const HistoryOutput = z.looseObject({
   entries: z.array(HistoryEntryOutput),
   nextCursor: z.string().nullable(),
+  purgedBefore: z.iso.datetime().nullable(),
 });

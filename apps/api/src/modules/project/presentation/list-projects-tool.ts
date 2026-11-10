@@ -23,10 +23,11 @@ export const registerListProjects =
           return { content: [{ type: "text", text: "Espace introuvable" }], isError: true };
         }
         const output = {
-          projects: listed.value.map(({ id, name, createdAt }) => ({
+          projects: listed.value.map(({ id, name, createdAt, historyPurgedAt }) => ({
             id,
             name,
             createdAt: createdAt.toISOString(),
+            historyPurgedAt: historyPurgedAt?.toISOString() ?? null,
           })),
         };
         return {

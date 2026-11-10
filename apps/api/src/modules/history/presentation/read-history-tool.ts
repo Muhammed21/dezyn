@@ -16,9 +16,10 @@ const ERROR_TEXT: Readonly<Record<RecordFailure | "invalid_cursor", string>> = {
   invalid_cursor: "Curseur invalide",
 };
 
-const historyOutputOf = ({ entries, nextCursor }: HistoryPage) => ({
+const historyOutputOf = ({ entries, nextCursor, purgedBefore }: HistoryPage) => ({
   entries: entries.map((entry) => ({ ...entry, occurredAt: entry.occurredAt.toISOString() })),
   nextCursor,
+  purgedBefore: purgedBefore?.toISOString() ?? null,
 });
 
 const ReadHistoryInput = {
@@ -34,7 +35,7 @@ export const registerReadHistory =
       "read_history",
       {
         description:
-          "Lit l'historique d'un projet, des entrées les plus récentes aux plus anciennes, page par page : renvoyer nextCursor en cursor pour la page suivante.",
+          "Lit l'historique d'un projet, des entrées les plus récentes aux plus anciennes, page par page : renvoyer nextCursor en cursor pour la page suivante. purgedBefore : les entrées antérieures à cette date ont été supprimées par la purge du stockage ; null si l'historique est complet.",
         inputSchema: ReadHistoryInput,
         outputSchema: HistoryOutput,
       },

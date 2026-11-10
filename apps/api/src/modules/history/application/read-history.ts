@@ -28,6 +28,7 @@ export const DEFAULT_PAGE_SIZE = 50;
 export type HistoryPage = {
   readonly entries: readonly HistoryEntry[];
   readonly nextCursor: string | null;
+  readonly purgedBefore: Date | null;
 };
 
 export interface HistoryReader {
@@ -35,9 +36,13 @@ export interface HistoryReader {
     projectId: string,
     page: { readonly after: HistoryPosition | undefined; readonly take: number },
   ): Promise<readonly HistoryEntry[]>;
+  purgedBeforeOf(projectId: string): Promise<Date | null>;
 }
 
-const pageOf = (rows: readonly HistoryEntry[], limit: number): HistoryPage => {
+const pageOf = (
+  rows: readonly HistoryEntry[],
+  limit: number,
+): Omit<HistoryPage, "purgedBefore"> => {
   const entries = rows.slice(0, limit);
   const last = entries.at(-1);
   return {
@@ -63,5 +68,6 @@ export const readHistory =
     if (project === undefined) {
       return err("not_found");
     }
-    return ok(pageOf(await history.entriesOf(projectId, { after, take: limit + 1 }), limit));
+    const rows = await history.entriesOf(projectId, { after, take: limit + 1 });
+    return ok({ ...pageOf(rows, limit), purgedBefore: await history.purgedBeforeOf(projectId) });
   };

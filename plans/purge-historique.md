@@ -54,8 +54,15 @@ Décision prise pendant la tranche : un passage ne reprend qu'un espace encore �
 ### Tranche 3 : l'API dit jusqu'où l'historique a été purgé
 
 **Valeur** : l'IA et l'interface savent que l'historique d'un projet est incomplet.
-**Chemin** : `GET /v1/projects/{id}/history` et `read_history` renvoient `purgedBefore` ; le projet renvoie `historyPurgedAt`.
-**Critères** : à valider avant la tranche.
+**Chemin** : `GET /v1/projects/{id}/history` et `read_history` renvoient `purgedBefore` ; `GET /v1/spaces/{id}/projects` et `list_projects` renvoient `historyPurgedAt` pour chaque projet.
+**Compétences à charger** : `tdd`, `testing`, `mutation-testing`, `refactoring`.
+**Critères** :
+
+1. L'historique renvoie `purgedBefore` (date ISO de la plus récente entrée purgée, ou `null`) sur chaque page, curseur compris, par l'API et par le MCP.
+2. La liste des projets renvoie `historyPurgedAt` (date ISO de la dernière purge, ou `null`) pour chaque projet, par l'API et par le MCP.
+3. `HistoryOutput` et `ProjectsOutput` déclarent ces champs, nullables ; la sortie structurée des outils MCP les valide.
+4. La description de `read_history` dit que les entrées antérieures à `purgedBefore` ont été supprimées par la purge.
+5. Un non-membre reçoit toujours 404 ; un projet jamais purgé renvoie `null`.
 
 ### Tranche 4 : le Worker `dezyn-purge` purge la production toutes les 15 minutes
 

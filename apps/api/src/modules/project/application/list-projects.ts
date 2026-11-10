@@ -3,7 +3,7 @@ import { err, ok, type Result } from "@repo/result";
 
 import type { Project } from "../domain/project.ts";
 
-export type ListedProject = Omit<Project, "spaceId">;
+export type ListedProject = Omit<Project, "spaceId"> & { readonly historyPurgedAt: Date | null };
 
 export interface ProjectLister {
   projectsOf(spaceId: string): Promise<readonly ListedProject[]>;

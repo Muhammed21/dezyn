@@ -59,7 +59,12 @@ export const postgresProjectFinder = (db: PostgresDatabase): ProjectFinder => ({
 export const postgresProjectLister = (db: PostgresDatabase): ProjectLister => ({
   projectsOf: (spaceId) =>
     db.orm
-      .select({ id: project.id, name: project.name, createdAt: project.createdAt })
+      .select({
+        id: project.id,
+        name: project.name,
+        createdAt: project.createdAt,
+        historyPurgedAt: project.historyPurgedAt,
+      })
       .from(project)
       .where(eq(project.spaceId, spaceId))
       .orderBy(asc(project.name)),

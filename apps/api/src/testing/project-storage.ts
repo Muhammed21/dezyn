@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import type { PostgresDatabase } from "#db";
+import { createPostgresDatabase, type PostgresDatabase } from "#db";
 import { storedSize } from "#modules/project/domain/storage.ts";
 import { storageMeterOn } from "#modules/project/project-module.ts";
 import { schema } from "@repo/db";
@@ -76,4 +76,23 @@ export const bytesOfProjectRows = async (db: PostgresDatabase, projectId: string
     sizeOfRows(proposals) +
     sizeOfRows(entries)
   );
+};
+
+export const seedPurgeTrace = async (
+  migratorUrl: string,
+  {
+    projectId,
+    purgedBefore,
+    purgedAt,
+  }: { readonly projectId: string; readonly purgedBefore: Date; readonly purgedAt: Date },
+) => {
+  const migrator = createPostgresDatabase({ url: migratorUrl });
+  try {
+    await migrator.orm
+      .update(project)
+      .set({ historyPurgedBefore: purgedBefore, historyPurgedAt: purgedAt })
+      .where(eq(project.id, projectId));
+  } finally {
+    await migrator.close();
+  }
 };
