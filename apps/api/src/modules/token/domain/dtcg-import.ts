@@ -1,4 +1,4 @@
-import { RESOLVER_VERSION } from "./dtcg-document.ts";
+import { modifierRef, RESOLVER_VERSION } from "./dtcg-document.ts";
 import { sameValue } from "./same-definition.ts";
 
 export type ImportIssue = { readonly path: string; readonly message: string };
@@ -207,7 +207,7 @@ const resolverDocument = (document: Readonly<Record<string, unknown>>): ReadDocu
       ...("default" in own && !contexts.some(([mode]) => mode === own.default)
         ? issue(`modifiers.${modifier}.default`, "Contexte inconnu")
         : []),
-      ...(order.length === 1 && isObject(step) && step.$ref === `#/modifiers/${modifier}`
+      ...(order.length === 1 && isObject(step) && step.$ref === modifierRef(modifier)
         ? []
         : issue("resolutionOrder", "Le seul modificateur du document attendu")),
       ...flat.issues,

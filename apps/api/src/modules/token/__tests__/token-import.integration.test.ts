@@ -748,24 +748,6 @@ describe("l'import refuse ce que dezyn ne stocke pas (ADR 0041)", () => {
       );
     }),
   );
-
-  it("un document Resolver dans un projet sans modes répond 400", () =>
-    withIdentityApp(async (app, db) => {
-      const { accessToken, projectId } = await seedProject(app, db);
-
-      const response = await importTokens(app, {
-        accessToken,
-        projectId,
-        document: resolverOf({ clair: {}, sombre: {} }),
-      });
-
-      expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject(
-        invalidDocument([
-          { path: "modifiers", message: "Document Resolver dans un projet sans modes" },
-        ]),
-      );
-    }));
 });
 
 const resolverOf = (
@@ -1099,6 +1081,28 @@ describe("l'import refuse un document Resolver qui ne correspond pas au projet (
     }),
   );
 
+  it("un document DTCG simple dans un projet à modes répond 400 sur chaque token, sans rien écrire", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { fond: color(PRIMARY_BLUE) },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          {
+            path: "tokens.fond.$value",
+            message: "Le projet a des modes : donner une valeur par mode dans modes",
+          },
+        ]),
+      );
+      expect(await tokenCreations(app, { accessToken, projectId })).toEqual([]);
+    }));
+
   const VALID = VALID_RESOLVER;
   const APPARENCE = VALID.modifiers.apparence;
 
@@ -1207,6 +1211,169 @@ describe("l'import refuse un document Resolver qui ne correspond pas au projet (
       expect(await response.json()).toMatchObject(invalidDocument([{ path, message }]));
     }),
   );
+});
+
+describe("un document Resolver crée le modificateur et les modes d'un projet vide (ADR 0041)", () => {
+  it("un document exporté d'un projet à modes, importé dans un projet vide, ressort identique", () =>
+    withIdentityApp(async (app, db) => {
+      const source = await seedProject(app, db);
+      await seedModes(db, { projectId: source.projectId, modes: ["sombre", "clair"] });
+      await addToken(app, {
+        ...source,
+        token: {
+          name: "couleur.fond",
+          $type: "color",
+          modes: { sombre: NIGHT_BLUE, clair: PRIMARY_BLUE },
+        },
+      });
+      await addToken(app, {
+        ...source,
+        token: {
+          name: "couleur.texte",
+          $type: "color",
+          modes: { sombre: "{couleur.fond}", clair: NIGHT_BLUE },
+        },
+      });
+      const exported = await exportedDocument(app, source);
+      const target = await seedProjectAsEditor(app, db, { user: GRACE });
+
+      const response = await importTokens(app, { ...target, document: exported });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ imported: 2, modes: ["sombre", "clair"] });
+      expect(await exportedDocument(app, target)).toEqual(exported);
+    }));
+
+  it("la création laisse une entrée modes.created avec le modificateur et ses modes", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({ sombre: {}, clair: {} }, { modifier: "theme" }),
+      });
+
+      expect(
+        (await historyOf(app, { accessToken, projectId })).filter(
+          ({ action }: { action: string }) => action === "modes.created",
+        ),
+      ).toEqual([
+        expect.objectContaining({
+          before: null,
+          after: { modifier: "theme", modes: ["sombre", "clair"] },
+          correlationId: IMPORT_CORRELATION_ID,
+          author: expect.objectContaining({ kind: "member" }),
+        }),
+      ]);
+    }));
+
+  it("deux imports simultanés dans un projet vide : l'un crée les modes, l'autre voit ses tokens et répond 409", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const document = resolverOf({
+        clair: { fond: color(PRIMARY_BLUE) },
+        sombre: { fond: color(NIGHT_BLUE) },
+      });
+
+      const responses = await Promise.all([
+        importTokens(app, { accessToken, projectId, document }),
+        importTokens(app, { accessToken, projectId, document }),
+      ]);
+
+      expect(
+        responses.map(({ status }) => status).toSorted((first, second) => first - second),
+      ).toEqual([201, 409]);
+      expect(await responses.find(({ status }) => status === 409)?.json()).toMatchObject({
+        errors: [{ path: "tokens.fond", message: "Token déjà présent dans le projet" }],
+      });
+      expect(await db.orm.select().from(schema.modifier)).toHaveLength(1);
+    }));
+
+  it("une proposition en attente répond 400 sans créer de modes", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await callMcp(app, {
+        token: accessToken,
+        method: "tools/call",
+        params: {
+          name: "write_tokens",
+          arguments: { projectId, tokens: [makeColorToken({ name: "bleu" })] },
+        },
+      });
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: color(PRIMARY_BLUE) },
+          sombre: { fond: color(NIGHT_BLUE) },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          {
+            path: "modifiers",
+            message: "Propositions en attente : relisez-les avant d'importer un document Resolver",
+          },
+        ]),
+      );
+      expect(await db.orm.select().from(schema.modifier)).toEqual([]);
+    }));
+
+  it("un modificateur sans contexte répond 400 sans créer de modes", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: {
+          ...resolverOf({}, { modifier: "theme" }),
+          modifiers: { theme: { contexts: {} } },
+        },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "modifiers", message: "Au moins un contexte attendu pour créer les modes" },
+        ]),
+      );
+      expect(await db.orm.select().from(schema.modifier)).toEqual([]);
+    }));
+
+  it("un projet sans modes qui a déjà des tokens répond 400 sans créer de modes", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      await addToken(app, {
+        accessToken,
+        projectId,
+        token: { name: "bleu", $type: "color", $value: PRIMARY_BLUE },
+      });
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: resolverOf({
+          clair: { fond: color(PRIMARY_BLUE) },
+          sombre: { fond: color(NIGHT_BLUE) },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          {
+            path: "modifiers",
+            message: "Document Resolver dans un projet sans modes qui a déjà des tokens",
+          },
+        ]),
+      );
+      expect(await db.orm.select().from(schema.modifier)).toEqual([]);
+    }));
 });
 
 describe("seul un membre du projet importe des tokens", () => {

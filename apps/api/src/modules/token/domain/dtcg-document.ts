@@ -45,6 +45,9 @@ export type ModalToken = Omit<DtcgToken, "$value"> & {
 const tokensIn = (mode: string, tokens: readonly ModalToken[]): readonly DtcgToken[] =>
   tokens.map(({ modes, ...token }) => ({ ...token, $value: modes?.[mode] }));
 
+export const modifierRef = (modifier: string) =>
+  `#/modifiers/${modifier.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+
 export const resolverDocumentOf = ({
   modifier,
   modes,
@@ -63,5 +66,5 @@ export const resolverDocumentOf = ({
       default: modes[0],
     },
   },
-  resolutionOrder: [{ $ref: `#/modifiers/${modifier}` }],
+  resolutionOrder: [{ $ref: modifierRef(modifier) }],
 });
