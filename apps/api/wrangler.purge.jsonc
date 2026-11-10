@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "triggers": { "crons": ["*/15 * * * *"] },
-  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "00000000000000000000000000000000" }],
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "f160b84e39a742c69e13a1fcaf6ea235" }],
   "vars": { "MAIL_FROM": "no-reply@dezyn.dev" },
   "observability": { "enabled": true },
 }
