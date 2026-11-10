@@ -169,7 +169,6 @@ Il n'a aucun droit d'écriture sur `space` : la purge s'arrête à 90 %, au-dess
 4. Exposition de `purgedBefore` dans l'historique et de `historyPurgedAt` sur le projet.
 5. Worker `dezyn-purge` : configuration Wrangler à part, Cron Trigger `*/15 * * * *`, Hyperdrive sur `history_maintainer`, commande de déclenchement manuel dans le runbook d'hébergement. Attend le plan Workers Paid (#161).
 6. À l'acceptation de cet ADR : la ligne de statut de l'ADR 0019 et sa ligne d'index dans `docs/adr/README.md` mentionnent l'extension de son §2 par l'ADR 0042.
-7. Le Worker `dezyn-purge` vérifie la version du schéma avant de purger, comme l'API : `history_maintainer` a `USAGE` sur le schéma `drizzle` et `SELECT` sur `drizzle.__drizzle_migrations`, des métadonnées sans donnée utilisateur (migration 0016). Le script se lance par `pnpm --filter @repo/api run purge` : pnpm 11 réserve `purge` à sa commande intégrée.
 
 ## Liens
 

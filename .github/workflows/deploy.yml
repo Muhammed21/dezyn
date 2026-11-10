@@ -60,7 +60,8 @@ jobs:
         run: pnpm exec wrangler deploy --message "$HEAD_SHA"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Health check
+      - id: health
+        name: Health check
         if: steps.latest.outputs.head == 'true'
         run: |
           for attempt in 1 2 3 4 5; do
@@ -76,7 +77,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Roll back
-        if: failure() && steps.deploy.outcome == 'success'
+        if: failure() && steps.health.outcome == 'failure'
         working-directory: apps/api
         run: pnpm exec wrangler rollback --yes --message "health check failed for $HEAD_SHA"
         env:

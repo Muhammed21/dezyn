@@ -123,7 +123,7 @@ Laisser `DEPLOY_ENABLED` à `false` jusqu'à l'étape 5.
    (cd apps/api && npx wrangler secret put RESEND_API_KEY --config wrangler.purge.jsonc)
    ```
 
-   Chaque passage journalise `history_purge_pass` avec le nombre d'espaces purgés : `(cd apps/api && npx wrangler tail dezyn-purge --config wrangler.purge.jsonc)`. Sur le plan Workers Free, un passage peut dépasser les 10 ms de CPU par invocation et s'interrompre ; le lot en cours est annulé par sa transaction et le passage suivant reprend. Le plan Workers Paid lève cette limite (#161).
+   Chaque passage journalise `history_purge_pass` avec le nombre d'espaces purgés : `(cd apps/api && npx wrangler tail dezyn-purge --config wrangler.purge.jsonc)`. Sur le plan Workers Free, un passage peut dépasser les 10 ms de CPU par invocation et s'interrompre ; le lot en cours est annulé par sa transaction et le passage suivant reprend. Le plan Workers Paid lève cette limite (#161, ADR 0043).
 
    Pour lancer un passage sans attendre le cron, depuis un poste : `pnpm --filter @repo/api run purge`, avec `DATABASE_URL_HISTORY_MAINTAINER` sur la branche visée. Les emails partent alors par le SMTP de `SMTP_HOST`, `SMTP_PORT` et `MAIL_FROM`.
 

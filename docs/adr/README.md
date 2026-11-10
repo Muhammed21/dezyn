@@ -48,6 +48,7 @@ Format et circuit : voir [`.claude/rules/adr-et-spikes.md`](../../.claude/rules/
 | [0040](0040-le-document-resolver-exporte-porte-la-version-2025-10-de-la-specification-publiee.md)                     | Le document Resolver exporté porte la version `2025.10` de la spécification publiée                                                                    | Accepté                                                                                                                                                                                                                                                                                   |
 | [0041](0041-un-membre-importe-un-document-dtcg-ou-resolver-en-tokens-valides-sans-rien-perdre-ni-remplacer.md)        | Un membre importe un document DTCG ou Resolver en tokens validés, sans rien perdre ni remplacer                                                        | Accepté                                                                                                                                                                                                                                                                                   |
 | [0042](0042-la-purge-de-l-historique-tourne-dans-un-worker-planifie-et-ramene-l-espace-a-90-pourcent-de-sa-limite.md) | La purge de l'historique tourne dans un Worker planifié et ramène l'espace à 90 % de sa limite                                                         | Accepté                                                                                                                                                                                                                                                                                   |
+| [0043](0043-le-worker-de-purge-verifie-le-schema-et-se-deploie-sans-attendre-le-plan-workers-paid.md)                 | Le Worker de purge vérifie le schéma et se déploie sans attendre le plan Workers Paid                                                                  | Proposé                                                                                                                                                                                                                                                                                   |
 
 ## Dépendances principales
 
@@ -165,6 +166,8 @@ graph TD
   0019 --> 0042
   0032 --> 0042
   0034 --> 0042
+  0034 --> 0043[0043 Purge : schéma et plan Free]
+  0042 --> 0043
   0006 --> 0032[0032 Compteur de stockage]
   0011 --> 0032
   0016 --> 0032
