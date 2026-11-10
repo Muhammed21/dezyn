@@ -12,6 +12,8 @@ export const project = pgTable(
     name: text("name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     storedBytes: bigint("stored_bytes", { mode: "number" }).notNull().default(0),
+    historyPurgedBefore: timestamp("history_purged_before", { withTimezone: true }),
+    historyPurgedAt: timestamp("history_purged_at", { withTimezone: true }),
   },
   (table) => [index("project_space_id_idx").on(table.spaceId)],
 );

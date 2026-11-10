@@ -134,3 +134,103 @@ describe("le rôle history_maintainer purge l'historique, sans le modifier (ADR 
       ).rejects.toThrow(permissionDenied("history_entry"));
     }));
 });
+
+describe("le rôle history_maintainer lit ce que la purge exige et ne touche qu'au compteur et à la trace du projet (ADR 0042 §7)", () => {
+  it("history_maintainer lit les espaces, les projets et les membres", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      expect(await maintainer.orm.select().from(schema.space)).toHaveLength(1);
+      expect(await maintainer.orm.select().from(schema.project)).toHaveLength(1);
+      expect(await maintainer.orm.select().from(schema.spaceMember)).toEqual([]);
+    }));
+
+  it("history_maintainer lit l'identifiant, l'email et le nom des utilisateurs", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      expect(
+        await maintainer.orm
+          .select({
+            id: schema.identityUser.id,
+            email: schema.identityUser.email,
+            name: schema.identityUser.name,
+          })
+          .from(schema.identityUser),
+      ).toEqual([expect.objectContaining({ email: "ada@dezyn.test", name: "Ada Lovelace" })]);
+    }));
+
+  it("history_maintainer ne lit pas les autres colonnes des utilisateurs", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      await expect(maintainer.orm.select().from(schema.identityUser)).rejects.toThrow(
+        permissionDenied("identity_user"),
+      );
+    }));
+
+  it("history_maintainer met à jour le compteur et la trace de purge d'un projet", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+      const purgedAt = new Date("2026-11-10T08:00:00.000Z");
+
+      await maintainer.orm.update(schema.project).set({
+        storedBytes: 12,
+        historyPurgedBefore: purgedAt,
+        historyPurgedAt: purgedAt,
+      });
+
+      expect(await app.orm.select().from(schema.project)).toEqual([
+        expect.objectContaining({
+          storedBytes: 12,
+          historyPurgedBefore: purgedAt,
+          historyPurgedAt: purgedAt,
+        }),
+      ]);
+    }));
+
+  it("history_maintainer ne renomme pas un projet", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      await expect(maintainer.orm.update(schema.project).set({ name: "Boutique" })).rejects.toThrow(
+        permissionDenied("project"),
+      );
+    }));
+
+  it("history_maintainer ne crée ni ne supprime de projet", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+      const [space] = await app.orm.select({ id: schema.space.id }).from(schema.space);
+
+      await expect(
+        maintainer.orm.insert(schema.project).values({
+          id: randomUUID(),
+          spaceId: space?.id ?? "",
+          name: "Boutique",
+          createdAt: new Date(),
+        }),
+      ).rejects.toThrow(permissionDenied("project"));
+      await expect(maintainer.orm.delete(schema.project)).rejects.toThrow(
+        permissionDenied("project"),
+      );
+    }));
+
+  it("history_maintainer n'écrit pas dans les espaces", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      await expect(
+        maintainer.orm.update(schema.space).set({ storageAlertedAt: null }),
+      ).rejects.toThrow(permissionDenied("space"));
+    }));
+
+  it("history_maintainer n'écrit pas dans les membres", () =>
+    withMaintainerDatabase(async ({ app, maintainer }) => {
+      await seedHistoryEntry(app);
+
+      await expect(maintainer.orm.delete(schema.spaceMember)).rejects.toThrow(
+        permissionDenied("space_member"),
+      );
+    }));
+});
