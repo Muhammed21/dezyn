@@ -1,6 +1,6 @@
 # 0043 — Le Worker de purge vérifie le schéma et se déploie sans attendre le plan Workers Paid
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-11-10
 - Décideurs : Muhammed Cavus
 - Amende : ADR 0042 (commande locale, §2 ; droits de `history_maintainer`, §7 ; dépendance au plan Workers Paid, conséquences)

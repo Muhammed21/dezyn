@@ -1,6 +1,6 @@
 # 0042 — La purge de l'historique tourne dans un Worker planifié et ramène l'espace à 90 % de sa limite
 
-- Statut : Accepté
+- Statut : Accepté — §2, §7 et dépendance au plan Workers Paid amendés par [0043](0043-le-worker-de-purge-verifie-le-schema-et-se-deploie-sans-attendre-le-plan-workers-paid.md)
 - Date : 2026-11-10
 - Décideurs : Muhammed Cavus
 - Amende : ADR 0019 (droits du rôle `history_maintainer`, §2)
