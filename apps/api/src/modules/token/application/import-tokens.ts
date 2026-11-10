@@ -215,6 +215,14 @@ export const importTokens =
         createdModes === undefined
           ? []
           : [
+              ...(createdModes.modes.length === 0
+                ? [
+                    {
+                      path: "modifiers",
+                      message: "Au moins un contexte attendu pour créer les modes",
+                    },
+                  ]
+                : []),
               ...(existing.length > 0
                 ? [
                     {

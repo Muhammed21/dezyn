@@ -1323,6 +1323,28 @@ describe("un document Resolver crée le modificateur et les modes d'un projet vi
       expect(await db.orm.select().from(schema.modifier)).toEqual([]);
     }));
 
+  it("un modificateur sans contexte répond 400 sans créer de modes", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: {
+          ...resolverOf({}, { modifier: "theme" }),
+          modifiers: { theme: { contexts: {} } },
+        },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          { path: "modifiers", message: "Au moins un contexte attendu pour créer les modes" },
+        ]),
+      );
+      expect(await db.orm.select().from(schema.modifier)).toEqual([]);
+    }));
+
   it("un projet sans modes qui a déjà des tokens répond 400 sans créer de modes", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
