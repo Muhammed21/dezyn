@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createPostgresDatabase, type PostgresDatabase } from "#db";
@@ -232,5 +233,23 @@ describe("le rôle history_maintainer lit ce que la purge exige et ne touche qu'
       await expect(maintainer.orm.delete(schema.spaceMember)).rejects.toThrow(
         permissionDenied("space_member"),
       );
+    }));
+});
+
+describe("le rôle history_maintainer lit la version du schéma, comme le rôle app", () => {
+  it("history_maintainer lit les migrations appliquées", () =>
+    withMaintainerDatabase(async ({ maintainer }) => {
+      const { rows } = await maintainer.orm.execute(
+        sql`SELECT count(*)::int AS applied FROM drizzle.__drizzle_migrations`,
+      );
+
+      expect(rows).toEqual([{ applied: expect.any(Number) }]);
+    }));
+
+  it("history_maintainer ne modifie pas les migrations appliquées", () =>
+    withMaintainerDatabase(async ({ maintainer }) => {
+      await expect(
+        maintainer.orm.execute(sql`DELETE FROM drizzle.__drizzle_migrations`),
+      ).rejects.toThrow(permissionDenied("__drizzle_migrations"));
     }));
 });

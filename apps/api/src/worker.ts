@@ -1,12 +1,11 @@
 import { createPostgresDatabase } from "#db";
-import { readWorkerConfig, type WorkerConfig } from "#platform/api-config.ts";
+import { readWorkerConfig } from "#platform/api-config.ts";
 import { createJsonLineSink } from "#platform/json-line-sink.ts";
 import { errorDetails, type LogSink } from "#platform/logging.ts";
-import type { Mailer } from "#platform/mailer.ts";
 import { INTERNAL_ERROR, type Problem } from "#platform/problem.ts";
-import { createResendMailer, type Fetch } from "#platform/resend-mailer.ts";
+import type { Fetch } from "#platform/resend-mailer.ts";
+import { workerMailerOf } from "#platform/worker-mailer.ts";
 import { assertSchemaVersion, LATEST_MIGRATION } from "@repo/db";
-import { err, ok } from "@repo/result";
 
 import { buildApi } from "./build-api.ts";
 
@@ -48,35 +47,6 @@ const schemaIsCurrent = async ({
   }
 };
 
-const loggingMailer = (log: LogSink): Mailer => ({
-  send: async ({ to, subject }) => {
-    log({ level: "warn", msg: "email not sent", to, subject });
-    return err("mail_unavailable");
-  },
-});
-
-const journalingMailer = (log: LogSink): Mailer => ({
-  send: async ({ to, subject }) => {
-    log({ level: "info", msg: "email logged instead of sent", to, subject });
-    return ok(undefined);
-  },
-});
-
-const mailerOf = ({
-  config,
-  fetch,
-  log,
-}: {
-  readonly config: WorkerConfig;
-  readonly fetch: Fetch;
-  readonly log: LogSink;
-}): Mailer => {
-  if (config.email) {
-    return createResendMailer({ ...config.email, fetch, log });
-  }
-  return config.emailDelivery === "log" ? journalingMailer(log) : loggingMailer(log);
-};
-
 export const createWorker = ({
   log,
   assertSchema,
@@ -109,7 +79,7 @@ export const createWorker = ({
         const { app } = await buildApi({
           ...config.value,
           db,
-          mailer: mailerOf({ config: config.value, fetch, log }),
+          mailer: workerMailerOf({ ...config.value, fetch, log }),
           log,
         });
         return await app.fetch(request);

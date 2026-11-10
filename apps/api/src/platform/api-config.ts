@@ -197,3 +197,34 @@ export const readPurgeConfig = (
     smtp: { host: data.SMTP_HOST, port: data.SMTP_PORT, from: data.MAIL_FROM },
   });
 };
+
+const PurgeWorkerEnv = z
+  .object({
+    HYPERDRIVE: z.object({ connectionString: text() }, { error: "binding Hyperdrive attendu" }),
+    RESEND_API_KEY: text().optional(),
+    MAIL_FROM: z.email({ error: "adresse email attendue" }).optional(),
+    EMAIL_DELIVERY: z.literal("log", { error: "seule la valeur log est admise" }).optional(),
+  })
+  .refine((env) => env.RESEND_API_KEY === undefined || env.MAIL_FROM !== undefined, {
+    path: ["MAIL_FROM"],
+    error: MISSING,
+  });
+
+export type PurgeWorkerConfig = Pick<WorkerConfig, "databaseUrl" | "email" | "emailDelivery">;
+
+export const readPurgeWorkerConfig = (
+  bindings: unknown,
+): Result<PurgeWorkerConfig, readonly string[]> => {
+  const parsed = PurgeWorkerEnv.safeParse(bindings);
+  if (!parsed.success) {
+    return err(issuesOf(parsed.error));
+  }
+  const { data } = parsed;
+  return ok({
+    databaseUrl: data.HYPERDRIVE.connectionString,
+    ...(data.RESEND_API_KEY && data.MAIL_FROM
+      ? { email: { apiKey: data.RESEND_API_KEY, from: data.MAIL_FROM } }
+      : {}),
+    ...(data.EMAIL_DELIVERY ? { emailDelivery: data.EMAIL_DELIVERY } : {}),
+  });
+};
