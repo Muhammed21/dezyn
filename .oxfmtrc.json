@@ -1,7 +1,12 @@
 {
   "printWidth": 100,
   "tabWidth": 2,
-  "ignorePatterns": ["pnpm-lock.yaml", "docs/CATALOG.md", "packages/docs-catalog/reports/**"],
+  "ignorePatterns": [
+    "pnpm-lock.yaml",
+    "docs/CATALOG.md",
+    "packages/docs-catalog/reports/**",
+    "packages/db/src/generated/**"
+  ],
   "sortImports": {
     "ignoreCase": true,
     "newlinesBetween": true,

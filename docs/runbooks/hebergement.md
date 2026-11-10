@@ -68,6 +68,7 @@ pnpm preview:github
 | -------------------------------------- | -------------------------- | ------------------------------------------------------------------ |
 | Environnement `production`             | GitHub, réservé à `main`   | `prod:github`                                                      |
 | `DEPLOY_ENABLED`                       | variable de dépôt          | `prod:github`, seulement si elle manque                            |
+| `PURGE_DEPLOY_ENABLED`                 | variable de dépôt          | à la main, à l'étape 5                                             |
 | `CLOUDFLARE_API_TOKEN` (production)    | environnement `production` | `prod:github`, saisi masqué                                        |
 | `DATABASE_URL_MIGRATOR`                | environnement `production` | `prod:db` à la création du rôle, ou `prod:github`                  |
 | Environnement `preview`                | GitHub, réservé à `main`   | `preview:github`                                                   |
@@ -103,6 +104,28 @@ Laisser `DEPLOY_ENABLED` à `false` jusqu'à l'étape 5.
    ```
    gh variable set DEPLOY_ENABLED --body true
    ```
+
+4. **Le Worker de purge** `dezyn-purge` (ADR 0042) passe toutes les 15 minutes et purge l'historique des espaces à leur limite. Il n'a ni route ni URL `workers.dev`, et se connecte par son propre Hyperdrive, en `history_maintainer` :
+
+   ```
+   (cd apps/api && npx wrangler hyperdrive create dezyn-purge-prod --caching-disabled --connection-string="$(npx neonctl@2.47.0 connection-string production --project-id <projet> --role-name history_maintainer)")
+   ```
+
+   Reporter l'identifiant renvoyé dans `hyperdrive[0].id` de `apps/api/wrangler.purge.jsonc`, puis passer `PURGE_DEPLOY_ENABLED` à `true` : `deploy.yml` déploie alors `dezyn-purge` après `dezyn-api`.
+
+   ```
+   gh variable set PURGE_DEPLOY_ENABLED --body true
+   ```
+
+   Après le premier déploiement, poser la clé Resend, sans laquelle les emails de purge sont journalisés sans partir :
+
+   ```
+   (cd apps/api && npx wrangler secret put RESEND_API_KEY --config wrangler.purge.jsonc)
+   ```
+
+   Chaque passage journalise `history_purge_pass` avec le nombre d'espaces purgés : `(cd apps/api && npx wrangler tail dezyn-purge --config wrangler.purge.jsonc)`. Sur le plan Workers Free, un passage peut dépasser les 10 ms de CPU par invocation et s'interrompre ; le lot en cours est annulé par sa transaction et le passage suivant reprend. Le plan Workers Paid lève cette limite (#161, ADR 0043).
+
+   Pour lancer un passage sans attendre le cron, depuis un poste : `pnpm --filter @repo/api run purge`, avec `DATABASE_URL_HISTORY_MAINTAINER` sur la branche visée. Les emails partent alors par le SMTP de `SMTP_HOST`, `SMTP_PORT` et `MAIL_FROM`.
 
 ## 6. La preview
 

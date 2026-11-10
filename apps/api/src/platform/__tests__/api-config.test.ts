@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { err, ok } from "@repo/result";
 
-import { readApiConfig, readPurgeConfig, readWorkerConfig } from "../api-config.ts";
+import {
+  readApiConfig,
+  readPurgeConfig,
+  readPurgeWorkerConfig,
+  readWorkerConfig,
+} from "../api-config.ts";
 
 const makeEnv = (overrides: Readonly<Record<string, string | undefined>> = {}) => ({
   DATABASE_URL: "postgresql://app@127.0.0.1:5432/dezyn",
@@ -285,5 +290,47 @@ describe("la purge lit sa configuration dans l'environnement", () => {
     expect(
       readPurgeConfig(makePurgeEnv({ DATABASE_URL_HISTORY_MAINTAINER: "http://127.0.0.1/dezyn" })),
     ).toEqual(err(["DATABASE_URL_HISTORY_MAINTAINER : URL postgresql:// attendue"]));
+  });
+});
+
+const PURGE_HYPERDRIVE = {
+  HYPERDRIVE: { connectionString: "postgresql://history_maintainer@127.0.0.1:5432/dezyn" },
+};
+
+describe("le Worker de purge lit sa configuration dans ses bindings", () => {
+  it("avec une clé Resend et un expéditeur, envoie les emails par Resend", () => {
+    expect(
+      readPurgeWorkerConfig({
+        ...PURGE_HYPERDRIVE,
+        RESEND_API_KEY: "re_cle",
+        MAIL_FROM: "no-reply@dezyn.dev",
+      }),
+    ).toEqual(
+      ok({
+        databaseUrl: "postgresql://history_maintainer@127.0.0.1:5432/dezyn",
+        email: { apiKey: "re_cle", from: "no-reply@dezyn.dev" },
+      }),
+    );
+  });
+
+  it("sans clé Resend, n'a pas de moyen d'envoi", () => {
+    expect(readPurgeWorkerConfig({ ...PURGE_HYPERDRIVE, MAIL_FROM: "no-reply@dezyn.dev" })).toEqual(
+      ok({ databaseUrl: "postgresql://history_maintainer@127.0.0.1:5432/dezyn" }),
+    );
+  });
+
+  it("EMAIL_DELIVERY=log journalise les emails au lieu de les envoyer", () => {
+    expect(readPurgeWorkerConfig({ ...PURGE_HYPERDRIVE, EMAIL_DELIVERY: "log" })).toEqual(
+      ok({
+        databaseUrl: "postgresql://history_maintainer@127.0.0.1:5432/dezyn",
+        emailDelivery: "log",
+      }),
+    );
+  });
+
+  it("une clé Resend sans expéditeur nomme MAIL_FROM", () => {
+    expect(readPurgeWorkerConfig({ ...PURGE_HYPERDRIVE, RESEND_API_KEY: "re_cle" })).toEqual(
+      err(["MAIL_FROM : manquante"]),
+    );
   });
 });
