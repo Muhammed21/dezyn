@@ -1,6 +1,6 @@
 # 0042 — La purge de l'historique tourne dans un Worker planifié et ramène l'espace à 90 % de sa limite
 
-- Statut : Proposé
+- Statut : Accepté
 - Date : 2026-11-10
 - Décideurs : Muhammed Cavus
 - Amende : ADR 0019 (droits du rôle `history_maintainer`, §2)
@@ -116,7 +116,9 @@ Un espace dont le stockage atteint sa limite est purgé jusqu'à 90 % de celle-c
 
 ### 4. Par lots de 500, dans un budget de temps, sous un verrou par espace
 
-La purge supprime 500 entrées par transaction, de la plus ancienne à la plus récente. Chaque transaction retire leur taille du compteur du projet et met à jour sa trace (§6). Un passage s'arrête après un budget de 30 secondes ; le passage suivant reprend. Chaque espace est purgé sous `pg_try_advisory_lock` : un espace dont le verrou est pris par un passage précédent est sauté.
+La purge supprime 500 entrées par transaction, de la plus ancienne à la plus récente. Chaque transaction retire leur taille du compteur du projet et met à jour sa trace (§6). Un passage s'arrête après un budget de 30 secondes ; le passage suivant reprend.
+
+Chaque lot commence par `pg_try_advisory_xact_lock` sur l'espace, puis relit dans la même transaction le stockage de l'espace et les plus anciennes entrées du projet à purger. Un lot dont le verrou est pris par un autre passage s'arrête, et le passage saute l'espace. Le verrou suit la transaction, pas la connexion : Hyperdrive mutualise les connexions par transaction et ne garde pas un verrou de session d'une transaction à l'autre.
 
 ### 5. Un email par espace et par passage qui supprime
 
@@ -155,17 +157,18 @@ Il n'a aucun droit d'écriture sur `space` : la purge s'arrête à 90 %, au-dess
 ### Risques et mitigations
 
 - **Un espace se remplit plus vite que la purge ne le vide** (en Team, redescendre de 2 Go demande plus d'un million d'entrées) : chaque passage reprend où le précédent s'est arrêté ; le budget de 30 secondes se règle si les mesures le demandent.
-- **Deux passages se chevauchent** : le verrou consultatif par espace fait sauter l'espace au second.
+- **Deux passages se chevauchent** : chaque lot prend le verrou consultatif de l'espace pour sa transaction ; le passage qui ne l'obtient pas saute l'espace. Un verrou ne survit jamais à sa transaction, donc un passage interrompu ne bloque pas les suivants.
 - **Une purge vide tout l'historique d'un projet sans ramener l'espace à 90 %** : elle passe au projet suivant, puis s'arrête ; seules restent les données de design.
 - **L'email de purge échoue** : la purge reste faite, la trace du projet la montre.
 
 ## Notes d'implémentation
 
 1. Migration : colonnes `history_purged_before` et `history_purged_at` sur `project`, droits du §7.
-2. Cas d'usage de purge dans le module history : lecture des espaces au-dessus de leur limite, tri des projets par `stored_bytes`, suppression par lots avec le compteur et la trace, verrou consultatif et budget. Commande `pnpm --filter @repo/api purge`.
+2. Cas d'usage de purge dans le module history : lecture des espaces au-dessus de leur limite, tri des projets par `stored_bytes`, suppression par lots avec le compteur et la trace, verrou consultatif de transaction par lot et budget. Commande `pnpm --filter @repo/api purge`.
 3. Email aux propriétaires après un passage qui supprime.
 4. Exposition de `purgedBefore` dans l'historique et de `historyPurgedAt` sur le projet.
 5. Worker `dezyn-purge` : configuration Wrangler à part, Cron Trigger `*/15 * * * *`, Hyperdrive sur `history_maintainer`, commande de déclenchement manuel dans le runbook d'hébergement. Attend le plan Workers Paid (#161).
+6. À l'acceptation de cet ADR : la ligne de statut de l'ADR 0019 et sa ligne d'index dans `docs/adr/README.md` mentionnent l'extension de son §2 par l'ADR 0042.
 
 ## Liens
 
