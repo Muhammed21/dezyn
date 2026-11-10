@@ -1,7 +1,7 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 
-import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import type { MemberEnv } from "#platform/member-identity.ts";
 import { FORBIDDEN, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
@@ -18,9 +18,9 @@ const InvitationRequest = z.object({ email: z.email() });
 
 const RoleRequest = z.object({ role: z.enum(ROLES) });
 
-const spaceIdOf = (c: Context<AuthenticatedEnv>) => Uuid.safeParse(c.req.param("spaceId")).data;
+const spaceIdOf = (c: Context<MemberEnv>) => Uuid.safeParse(c.req.param("spaceId")).data;
 
-const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFailure) => {
+const invitationProblem = (c: Context<MemberEnv>, failure: InvitationFailure) => {
   if (failure === "not_found") {
     return c.notFound();
   }
@@ -40,26 +40,26 @@ const invitationProblem = (c: Context<AuthenticatedEnv>, failure: InvitationFail
   return planRequiredProblem(c, failure);
 };
 
-const lastOwnerProblem = (c: Context<AuthenticatedEnv>) =>
+const lastOwnerProblem = (c: Context<MemberEnv>) =>
   problemResponse(c, {
     type: "https://dezyn.dev/problems/last-owner",
     title: "Dernier propriétaire de l'espace",
     status: 409,
   });
 
-const forbiddenProblem = (c: Context<AuthenticatedEnv>) => problemResponse(c, FORBIDDEN);
+const forbiddenProblem = (c: Context<MemberEnv>) => problemResponse(c, FORBIDDEN);
 
-const departureProblem = (c: Context<AuthenticatedEnv>, failure: DepartureFailure) =>
+const departureProblem = (c: Context<MemberEnv>, failure: DepartureFailure) =>
   failure === "not_found" ? c.notFound() : lastOwnerProblem(c);
 
-const roleChangeProblem = (c: Context<AuthenticatedEnv>, failure: RoleChangeFailure) => {
+const roleChangeProblem = (c: Context<MemberEnv>, failure: RoleChangeFailure) => {
   if (failure === "not_found") {
     return c.notFound();
   }
   return failure === "forbidden" ? forbiddenProblem(c) : lastOwnerProblem(c);
 };
 
-const removalProblem = (c: Context<AuthenticatedEnv>, failure: RemovalFailure) => {
+const removalProblem = (c: Context<MemberEnv>, failure: RemovalFailure) => {
   if (failure === "not_found") {
     return c.notFound();
   }
@@ -80,7 +80,7 @@ export const spacesRoutes = ({
   changeRole,
   removeMember,
 }: SpaceUseCases) =>
-  new Hono<AuthenticatedEnv>()
+  new Hono<MemberEnv>()
     .get("/", async (c) => c.json({ spaces: await listMySpaces(c.get("identity").userId) }))
     .get("/:spaceId", async (c) => {
       const spaceId = spaceIdOf(c);

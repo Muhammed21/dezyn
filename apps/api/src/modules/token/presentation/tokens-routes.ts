@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
-import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import type { MemberEnv } from "#platform/member-identity.ts";
 import { invalidRequest, type Problem, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
@@ -78,7 +78,7 @@ export const tokensRoutes = ({
   exportTokens,
   importTokens,
 }: TokenUseCases) =>
-  new Hono<AuthenticatedEnv>()
+  new Hono<MemberEnv>()
     .get("/:projectId/tokens", async (c) => {
       const projectId = Uuid.safeParse(c.req.param("projectId")).data;
       if (projectId === undefined) {

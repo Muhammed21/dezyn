@@ -1,6 +1,6 @@
 import { type Context, Hono } from "hono";
 
-import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import type { MemberEnv } from "#platform/member-identity.ts";
 import { problemResponse } from "#platform/problem.ts";
 
 import type { SpaceUseCases } from "../application/spaces.ts";
@@ -8,7 +8,7 @@ import type { AcceptanceRefusal } from "../domain/acceptance.ts";
 import { alreadyMemberProblem } from "./already-member-problem.ts";
 import { planRequiredProblem } from "./plan-required-problem.ts";
 
-const acceptanceProblem = (c: Context<AuthenticatedEnv>, refusal: AcceptanceRefusal) => {
+const acceptanceProblem = (c: Context<MemberEnv>, refusal: AcceptanceRefusal) => {
   if (refusal === "gone") {
     return problemResponse(c, {
       type: "about:blank",
@@ -30,7 +30,7 @@ const acceptanceProblem = (c: Context<AuthenticatedEnv>, refusal: AcceptanceRefu
 };
 
 export const invitationsRoutes = ({ acceptInvitation }: SpaceUseCases) =>
-  new Hono<AuthenticatedEnv>().post("/:token/accept", async (c) => {
+  new Hono<MemberEnv>().post("/:token/accept", async (c) => {
     const accepted = await acceptInvitation({
       token: c.req.param("token"),
       userId: c.get("identity").userId,

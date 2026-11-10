@@ -229,6 +229,15 @@ export const createIdentityAuth = async ({
     baseURL,
     handle: (request) => auth.handler(request),
     verifyAccessToken: verifier.verify,
+    sessionOf: async (headers) => {
+      try {
+        const session = await auth.api.getSession({ headers });
+        return ok(session === null ? undefined : { userId: session.user.id });
+      } catch (error) {
+        log({ level: "error", msg: "session check failed", ...errorDetails(error) });
+        return err("unavailable");
+      }
+    },
     checkSigningKey: async () => {
       try {
         await auth.api.signJWT({ body: { payload: {} } });

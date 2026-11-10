@@ -31,6 +31,7 @@ import type { Database } from "#platform/database.ts";
 import type { AppEnv } from "#platform/http.ts";
 import { errorDetails, type LogSink } from "#platform/logging.ts";
 import { mcpEndpoint } from "#platform/mcp.ts";
+import { type MemberEnv, requireMember } from "#platform/member-identity.ts";
 import { clientProblem, INTERNAL_ERROR, problemResponse } from "#platform/problem.ts";
 import { requestContext } from "#platform/request-context.ts";
 
@@ -75,10 +76,16 @@ export const createApp = ({
 
   app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
   app.route("/", authPages({ auth, baseURL: auth.baseURL }));
-  const v1 = new Hono<AuthenticatedEnv>().use(
-    requireAccessToken({
+  const resourceMetadataUrl = new URL("/.well-known/oauth-protected-resource/v1", auth.baseURL)
+    .href;
+  const mcp = new Hono<AuthenticatedEnv>().use(
+    requireAccessToken({ verifyAccessToken: auth.verifyAccessToken, resourceMetadataUrl }),
+  );
+  const v1 = new Hono<MemberEnv>().use(
+    requireMember({
+      sessionOf: auth.sessionOf,
       verifyAccessToken: auth.verifyAccessToken,
-      resourceMetadataUrl: new URL("/.well-known/oauth-protected-resource/v1", auth.baseURL).href,
+      resourceMetadataUrl,
     }),
   );
   const registerSpaceTools = registerListSpaces(spaces);
@@ -106,8 +113,8 @@ export const createApp = ({
     closeBatch: proposals.closeBatch,
     recordProjectCall: history.recordProjectCall,
   });
-  v1.post(
-    "/mcp",
+  mcp.post(
+    "/",
     mcpEndpoint({
       registerTools: (server, call) => {
         registerWhoami(server, call);
@@ -129,6 +136,7 @@ export const createApp = ({
   v1.route("/projects", projectBatchesRoutes(proposals));
   v1.route("/", reviewRoutes(proposals));
   v1.route("/invitations", invitationsRoutes(spaces));
+  app.route("/v1/mcp", mcp);
   app.route("/v1", v1);
   app.get("/.well-known/oauth-authorization-server", (c) =>
     auth.authorizationServerMetadata(c.req.raw),

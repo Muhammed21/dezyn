@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 
-import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import type { MemberEnv } from "#platform/member-identity.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
 
@@ -25,21 +25,17 @@ const HistoryQuery = z.object({
 });
 
 export const historyRoutes = ({ readHistory }: HistoryUseCases) =>
-  new Hono<AuthenticatedEnv>().get(
-    "/:projectId/history",
-    validate("query", HistoryQuery),
-    async (c) => {
-      const projectId = Uuid.safeParse(c.req.param("projectId")).data;
-      if (projectId === undefined) {
-        return c.notFound();
-      }
-      const { cursor, limit } = c.req.valid("query");
-      const history = await readHistory({
-        projectId,
-        userId: c.get("identity").userId,
-        after: cursor,
-        limit,
-      });
-      return history.ok ? c.json(history.value) : c.notFound();
-    },
-  );
+  new Hono<MemberEnv>().get("/:projectId/history", validate("query", HistoryQuery), async (c) => {
+    const projectId = Uuid.safeParse(c.req.param("projectId")).data;
+    if (projectId === undefined) {
+      return c.notFound();
+    }
+    const { cursor, limit } = c.req.valid("query");
+    const history = await readHistory({
+      projectId,
+      userId: c.get("identity").userId,
+      after: cursor,
+      limit,
+    });
+    return history.ok ? c.json(history.value) : c.notFound();
+  });
