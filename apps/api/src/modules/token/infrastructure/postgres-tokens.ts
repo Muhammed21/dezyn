@@ -18,6 +18,7 @@ import type {
 } from "../application/declare-figma-states.ts";
 import type { ModifierReader } from "../application/export-tokens.ts";
 import type {
+  ImportTargetLock,
   ModesWriter,
   TokenImportUnit,
   TokenImportUnitOfWork,
@@ -31,8 +32,16 @@ import type {
 } from "../application/token-values.ts";
 import type { ComparedDefinition } from "../domain/same-definition.ts";
 
-const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue, tokenValueReference } =
-  schema;
+const {
+  identityUser,
+  mode,
+  modifier,
+  project,
+  token,
+  tokenFigmaState,
+  tokenValue,
+  tokenValueReference,
+} = schema;
 
 type Queryable = Pick<PostgresTransaction, "select" | "insert" | "update" | "delete">;
 
@@ -67,14 +76,7 @@ export const postgresModeReader = (orm: Queryable): ModeReader => ({
 const postgresModesWriter = (orm: Queryable, newId: () => string): ModesWriter => ({
   create: async ({ projectId, modifier: name, modes }) => {
     const modifierId = newId();
-    const inserted = await orm
-      .insert(modifier)
-      .values({ id: modifierId, projectId, name })
-      .onConflictDoNothing({ target: modifier.projectId })
-      .returning({ id: modifier.id });
-    if (inserted.length === 0) {
-      return "modes_taken";
-    }
+    await orm.insert(modifier).values({ id: modifierId, projectId, name });
     await orm.insert(mode).values(
       modes.map(({ id, name: modeName }, position) => ({
         id,
@@ -83,7 +85,18 @@ const postgresModesWriter = (orm: Queryable, newId: () => string): ModesWriter =
         position,
       })),
     );
-    return "created";
+  },
+});
+
+const postgresImportTargetLock = (tx: Queryable): ImportTargetLock => ({
+  lock: async (projectId) => {
+    await tx.select().from(project).where(eq(project.id, projectId)).for("update");
+    const [modifierName, modes, tokens] = await Promise.all([
+      postgresModifierReader(tx).modifierOf(projectId),
+      postgresModeReader(tx).modesOf(projectId),
+      postgresProjectTokenReader(tx).tokensOf(projectId),
+    ]);
+    return { modifier: modifierName, modes, tokens };
   },
 });
 
@@ -239,6 +252,7 @@ export const postgresTokenImportUnitOfWork = ({
     return db.orm
       .transaction(async (tx) => {
         const outcome = await work({
+          target: postgresImportTargetLock(tx),
           modes: postgresModesWriter(tx, newId),
           tokens: postgresTokenWriter(tx, { newId, meter: storageMeterOn(tx) }),
           history: historyWriterOn(tx),

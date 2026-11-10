@@ -1246,7 +1246,7 @@ describe("un document Resolver crée le modificateur et les modes d'un projet vi
       ]);
     }));
 
-  it("deux imports simultanés dans un projet vide : l'un crée les modes, l'autre répond 409", () =>
+  it("deux imports simultanés dans un projet vide : l'un crée les modes, l'autre voit ses tokens et répond 409", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);
       const document = resolverOf({
@@ -1262,6 +1262,9 @@ describe("un document Resolver crée le modificateur et les modes d'un projet vi
       expect(
         responses.map(({ status }) => status).toSorted((first, second) => first - second),
       ).toEqual([201, 409]);
+      expect(await responses.find(({ status }) => status === 409)?.json()).toMatchObject({
+        errors: [{ path: "tokens.fond", message: "Token déjà présent dans le projet" }],
+      });
       expect(await db.orm.select().from(schema.modifier)).toHaveLength(1);
     }));
 

@@ -17,15 +17,7 @@ import type { ValidatedTokenFailure } from "../domain/token-check.ts";
 import { groupConflict } from "../domain/token-name.ts";
 import type { TokenDefinition } from "../domain/token.ts";
 import type { PendingProposals } from "./add-token.ts";
-import type { ModifierReader } from "./export-tokens.ts";
-import {
-  checkedValues,
-  type ModeReader,
-  modeValueOf,
-  type ProjectMode,
-  type ProjectTokenReader,
-  type TokenWriter,
-} from "./token-values.ts";
+import { checkedValues, modeValueOf, type ProjectMode, type TokenWriter } from "./token-values.ts";
 
 export const MAX_TOKENS_PER_IMPORT = 500;
 
@@ -40,10 +32,21 @@ export type CreatedModes = {
 };
 
 export interface ModesWriter {
-  create(created: CreatedModes): Promise<"created" | "modes_taken">;
+  create(created: CreatedModes): Promise<void>;
+}
+
+export type ImportTarget = {
+  readonly modifier: string | undefined;
+  readonly modes: readonly ProjectMode[];
+  readonly tokens: readonly ProjectToken[];
+};
+
+export interface ImportTargetLock {
+  lock(projectId: string): Promise<ImportTarget>;
 }
 
 export type TokenImportUnit = {
+  readonly target: ImportTargetLock;
   readonly modes: ModesWriter;
   readonly tokens: TokenWriter;
   readonly history: HistoryWriter;
@@ -61,7 +64,6 @@ export type TokenCheckOfImport = {
 
 export type ImportFailure =
   | "not_found"
-  | "modes_taken"
   | { readonly issues: readonly ImportIssue[]; readonly checks: readonly TokenCheckOfImport[] }
   | { readonly names: readonly string[] };
 
@@ -111,18 +113,12 @@ const modesMismatch = (
 export const importTokens =
   ({
     access,
-    modes,
-    modifiers,
-    projectTokens,
     unitOfWork,
     parseTokenDefinition,
     newId,
     now,
   }: {
     readonly access: ProjectAccess;
-    readonly modes: ModeReader;
-    readonly modifiers: ModifierReader;
-    readonly projectTokens: ProjectTokenReader;
     readonly unitOfWork: TokenImportUnitOfWork;
     readonly parseTokenDefinition: ParseTokenDefinition;
     readonly newId: () => string;
@@ -152,39 +148,39 @@ export const importTokens =
       );
     }
     const { definitions, issues } = parsedDocument(read, parseTokenDefinition);
-    const [projectModes, projectModifier, existing] = await Promise.all([
-      modes.modesOf(projectId),
-      modifiers.modifierOf(projectId),
-      projectTokens.tokensOf(projectId),
-    ]);
-    const createdModes =
-      read.resolver?.modifier !== undefined && projectModifier === undefined
-        ? {
-            projectId,
-            modifier: read.resolver.modifier,
-            modes: read.resolver.modes.map((name) => ({ id: newId(), name })),
-          }
-        : undefined;
-    const targetModes = createdModes?.modes ?? projectModes;
-    const modesIssues = modesMismatch(read.resolver, {
-      modifier: createdModes?.modifier ?? projectModifier,
-      modes: targetModes.map(({ name }) => name),
-    });
-    const createdAt = now();
-    const ordered = referencesFirst(definitions, (token) => token).map((token) => ({
-      token,
-      id: newId(),
-    }));
-    const placed: readonly ProjectToken[] = [
-      ...existing,
-      ...ordered.map(({ token, id }) => ({
-        id,
-        name: token.name,
-        $type: token.$type,
-        status: "validated",
-      })),
-    ];
-    return unitOfWork.run(async ({ modes: modesWriter, tokens, history, proposals }) => {
+    return unitOfWork.run(async ({ target, modes: modesWriter, tokens, history, proposals }) => {
+      const {
+        modifier: projectModifier,
+        modes: projectModes,
+        tokens: existing,
+      } = await target.lock(projectId);
+      const createdModes =
+        read.resolver?.modifier !== undefined && projectModifier === undefined
+          ? {
+              projectId,
+              modifier: read.resolver.modifier,
+              modes: read.resolver.modes.map((name) => ({ id: newId(), name })),
+            }
+          : undefined;
+      const targetModes = createdModes?.modes ?? projectModes;
+      const modesIssues = modesMismatch(read.resolver, {
+        modifier: createdModes?.modifier ?? projectModifier,
+        modes: targetModes.map(({ name }) => name),
+      });
+      const createdAt = now();
+      const ordered = referencesFirst(definitions, (token) => token).map((token) => ({
+        token,
+        id: newId(),
+      }));
+      const placed: readonly ProjectToken[] = [
+        ...existing,
+        ...ordered.map(({ token, id }) => ({
+          id,
+          name: token.name,
+          $type: token.$type,
+          status: "validated",
+        })),
+      ];
       const pendingNames = await proposals.pendingNamesOf(projectId);
       const otherNames = [
         ...existing.map(({ name }) => name),
@@ -248,9 +244,7 @@ export const importTokens =
         return err({ names: taken });
       }
       if (createdModes !== undefined) {
-        if ((await modesWriter.create(createdModes)) === "modes_taken") {
-          return err("modes_taken");
-        }
+        await modesWriter.create(createdModes);
         await history.append({
           spaceId: project.spaceId,
           projectId,

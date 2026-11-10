@@ -47,37 +47,30 @@ const exportConflict = (conflicts: readonly GroupConflict[]): Problem => ({
 const ImportedDocument = z.record(z.string(), z.unknown());
 
 const importProblem = (failure: Exclude<ImportFailure, "not_found">): Problem =>
-  failure === "modes_taken"
+  "names" in failure
     ? {
         type: "about:blank",
         title: "Import impossible",
         status: 409,
-        errors: [{ path: "modifiers", message: "Modes créés par un autre import, réessayez" }],
+        errors: failure.names.map((name) => ({
+          path: `tokens.${name}`,
+          message: "Token déjà présent dans le projet",
+        })),
       }
-    : "names" in failure
-      ? {
-          type: "about:blank",
-          title: "Import impossible",
-          status: 409,
-          errors: failure.names.map((name) => ({
-            path: `tokens.${name}`,
-            message: "Token déjà présent dans le projet",
-          })),
-        }
-      : {
-          type: "about:blank",
-          title: "Document invalide",
-          status: 400,
-          errors: [
-            ...failure.issues,
-            ...failure.checks.flatMap(({ name, failure: check }) =>
-              issuesOfCheck(check).map(({ path, message }) => ({
-                path: tokenIssuePath(name, path),
-                message,
-              })),
-            ),
-          ],
-        };
+    : {
+        type: "about:blank",
+        title: "Document invalide",
+        status: 400,
+        errors: [
+          ...failure.issues,
+          ...failure.checks.flatMap(({ name, failure: check }) =>
+            issuesOfCheck(check).map(({ path, message }) => ({
+              path: tokenIssuePath(name, path),
+              message,
+            })),
+          ),
+        ],
+      };
 
 export const tokensRoutes = ({
   addToken,
