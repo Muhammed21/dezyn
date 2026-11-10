@@ -1,16 +1,20 @@
 import { randomUUID } from "node:crypto";
 
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createPostgresDatabase, type PostgresDatabase } from "#db";
 import { historyPurge, purgeLockOn } from "#modules/history/history-module.ts";
 import { storedSize } from "#modules/project/contracts/storage-meter.ts";
+import type { LogRecord } from "#platform/logging.ts";
+import type { Mailer, OutgoingEmail } from "#platform/mailer.ts";
 import { seedStoredBytes, storageMeterOn, storedBytesOf } from "#testing/project-storage.ts";
+import { makeOutbox } from "#testing/space-fixtures.ts";
 import { migrate, schema } from "@repo/db";
 import { withThrowawayDatabase } from "@repo/db/testing";
+import { err, ok } from "@repo/result";
 
-const { historyAuthor, historyEntry, identityUser, project, space } = schema;
+const { historyAuthor, historyEntry, identityUser, project, space, spaceMember } = schema;
 
 const FREE_LIMIT = 500_000_000;
 
@@ -26,7 +30,11 @@ const FIRST_ENTRY_AT = new Date("2026-01-01T00:00:00.000Z");
 
 type Entry = typeof historyEntry.$inferSelect;
 
-type Databases = { readonly app: PostgresDatabase; readonly maintainer: PostgresDatabase };
+type Databases = {
+  readonly app: PostgresDatabase;
+  readonly maintainer: PostgresDatabase;
+  readonly migratorUrl: string;
+};
 
 const withDatabases = (run: (databases: Databases) => Promise<void>) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl, maintainerUrl }) => {
@@ -34,7 +42,7 @@ const withDatabases = (run: (databases: Databases) => Promise<void>) =>
     const app = createPostgresDatabase({ url: appUrl });
     const maintainer = createPostgresDatabase({ url: maintainerUrl });
     try {
-      await run({ app, maintainer });
+      await run({ app, maintainer, migratorUrl });
     } finally {
       await Promise.all([app.close(), maintainer.close()]);
     }
@@ -49,8 +57,18 @@ const steppingClock = ({ stepMs = 0 }: { readonly stepMs?: number } = {}) => {
   };
 };
 
-const purgeOf = (maintainer: PostgresDatabase, now = steppingClock()) =>
-  historyPurge({ db: maintainer, meterOn: storageMeterOn, now });
+const purgeOf = (
+  maintainer: PostgresDatabase,
+  {
+    now = steppingClock(),
+    mailer = makeOutbox().mailer,
+    log = () => undefined,
+  }: {
+    readonly now?: () => Date;
+    readonly mailer?: Mailer;
+    readonly log?: (record: LogRecord) => void;
+  } = {},
+) => historyPurge({ db: maintainer, meterOn: storageMeterOn, mailer, log, now });
 
 const seedSpace = async (app: PostgresDatabase) => {
   const spaceId = randomUUID();
@@ -77,6 +95,29 @@ const seedProjectIn = async (
   await seedStoredBytes(app, { projectId, bytes: storedBytes });
   return projectId;
 };
+
+const seedMember = async (
+  app: PostgresDatabase,
+  {
+    spaceId,
+    role,
+    closedAt = null,
+  }: {
+    readonly spaceId: string;
+    readonly role: "owner" | "editor";
+    readonly closedAt?: Date | null;
+  },
+) => {
+  const userId = randomUUID();
+  const email = `${userId}@dezyn.test`;
+  await app.orm.insert(identityUser).values({ id: userId, name: "Grace Hopper", email });
+  await app.orm
+    .insert(spaceMember)
+    .values({ id: randomUUID(), spaceId, userId, role, joinedAt: new Date(), closedAt });
+  return email;
+};
+
+const recipientsOf = (sent: readonly OutgoingEmail[]) => sent.map(({ to }) => to).toSorted();
 
 const minutesAfterFirst = (minutes: number) =>
   new Date(FIRST_ENTRY_AT.getTime() + minutes * 60_000);
@@ -264,9 +305,20 @@ describe("la purge commence par le projet qui consomme le plus, puis passe au su
       expect(report).toEqual([
         {
           spaceId: seeded.spaceId,
+          name: "Studio Ada",
           projects: [
-            { projectId: largest, deletedEntries: 1, purgedBefore: largestEntries[0]?.occurredAt },
-            { projectId: next, deletedEntries: 2, purgedBefore: nextEntries[1]?.occurredAt },
+            {
+              projectId: largest,
+              name: "Site vitrine",
+              deletedEntries: 1,
+              purgedBefore: largestEntries[0]?.occurredAt,
+            },
+            {
+              projectId: next,
+              name: "Site vitrine",
+              deletedEntries: 2,
+              purgedBefore: nextEntries[1]?.occurredAt,
+            },
           ],
         },
       ]);
@@ -297,7 +349,15 @@ describe("la purge commence par le projet qui consomme le plus, puis passe au su
       expect(report).toEqual([
         {
           spaceId: seeded.spaceId,
-          projects: [{ projectId, deletedEntries: 3, purgedBefore: entries[2]?.occurredAt }],
+          name: "Studio Ada",
+          projects: [
+            {
+              projectId,
+              name: "Site vitrine",
+              deletedEntries: 3,
+              purgedBefore: entries[2]?.occurredAt,
+            },
+          ],
         },
       ]);
     }));
@@ -318,19 +378,25 @@ describe("un passage supprime par lots de 500 et s'arrête à son budget de 30 s
       });
       const oldestFirst = entries.toSorted(byAgeThenId);
 
-      const firstReport = await purgeOf(maintainer, steppingClock({ stepMs: 10_000 }))();
+      const firstReport = await purgeOf(maintainer, { now: steppingClock({ stepMs: 10_000 }) })();
 
       expect(await remainingIdsOf(app, projectId)).toEqual(idsOf(oldestFirst.slice(1_000)));
       expect(firstReport).toEqual([
         {
           spaceId: seeded.spaceId,
+          name: "Studio Ada",
           projects: [
-            { projectId, deletedEntries: 1_000, purgedBefore: oldestFirst[999]?.occurredAt },
+            {
+              projectId,
+              name: "Site vitrine",
+              deletedEntries: 1_000,
+              purgedBefore: oldestFirst[999]?.occurredAt,
+            },
           ],
         },
       ]);
 
-      await purgeOf(maintainer, steppingClock({ stepMs: 10_000 }))();
+      await purgeOf(maintainer, { now: steppingClock({ stepMs: 10_000 }) })();
 
       expect(await remainingIdsOf(app, projectId)).toEqual([]);
       expect(await storedBytesOf(app, projectId)).toBe(FAR_ABOVE_FREE_LIMIT - sizeOf(entries));
@@ -364,9 +430,11 @@ describe("un espace verrouillé par un autre passage est sauté", () => {
       expect(report).toEqual([
         {
           spaceId: free.spaceId,
+          name: "Studio Ada",
           projects: [
             {
               projectId: freeProject,
+              name: "Site vitrine",
               deletedEntries: 2,
               purgedBefore: freeEntries[1]?.occurredAt,
             },
@@ -398,5 +466,154 @@ describe("un espace verrouillé par un autre passage est sauté", () => {
           .flatMap(({ projects }) => projects)
           .reduce((total, { deletedEntries }) => total + deletedEntries, 0),
       ).toBe(2);
+    }));
+});
+
+describe("après un passage qui supprime, chaque propriétaire ouvert reçoit un email (ADR 0042 §5)", () => {
+  it("envoie un seul email à chaque propriétaire ouvert, même après plusieurs lots", () =>
+    withDatabases(async ({ app, maintainer }) => {
+      const seeded = await seedSpace(app);
+      const owners = await Promise.all([
+        seedMember(app, { spaceId: seeded.spaceId, role: "owner" }),
+        seedMember(app, { spaceId: seeded.spaceId, role: "owner" }),
+      ]);
+      await seedMember(app, { spaceId: seeded.spaceId, role: "editor" });
+      await seedMember(app, { spaceId: seeded.spaceId, role: "owner", closedAt: new Date() });
+      const projectId = await seedProjectIn(app, {
+        spaceId: seeded.spaceId,
+        storedBytes: FAR_ABOVE_FREE_LIMIT,
+      });
+      await seedEntries(app, seeded, { projectId, count: 1_101 });
+      const { sent, mailer } = makeOutbox();
+
+      await purgeOf(maintainer, { mailer })();
+
+      expect(recipientsOf(sent)).toEqual(owners.toSorted());
+      expect(sent).toEqual(
+        owners.map(() =>
+          expect.objectContaining({
+            subject: "L'historique de l'espace « Studio Ada » a été purgé sur dezyn",
+            text: expect.stringContaining(
+              "« Site vitrine » : 1101 entrées supprimées, la plus récente du 1 janvier 2026.",
+            ),
+          }),
+        ),
+      );
+      const storedAfter = (await storedBytesOf(app, projectId)) ?? 0;
+      expect(sent[0]?.text).toContain(
+        `L'espace « Studio Ada » utilise maintenant ${Math.floor(storedAfter / 1_000_000)} Mo sur 500 Mo.`,
+      );
+    }));
+
+  it("n'envoie rien pour un espace sous sa limite ou verrouillé", () =>
+    withDatabases(async ({ app, maintainer }) => {
+      const under = await seedSpace(app);
+      const locked = await seedSpace(app);
+      await seedMember(app, { spaceId: under.spaceId, role: "owner" });
+      await seedMember(app, { spaceId: locked.spaceId, role: "owner" });
+      const underProject = await seedProjectIn(app, {
+        spaceId: under.spaceId,
+        storedBytes: FREE_LIMIT - 1,
+      });
+      const lockedProject = await seedProjectIn(app, {
+        spaceId: locked.spaceId,
+        storedBytes: FREE_LIMIT,
+      });
+      await seedEntries(app, under, { projectId: underProject, count: 1 });
+      await seedEntries(app, locked, { projectId: lockedProject, count: 1 });
+      const { sent, mailer } = makeOutbox();
+
+      await maintainer.orm.transaction(async (tx) => {
+        await purgeLockOn(tx).tryTake(locked.spaceId);
+        await purgeOf(maintainer, { mailer })();
+      });
+
+      expect(sent).toEqual([]);
+    }));
+
+  it("journalise un envoi qui échoue, sans empêcher les autres emails ni défaire la purge", () =>
+    withDatabases(async ({ app, maintainer }) => {
+      const seeded = await seedSpace(app);
+      const unreachable = await seedMember(app, { spaceId: seeded.spaceId, role: "owner" });
+      const reachable = await seedMember(app, { spaceId: seeded.spaceId, role: "owner" });
+      const projectId = await seedProjectIn(app, {
+        spaceId: seeded.spaceId,
+        storedBytes: FREE_LIMIT,
+      });
+      await seedEntries(app, seeded, { projectId, count: 2 });
+      const sent: OutgoingEmail[] = [];
+      const records: LogRecord[] = [];
+      const mailer: Mailer = {
+        send: async (email) => {
+          if (email.to === unreachable) {
+            return err("mail_unavailable");
+          }
+          sent.push(email);
+          return ok(undefined);
+        },
+      };
+
+      await purgeOf(maintainer, { mailer, log: (record) => records.push(record) })();
+
+      expect(recipientsOf(sent)).toEqual([reachable]);
+      expect(records).toEqual([
+        {
+          level: "error",
+          msg: "history_purge_email_unsent",
+          spaceId: seeded.spaceId,
+          to: unreachable,
+          error: "mail_unavailable",
+        },
+      ]);
+      expect(await remainingIdsOf(app, projectId)).toEqual([]);
+    }));
+});
+
+const seedTwoSpacesInPurgeOrder = async (app: PostgresDatabase) => {
+  const one = await seedSpace(app);
+  const other = await seedSpace(app);
+  return one.spaceId < other.spaceId ? ([one, other] as const) : ([other, one] as const);
+};
+
+const breakPurgeOf = async (migratorUrl: string, projectId: string) => {
+  const migrator = createPostgresDatabase({ url: migratorUrl });
+  try {
+    await migrator.orm.execute(sql`
+      CREATE FUNCTION refuse_purge() RETURNS trigger AS $$
+      BEGIN
+        RAISE EXCEPTION 'purge indisponible';
+      END;
+      $$ LANGUAGE plpgsql`);
+    await migrator.orm.execute(
+      sql.raw(`CREATE TRIGGER refuse_purge BEFORE DELETE ON history_entry
+        FOR EACH ROW WHEN (OLD.project_id = '${projectId}') EXECUTE FUNCTION refuse_purge()`),
+    );
+  } finally {
+    await migrator.close();
+  }
+};
+
+describe("un espace purgé est notifié dès sa purge finie", () => {
+  it("les propriétaires d'un espace purgé reçoivent leur email même si la purge d'un espace suivant échoue", () =>
+    withDatabases(async ({ app, maintainer, migratorUrl }) => {
+      const [first, second] = await seedTwoSpacesInPurgeOrder(app);
+      const firstOwner = await seedMember(app, { spaceId: first.spaceId, role: "owner" });
+      await seedMember(app, { spaceId: second.spaceId, role: "owner" });
+      const firstProject = await seedProjectIn(app, {
+        spaceId: first.spaceId,
+        storedBytes: FREE_LIMIT,
+      });
+      const secondProject = await seedProjectIn(app, {
+        spaceId: second.spaceId,
+        storedBytes: FREE_LIMIT,
+      });
+      await seedEntries(app, first, { projectId: firstProject, count: 1 });
+      await seedEntries(app, second, { projectId: secondProject, count: 1 });
+      await breakPurgeOf(migratorUrl, secondProject);
+      const { sent, mailer } = makeOutbox();
+
+      await expect(purgeOf(maintainer, { mailer })()).rejects.toThrow("Failed query");
+
+      expect(recipientsOf(sent)).toEqual([firstOwner]);
     }));
 });

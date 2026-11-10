@@ -1,17 +1,28 @@
 import { createPostgresDatabase } from "#db";
 import { historyPurge } from "#modules/history/history-module.ts";
 import { storageMeterOn } from "#modules/project/project-module.ts";
+import { readPurgeConfig } from "#platform/api-config.ts";
+import { createJsonLineSink } from "#platform/json-line-sink.ts";
+import { createSmtpMailer } from "#platform/smtp-mailer.ts";
 
-const DATABASE_URL = "DATABASE_URL_HISTORY_MAINTAINER";
-
-const url = process.env[DATABASE_URL];
-if (url === undefined) {
-  throw new Error(`${DATABASE_URL} manquante : copier .env.example en .env`);
+const config = readPurgeConfig(process.env);
+if (!config.ok) {
+  throw new Error(
+    [
+      "Configuration invalide, voir .env.example :",
+      ...config.error.map((issue) => `- ${issue}`),
+    ].join("\n"),
+  );
 }
 
-const db = createPostgresDatabase({ url });
+const log = createJsonLineSink({
+  write: (line) => process.stderr.write(line),
+  now: () => new Date(),
+});
+const mailer = createSmtpMailer({ ...config.value.smtp, log });
+const db = createPostgresDatabase({ url: config.value.databaseUrl, log });
 try {
-  const purged = await historyPurge({ db, meterOn: storageMeterOn })();
+  const purged = await historyPurge({ db, meterOn: storageMeterOn, mailer, log })();
   console.log(JSON.stringify(purged, null, 2));
 } finally {
   await db.close();

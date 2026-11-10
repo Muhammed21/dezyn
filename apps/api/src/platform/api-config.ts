@@ -171,3 +171,29 @@ export const readWorkerConfig = (bindings: unknown): Result<WorkerConfig, readon
     ...(data.EMAIL_DELIVERY ? { emailDelivery: data.EMAIL_DELIVERY } : {}),
   });
 };
+
+const PurgeEnv = z.object({
+  DATABASE_URL_HISTORY_MAINTAINER: postgresUrl(),
+  SMTP_HOST: text(),
+  SMTP_PORT: port(),
+  MAIL_FROM: text(),
+});
+
+export type PurgeConfig = {
+  readonly databaseUrl: string;
+  readonly smtp: ApiConfig["smtp"];
+};
+
+export const readPurgeConfig = (
+  env: Readonly<Record<string, string | undefined>>,
+): Result<PurgeConfig, readonly string[]> => {
+  const parsed = PurgeEnv.safeParse(env);
+  if (!parsed.success) {
+    return err(issuesOf(parsed.error));
+  }
+  const { data } = parsed;
+  return ok({
+    databaseUrl: data.DATABASE_URL_HISTORY_MAINTAINER,
+    smtp: { host: data.SMTP_HOST, port: data.SMTP_PORT, from: data.MAIL_FROM },
+  });
+};

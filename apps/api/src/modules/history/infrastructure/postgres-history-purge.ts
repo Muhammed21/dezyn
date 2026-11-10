@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
@@ -6,15 +6,17 @@ import { type StorageMeter, storedSize } from "#modules/project/contracts/storag
 import { PLANS } from "#modules/space/contracts/plan.ts";
 import { schema } from "@repo/db";
 
+import type { PurgeNotices } from "../application/notify-purge.ts";
 import type { PurgeBatch, PurgeCandidates, PurgeUnitOfWork } from "../application/purge-history.ts";
 
-const { historyEntry, project, space } = schema;
+const { historyEntry, identityUser, project, space, spaceMember } = schema;
 
 const StoredCandidate = z.object({
   spaceId: z.string(),
   plan: z.enum(PLANS),
   storedBytes: z.coerce.number(),
-  projectIds: z.array(z.string()),
+  name: z.string(),
+  projects: z.array(z.object({ id: z.string(), name: z.string() })),
 });
 
 const LockTaken = z.object({ taken: z.boolean() });
@@ -34,7 +36,8 @@ const spaceStorage = (orm: Pick<PostgresTransaction, "select">) =>
       spaceId: space.id,
       plan: space.plan,
       storedBytes: sql`sum(${project.storedBytes})`,
-      projectIds: sql`array_agg(${project.id} ORDER BY ${project.storedBytes} DESC, ${project.id})`,
+      name: space.name,
+      projects: sql`json_agg(json_build_object('id', ${project.id}, 'name', ${project.name}) ORDER BY ${project.storedBytes} DESC, ${project.id})`,
     })
     .from(space)
     .innerJoin(project, eq(project.spaceId, space.id))
@@ -90,4 +93,23 @@ export const postgresPurgeUnitOfWork = ({
         ? work(purgeBatchOn(tx, { spaceId, meter: meterOn(tx) }))
         : undefined,
     ),
+});
+
+export const postgresPurgeNotices = (db: PostgresDatabase): PurgeNotices => ({
+  recipientsOf: async (spaceId) => {
+    const [row] = await spaceStorage(db.orm).where(eq(space.id, spaceId));
+    const { plan, storedBytes } = StoredCandidate.parse(row);
+    const owners = await db.orm
+      .select({ email: identityUser.email })
+      .from(spaceMember)
+      .innerJoin(identityUser, eq(identityUser.id, spaceMember.userId))
+      .where(
+        and(
+          eq(spaceMember.spaceId, spaceId),
+          eq(spaceMember.role, "owner"),
+          isNull(spaceMember.closedAt),
+        ),
+      );
+    return { plan, storedBytes, owners: owners.map(({ email }) => email) };
+  },
 });
