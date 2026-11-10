@@ -1081,6 +1081,28 @@ describe("l'import refuse un document Resolver qui ne correspond pas au projet (
     }),
   );
 
+  it("un document DTCG simple dans un projet à modes répond 400 sur chaque token, sans rien écrire", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedModalProject(app, db);
+
+      const response = await importTokens(app, {
+        accessToken,
+        projectId,
+        document: { fond: color(PRIMARY_BLUE) },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject(
+        invalidDocument([
+          {
+            path: "tokens.fond.$value",
+            message: "Le projet a des modes : donner une valeur par mode dans modes",
+          },
+        ]),
+      );
+      expect(await tokenCreations(app, { accessToken, projectId })).toEqual([]);
+    }));
+
   const VALID = VALID_RESOLVER;
   const APPARENCE = VALID.modifiers.apparence;
 
