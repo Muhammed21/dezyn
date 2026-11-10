@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { err, ok } from "@repo/result";
 
-import { readApiConfig, readWorkerConfig } from "../api-config.ts";
+import { readApiConfig, readPurgeConfig, readWorkerConfig } from "../api-config.ts";
 
 const makeEnv = (overrides: Readonly<Record<string, string | undefined>> = {}) => ({
   DATABASE_URL: "postgresql://app@127.0.0.1:5432/dezyn",
@@ -243,5 +243,47 @@ describe.each([
         "BETTER_AUTH_SECRET_2 : 32 caractères au moins",
       ]),
     );
+  });
+});
+
+const makePurgeEnv = (overrides: Readonly<Record<string, string | undefined>> = {}) => ({
+  DATABASE_URL_HISTORY_MAINTAINER: "postgresql://history_maintainer@127.0.0.1:5432/dezyn",
+  SMTP_HOST: "127.0.0.1",
+  SMTP_PORT: "1025",
+  MAIL_FROM: "dezyn <no-reply@dezyn.test>",
+  ...overrides,
+});
+
+describe("la purge lit sa configuration dans l'environnement", () => {
+  it("un environnement complet donne la base de history_maintainer et le SMTP", () => {
+    expect(readPurgeConfig(makePurgeEnv())).toEqual(
+      ok({
+        databaseUrl: "postgresql://history_maintainer@127.0.0.1:5432/dezyn",
+        smtp: { host: "127.0.0.1", port: 1025, from: "dezyn <no-reply@dezyn.test>" },
+      }),
+    );
+  });
+
+  it("chaque variable manquante est nommée, toutes en une fois", () => {
+    expect(readPurgeConfig({})).toEqual(
+      err([
+        "DATABASE_URL_HISTORY_MAINTAINER : manquante",
+        "SMTP_HOST : manquante",
+        "SMTP_PORT : manquante",
+        "MAIL_FROM : manquante",
+      ]),
+    );
+  });
+
+  it.each(["abc", "", "0", "65536"])("refuse le port SMTP %j", (port) => {
+    expect(readPurgeConfig(makePurgeEnv({ SMTP_PORT: port }))).toEqual(
+      err(["SMTP_PORT : port entre 1 et 65535 attendu"]),
+    );
+  });
+
+  it("refuse une base qui n'est pas en postgresql://", () => {
+    expect(
+      readPurgeConfig(makePurgeEnv({ DATABASE_URL_HISTORY_MAINTAINER: "http://127.0.0.1/dezyn" })),
+    ).toEqual(err(["DATABASE_URL_HISTORY_MAINTAINER : URL postgresql:// attendue"]));
   });
 });

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createPostgresDatabase, type PostgresDatabase } from "#db";
@@ -30,7 +30,11 @@ const FIRST_ENTRY_AT = new Date("2026-01-01T00:00:00.000Z");
 
 type Entry = typeof historyEntry.$inferSelect;
 
-type Databases = { readonly app: PostgresDatabase; readonly maintainer: PostgresDatabase };
+type Databases = {
+  readonly app: PostgresDatabase;
+  readonly maintainer: PostgresDatabase;
+  readonly migratorUrl: string;
+};
 
 const withDatabases = (run: (databases: Databases) => Promise<void>) =>
   withThrowawayDatabase(async ({ migratorUrl, appUrl, maintainerUrl }) => {
@@ -38,7 +42,7 @@ const withDatabases = (run: (databases: Databases) => Promise<void>) =>
     const app = createPostgresDatabase({ url: appUrl });
     const maintainer = createPostgresDatabase({ url: maintainerUrl });
     try {
-      await run({ app, maintainer });
+      await run({ app, maintainer, migratorUrl });
     } finally {
       await Promise.all([app.close(), maintainer.close()]);
     }
@@ -562,5 +566,54 @@ describe("après un passage qui supprime, chaque propriétaire ouvert reçoit un
         },
       ]);
       expect(await remainingIdsOf(app, projectId)).toEqual([]);
+    }));
+});
+
+const seedTwoSpacesInPurgeOrder = async (app: PostgresDatabase) => {
+  const one = await seedSpace(app);
+  const other = await seedSpace(app);
+  return one.spaceId < other.spaceId ? ([one, other] as const) : ([other, one] as const);
+};
+
+const breakPurgeOf = async (migratorUrl: string, projectId: string) => {
+  const migrator = createPostgresDatabase({ url: migratorUrl });
+  try {
+    await migrator.orm.execute(sql`
+      CREATE FUNCTION refuse_purge() RETURNS trigger AS $$
+      BEGIN
+        RAISE EXCEPTION 'purge indisponible';
+      END;
+      $$ LANGUAGE plpgsql`);
+    await migrator.orm.execute(
+      sql.raw(`CREATE TRIGGER refuse_purge BEFORE DELETE ON history_entry
+        FOR EACH ROW WHEN (OLD.project_id = '${projectId}') EXECUTE FUNCTION refuse_purge()`),
+    );
+  } finally {
+    await migrator.close();
+  }
+};
+
+describe("un espace purgé est notifié dès sa purge finie", () => {
+  it("les propriétaires d'un espace purgé reçoivent leur email même si la purge d'un espace suivant échoue", () =>
+    withDatabases(async ({ app, maintainer, migratorUrl }) => {
+      const [first, second] = await seedTwoSpacesInPurgeOrder(app);
+      const firstOwner = await seedMember(app, { spaceId: first.spaceId, role: "owner" });
+      await seedMember(app, { spaceId: second.spaceId, role: "owner" });
+      const firstProject = await seedProjectIn(app, {
+        spaceId: first.spaceId,
+        storedBytes: FREE_LIMIT,
+      });
+      const secondProject = await seedProjectIn(app, {
+        spaceId: second.spaceId,
+        storedBytes: FREE_LIMIT,
+      });
+      await seedEntries(app, first, { projectId: firstProject, count: 1 });
+      await seedEntries(app, second, { projectId: secondProject, count: 1 });
+      await breakPurgeOf(migratorUrl, secondProject);
+      const { sent, mailer } = makeOutbox();
+
+      await expect(purgeOf(maintainer, { mailer })()).rejects.toThrow("Failed query");
+
+      expect(recipientsOf(sent)).toEqual([firstOwner]);
     }));
 });

@@ -114,11 +114,13 @@ export const purgeHistory =
     unitOfWork,
     now,
     budgetMs,
+    onPurged,
   }: {
     readonly candidates: PurgeCandidates;
     readonly unitOfWork: PurgeUnitOfWork;
     readonly now: () => Date;
     readonly budgetMs: number;
+    readonly onPurged: (purged: PurgedSpace) => Promise<void>;
   }) =>
   async (): Promise<readonly PurgedSpace[]> => {
     const startedAt = now();
@@ -141,8 +143,11 @@ export const purgeHistory =
     return spaces.reduce<Promise<readonly PurgedSpace[]>>(async (previous, candidate) => {
       const report = await previous;
       const projects = await purgeSpace(candidate, []);
-      return projects.length === 0
-        ? report
-        : [...report, { spaceId: candidate.spaceId, name: candidate.name, projects }];
+      if (projects.length === 0) {
+        return report;
+      }
+      const purged = { spaceId: candidate.spaceId, name: candidate.name, projects };
+      await onPurged(purged);
+      return [...report, purged];
     }, Promise.resolve([]));
   };

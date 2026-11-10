@@ -41,20 +41,14 @@ export const historyPurge = ({
   readonly mailer: Mailer;
   readonly log: LogSink;
   readonly now?: () => Date;
-}) => {
-  const purge = purgeHistory({
+}) =>
+  purgeHistory({
     candidates: postgresPurgeCandidates(db),
     unitOfWork: postgresPurgeUnitOfWork({ db, meterOn }),
     now: clock,
     budgetMs: PURGE_BUDGET_MS,
+    onPurged: notifyPurge({ notices: postgresPurgeNotices(db), mailer, log }),
   });
-  const notify = notifyPurge({ notices: postgresPurgeNotices(db), mailer, log });
-  return async () => {
-    const report = await purge();
-    await notify(report);
-    return report;
-  };
-};
 
 export const historyModule = ({
   db,
