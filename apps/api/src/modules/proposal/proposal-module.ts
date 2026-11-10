@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectLock } from "#modules/project/contracts/project-lock.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type {
@@ -44,7 +45,9 @@ export const proposalWriterOn = (tx: PostgresTransaction, meter: StorageMeter) =
 export const proposalModule = ({
   db,
   access,
-  checkTokens,
+  projectLockOn,
+  checkTokensOn,
+  validatedTokensOn,
   validatedTokensOf,
   historyWriterOn,
   validatedTokenWriterOn,
@@ -56,7 +59,9 @@ export const proposalModule = ({
 }: {
   readonly db: PostgresDatabase;
   readonly access: ProjectAccess;
-  readonly checkTokens: CheckTokens;
+  readonly projectLockOn: (tx: PostgresTransaction) => ProjectLock;
+  readonly checkTokensOn: (tx: PostgresTransaction) => CheckTokens;
+  readonly validatedTokensOn: (tx: PostgresTransaction) => ValidatedTokensOf;
   readonly validatedTokensOf: ValidatedTokensOf;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
@@ -72,7 +77,14 @@ export const proposalModule = ({
     proposals: postgresProposalReader(db),
     now,
   };
-  const unitOfWork = postgresProposalUnitOfWork({ db, storageMeterOn, storageAlertOn });
+  const unitOfWork = postgresProposalUnitOfWork({
+    db,
+    projectLockOn,
+    checkTokensOn,
+    validatedTokensOn,
+    storageMeterOn,
+    storageAlertOn,
+  });
   const reviewUnitOfWork = postgresReviewUnitOfWork({
     db,
     historyWriterOn,
@@ -83,8 +95,6 @@ export const proposalModule = ({
   });
   return {
     writeTokens: writeTokens({
-      checkTokens,
-      validatedTokensOf,
       unitOfWork,
       sendStorageAlert,
       newId: randomUUID,

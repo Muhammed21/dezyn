@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectLock } from "#modules/project/contracts/project-lock.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { StorageAlertDecision } from "#modules/space/contracts/storage-alert.ts";
 import { schema } from "@repo/db";
@@ -32,16 +33,8 @@ import type {
 } from "../application/token-values.ts";
 import type { ComparedDefinition } from "../domain/same-definition.ts";
 
-const {
-  identityUser,
-  mode,
-  modifier,
-  project,
-  token,
-  tokenFigmaState,
-  tokenValue,
-  tokenValueReference,
-} = schema;
+const { identityUser, mode, modifier, token, tokenFigmaState, tokenValue, tokenValueReference } =
+  schema;
 
 type Queryable = Pick<PostgresTransaction, "select" | "insert" | "update" | "delete">;
 
@@ -88,9 +81,9 @@ const postgresModesWriter = (orm: Queryable, newId: () => string): ModesWriter =
   },
 });
 
-const postgresImportTargetLock = (tx: Queryable): ImportTargetLock => ({
+const postgresImportTargetLock = (tx: Queryable, projectLock: ProjectLock): ImportTargetLock => ({
   lock: async (projectId) => {
-    await tx.select().from(project).where(eq(project.id, projectId)).for("update");
+    await projectLock.exclusive(projectId);
     const [modifierName, modes, tokens] = await Promise.all([
       postgresModifierReader(tx).modifierOf(projectId),
       postgresModeReader(tx).modesOf(projectId),
@@ -203,6 +196,7 @@ export const postgresTokenWriter = (
 
 export const postgresTokenUnitOfWork = ({
   db,
+  projectLockOn,
   historyWriterOn,
   proposalReplacerOn,
   storageMeterOn,
@@ -210,6 +204,7 @@ export const postgresTokenUnitOfWork = ({
   newId,
 }: {
   readonly db: PostgresDatabase;
+  readonly projectLockOn: (tx: PostgresTransaction) => ProjectLock;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
@@ -219,6 +214,9 @@ export const postgresTokenUnitOfWork = ({
   run: (work) =>
     db.orm.transaction((tx) =>
       work({
+        project: projectLockOn(tx),
+        modes: postgresModeReader(tx),
+        projectTokens: postgresProjectTokenReader(tx),
         tokens: postgresTokenWriter(tx, { newId, meter: storageMeterOn(tx) }),
         history: historyWriterOn(tx),
         proposals: proposalReplacerOn(tx),
@@ -229,12 +227,14 @@ export const postgresTokenUnitOfWork = ({
 
 export const postgresTokenImportUnitOfWork = ({
   db,
+  projectLockOn,
   historyWriterOn,
   proposalReplacerOn,
   storageMeterOn,
   newId,
 }: {
   readonly db: PostgresDatabase;
+  readonly projectLockOn: (tx: PostgresTransaction) => ProjectLock;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
   readonly proposalReplacerOn: (tx: PostgresTransaction) => PendingProposals;
@@ -252,7 +252,7 @@ export const postgresTokenImportUnitOfWork = ({
     return db.orm
       .transaction(async (tx) => {
         const outcome = await work({
-          target: postgresImportTargetLock(tx),
+          target: postgresImportTargetLock(tx, projectLockOn(tx)),
           modes: postgresModesWriter(tx, newId),
           tokens: postgresTokenWriter(tx, { newId, meter: storageMeterOn(tx) }),
           history: historyWriterOn(tx),
@@ -274,9 +274,9 @@ export const postgresTokenImportUnitOfWork = ({
 
 const referenced = alias(token, "referenced");
 
-export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTokenReader => ({
+export const postgresValidatedTokenReader = (orm: Queryable): ValidatedTokenReader => ({
   validatedValuesOf: (projectId) =>
-    db.orm
+    orm
       .select({
         tokenId: token.id,
         name: token.name,

@@ -1,4 +1,5 @@
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
+import type { ProjectLock } from "#modules/project/contracts/project-lock.ts";
 import type { ProjectAccess } from "#modules/space/contracts/membership.ts";
 import type {
   DecidedStorageAlert,
@@ -32,6 +33,9 @@ export interface PendingProposals {
 export interface TokenUnitOfWork {
   run<T>(
     work: (unit: {
+      readonly project: ProjectLock;
+      readonly modes: ModeReader;
+      readonly projectTokens: ProjectTokenReader;
       readonly tokens: TokenWriter;
       readonly history: HistoryWriter;
       readonly proposals: PendingProposals;
@@ -54,16 +58,12 @@ export type TokenAdditionFailure =
 export const addToken =
   ({
     access,
-    modes,
-    projectTokens,
     unitOfWork,
     sendStorageAlert,
     newId,
     now,
   }: {
     readonly access: ProjectAccess;
-    readonly modes: ModeReader;
-    readonly projectTokens: ProjectTokenReader;
     readonly unitOfWork: TokenUnitOfWork;
     readonly sendStorageAlert: StorageAlertSender;
     readonly newId: () => string;
@@ -84,24 +84,11 @@ export const addToken =
     if (project === undefined) {
       return err("not_found");
     }
-    const existing = await projectTokens.tokensOf(projectId);
-    const checked = checkedValues(token, {
-      projectModes: await modes.modesOf(projectId),
-      tokens: existing,
-    });
-    if (!checked.ok) {
-      return checked;
-    }
-    const values = checked.value;
-    const added: Token = {
-      ...token,
-      id: newId(),
-      projectId,
-      status: "validated",
-      createdAt: now(),
-    };
     const result = await unitOfWork.run(
       async ({
+        project: projectLock,
+        modes,
+        projectTokens,
         tokens,
         history,
         proposals,
@@ -112,6 +99,23 @@ export const addToken =
           TokenAdditionFailure
         >
       > => {
+        await projectLock.write(projectId);
+        const existing = await projectTokens.tokensOf(projectId);
+        const checked = checkedValues(token, {
+          projectModes: await modes.modesOf(projectId),
+          tokens: existing,
+        });
+        if (!checked.ok) {
+          return checked;
+        }
+        const values = checked.value;
+        const added: Token = {
+          ...token,
+          id: newId(),
+          projectId,
+          status: "validated",
+          createdAt: now(),
+        };
         const other = groupConflict(token.name, [
           ...existing.map(({ name }) => name),
           ...(await proposals.pendingNamesOf(projectId)),

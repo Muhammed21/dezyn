@@ -484,4 +484,18 @@ describe("une donnée a au plus une proposition en attente (ADR 0013 §6)", () =
         expect.objectContaining({ name: "couleur.fond.primaire", status: "proposed" }),
       ]);
     }));
+
+  it("plus d'écritures simultanées que de connexions au pool aboutissent toutes", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const names = Array.from({ length: 12 }, (_, index) => `couleur.${index}`);
+
+      const results = await Promise.all(
+        names.map((name) =>
+          writeTokens(app, { token: accessToken, projectId, tokens: [makeColorToken({ name })] }),
+        ),
+      );
+
+      expect(results.filter(({ isError }) => isError === true)).toEqual([]);
+    }));
 });

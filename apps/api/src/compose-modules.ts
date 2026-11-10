@@ -1,14 +1,20 @@
 import type { PostgresDatabase, PostgresTransaction } from "#db";
 import type { HistoryWriter } from "#modules/history/contracts/history-writer.ts";
 import { historyModule, historyWriterOn } from "#modules/history/history-module.ts";
-import { projectModule, storageMeterOn } from "#modules/project/project-module.ts";
+import { projectLockOn, projectModule, storageMeterOn } from "#modules/project/project-module.ts";
 import {
   proposalModule,
   proposalReplacerOn,
   proposalWriterOn,
 } from "#modules/proposal/proposal-module.ts";
 import { spaceModule } from "#modules/space/space-module.ts";
-import { figmaStateOn, tokenModule, validatedTokenWriterOn } from "#modules/token/token-module.ts";
+import {
+  checkTokensOn,
+  figmaStateOn,
+  tokenModule,
+  validatedTokensOn,
+  validatedTokenWriterOn,
+} from "#modules/token/token-module.ts";
 import type { Clock } from "#platform/clock.ts";
 import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
@@ -45,6 +51,7 @@ export const composeModules = ({
   const tokens = tokenModule({
     db,
     access,
+    projectLockOn,
     historyWriterOn: writerOn,
     proposalReplacerOn,
     proposalWriterOn: (tx) => proposalWriterOn(tx, storageMeterOn(tx)),
@@ -56,7 +63,9 @@ export const composeModules = ({
   const proposals = proposalModule({
     db,
     access,
-    checkTokens: tokens.checkTokens,
+    projectLockOn,
+    checkTokensOn,
+    validatedTokensOn,
     validatedTokensOf: async (projectId) => (await tokens.readTokens(projectId)).tokens,
     historyWriterOn: writerOn,
     validatedTokenWriterOn: (tx) => validatedTokenWriterOn(tx, storageMeterOn(tx)),
