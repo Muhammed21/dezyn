@@ -8,7 +8,7 @@ export type ComparedDefinition = {
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const sameValue = (left: unknown, right: unknown): boolean => {
+export const sameValue = (left: unknown, right: unknown): boolean => {
   if (Array.isArray(left) && Array.isArray(right)) {
     return (
       left.length === right.length && left.every((item, index) => sameValue(item, right[index]))

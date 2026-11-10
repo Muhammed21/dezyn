@@ -1,4 +1,5 @@
 import { RESOLVER_VERSION } from "./dtcg-document.ts";
+import { sameValue } from "./same-definition.ts";
 
 export type ImportIssue = { readonly path: string; readonly message: string };
 
@@ -132,8 +133,8 @@ const assembled = (
         .flatMap(({ candidate }) => Object.entries(candidate))
         .filter(([key]) => key !== "$value"),
     );
-    const differing = Object.keys(shared).filter(
-      (key) => new Set(present.map(({ candidate }) => JSON.stringify(candidate[key]))).size > 1,
+    const differing = Object.keys(shared).filter((key) =>
+      present.some(({ candidate }) => !sameValue(candidate[key], present[0]?.candidate[key])),
     );
     return {
       candidate: {
