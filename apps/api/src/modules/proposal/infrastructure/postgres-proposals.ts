@@ -7,7 +7,7 @@ import type { ProjectLock } from "#modules/project/contracts/project-lock.ts";
 import type { StorageMeter } from "#modules/project/contracts/storage-meter.ts";
 import type { StorageAlertDecision } from "#modules/space/contracts/storage-alert.ts";
 import { TokenDefinitionInput } from "#modules/token/contracts/token-definition.ts";
-import type { ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
+import type { CheckTokens, ValidatedTokenWriter } from "#modules/token/contracts/token-issues.ts";
 import { schema } from "@repo/db";
 import type { Err, Result } from "@repo/result";
 
@@ -17,7 +17,12 @@ import type {
   ReviewUnit,
   ReviewUnitOfWork,
 } from "../application/review-proposals.ts";
-import type { ProposalStore, ProposalUnitOfWork, Writer } from "../application/write-tokens.ts";
+import type {
+  ProposalStore,
+  ProposalUnitOfWork,
+  ValidatedTokensOf,
+  Writer,
+} from "../application/write-tokens.ts";
 import type { Proposal, ProposalBatch } from "../domain/proposal.ts";
 
 const { proposal, proposalBatch } = schema;
@@ -185,17 +190,27 @@ export const postgresProposalStore = (
 export const postgresProposalUnitOfWork = ({
   db,
   projectLockOn,
+  checkTokensOn,
+  validatedTokensOn,
   storageMeterOn,
   storageAlertOn,
 }: {
   readonly db: PostgresDatabase;
   readonly projectLockOn: (tx: PostgresTransaction) => ProjectLock;
+  readonly checkTokensOn: (tx: PostgresTransaction) => CheckTokens;
+  readonly validatedTokensOn: (tx: PostgresTransaction) => ValidatedTokensOf;
   readonly storageMeterOn: (tx: PostgresTransaction) => StorageMeter;
   readonly storageAlertOn: (tx: PostgresTransaction) => StorageAlertDecision;
 }): ProposalUnitOfWork => ({
   run: (work) =>
     db.orm.transaction((tx) =>
-      work(postgresProposalStore(tx, storageMeterOn(tx)), storageAlertOn(tx), projectLockOn(tx)),
+      work({
+        store: postgresProposalStore(tx, storageMeterOn(tx)),
+        storageAlert: storageAlertOn(tx),
+        project: projectLockOn(tx),
+        checkTokens: checkTokensOn(tx),
+        validatedTokensOf: validatedTokensOn(tx),
+      }),
     ),
 });
 

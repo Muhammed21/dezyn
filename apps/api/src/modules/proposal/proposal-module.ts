@@ -46,7 +46,8 @@ export const proposalModule = ({
   db,
   access,
   projectLockOn,
-  checkTokens,
+  checkTokensOn,
+  validatedTokensOn,
   validatedTokensOf,
   historyWriterOn,
   validatedTokenWriterOn,
@@ -59,7 +60,8 @@ export const proposalModule = ({
   readonly db: PostgresDatabase;
   readonly access: ProjectAccess;
   readonly projectLockOn: (tx: PostgresTransaction) => ProjectLock;
-  readonly checkTokens: CheckTokens;
+  readonly checkTokensOn: (tx: PostgresTransaction) => CheckTokens;
+  readonly validatedTokensOn: (tx: PostgresTransaction) => ValidatedTokensOf;
   readonly validatedTokensOf: ValidatedTokensOf;
   readonly historyWriterOn: (tx: PostgresTransaction) => HistoryWriter;
   readonly validatedTokenWriterOn: (tx: PostgresTransaction) => ValidatedTokenWriter;
@@ -78,6 +80,8 @@ export const proposalModule = ({
   const unitOfWork = postgresProposalUnitOfWork({
     db,
     projectLockOn,
+    checkTokensOn,
+    validatedTokensOn,
     storageMeterOn,
     storageAlertOn,
   });
@@ -91,8 +95,6 @@ export const proposalModule = ({
   });
   return {
     writeTokens: writeTokens({
-      checkTokens,
-      validatedTokensOf,
       unitOfWork,
       sendStorageAlert,
       newId: randomUUID,

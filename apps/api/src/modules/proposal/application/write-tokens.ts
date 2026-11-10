@@ -44,14 +44,16 @@ export interface ProposalStore {
   propose(projectId: string, proposals: readonly Proposal[]): Promise<void>;
 }
 
+export type ProposalUnit = {
+  readonly store: ProposalStore;
+  readonly storageAlert: StorageAlertDecision;
+  readonly project: ProjectLock;
+  readonly checkTokens: CheckTokens;
+  readonly validatedTokensOf: ValidatedTokensOf;
+};
+
 export interface ProposalUnitOfWork {
-  run<T>(
-    work: (
-      store: ProposalStore,
-      storageAlert: StorageAlertDecision,
-      project: ProjectLock,
-    ) => Promise<T>,
-  ): Promise<T>;
+  run<T>(work: (unit: ProposalUnit) => Promise<T>): Promise<T>;
 }
 
 export type Written = {
@@ -145,15 +147,11 @@ const nameConflicts = (
 
 export const writeTokens =
   ({
-    checkTokens,
-    validatedTokensOf,
     unitOfWork,
     sendStorageAlert,
     newId,
     now,
   }: {
-    readonly checkTokens: CheckTokens;
-    readonly validatedTokensOf: ValidatedTokensOf;
     readonly unitOfWork: ProposalUnitOfWork;
     readonly sendStorageAlert: StorageAlertSender;
     readonly newId: () => string;
@@ -167,33 +165,35 @@ export const writeTokens =
     readonly spaceId: string;
     readonly tokens: readonly TokenDefinition[];
   }): Promise<Result<Written, UncheckedTokens>> => {
-    const outcome = await unitOfWork.run(async (store, storageAlert, project) => {
-      await project.write(writer.projectId);
-      const checks = await checkTokens({ projectId: writer.projectId, tokens });
-      if (checks.length > 0) {
-        const unchecked: UncheckedTokens = { code: "unchecked_tokens", checks };
-        return err(unchecked);
-      }
-      const validated = await validatedTokensOf(writer.projectId);
-      const conflicts = nameConflicts(tokens, [
-        ...validated.map(({ name }) => name),
-        ...(await store.pendingNamesOf(writer.projectId)),
-      ]);
-      if (conflicts.length > 0) {
-        const refused: UncheckedTokens = { code: "unchecked_tokens", checks: conflicts };
-        return err(refused);
-      }
-      return ok({
-        written: await proposeTokens(store, {
-          ...writer,
-          tokens,
-          validated,
-          createdAt: now(),
-          newId,
-        }),
-        alert: await storageAlert(spaceId),
-      });
-    });
+    const outcome = await unitOfWork.run(
+      async ({ store, storageAlert, project, checkTokens, validatedTokensOf }) => {
+        await project.write(writer.projectId);
+        const checks = await checkTokens({ projectId: writer.projectId, tokens });
+        if (checks.length > 0) {
+          const unchecked: UncheckedTokens = { code: "unchecked_tokens", checks };
+          return err(unchecked);
+        }
+        const validated = await validatedTokensOf(writer.projectId);
+        const conflicts = nameConflicts(tokens, [
+          ...validated.map(({ name }) => name),
+          ...(await store.pendingNamesOf(writer.projectId)),
+        ]);
+        if (conflicts.length > 0) {
+          const refused: UncheckedTokens = { code: "unchecked_tokens", checks: conflicts };
+          return err(refused);
+        }
+        return ok({
+          written: await proposeTokens(store, {
+            ...writer,
+            tokens,
+            validated,
+            createdAt: now(),
+            newId,
+          }),
+          alert: await storageAlert(spaceId),
+        });
+      },
+    );
     if (!outcome.ok) {
       return outcome;
     }

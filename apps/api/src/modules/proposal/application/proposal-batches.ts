@@ -32,7 +32,7 @@ export const openBatch =
     readonly now: () => Date;
   }) =>
   ({ intent, ...writer }: Writer & { readonly intent: string }): Promise<OpenedBatch> =>
-    unitOfWork.run(async (store) => {
+    unitOfWork.run(async ({ store }) => {
       const openedAt = now();
       const { batch, closed } = declareBatch({
         current: await liveBatchOf(store, { writer, now: openedAt }),
@@ -54,7 +54,7 @@ export const openBatch =
 export const closeBatch =
   ({ unitOfWork, now }: { readonly unitOfWork: ProposalUnitOfWork; readonly now: () => Date }) =>
   (writer: Writer): Promise<ClosedBatch> =>
-    unitOfWork.run(async (store) => {
+    unitOfWork.run(async ({ store }) => {
       const current = await liveBatchOf(store, { writer, now: now() });
       if (current === undefined) {
         return { batch: null };

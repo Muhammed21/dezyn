@@ -43,6 +43,17 @@ export const validatedTokenWriterOn = (tx: PostgresTransaction, meter: StorageMe
     newId: randomUUID,
   });
 
+export const checkTokensOn = (tx: PostgresTransaction) =>
+  checkTokens({ modes: postgresModeReader(tx), projectTokens: postgresProjectTokenReader(tx) });
+
+export const validatedTokensOn = (tx: PostgresTransaction) => {
+  const read = readValidatedTokens({
+    modes: postgresModeReader(tx),
+    tokens: postgresValidatedTokenReader(tx),
+  });
+  return async (projectId: string) => (await read(projectId)).tokens;
+};
+
 export const tokenModule = ({
   db,
   access,
@@ -72,7 +83,7 @@ export const tokenModule = ({
   });
   const read = readTokens({
     modes: postgresModeReader(db.orm),
-    tokens: postgresValidatedTokenReader(db),
+    tokens: postgresValidatedTokenReader(db.orm),
     figmaStates: postgresFigmaStateReader(db),
   });
   return {
@@ -113,7 +124,7 @@ export const tokenModule = ({
       modifiers: postgresModifierReader(db.orm),
       readValidatedTokens: readValidatedTokens({
         modes: postgresModeReader(db.orm),
-        tokens: postgresValidatedTokenReader(db),
+        tokens: postgresValidatedTokenReader(db.orm),
       }),
     }),
     declareFigmaStates: declareFigmaStates({

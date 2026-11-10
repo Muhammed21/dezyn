@@ -8,7 +8,13 @@ import {
   proposalWriterOn,
 } from "#modules/proposal/proposal-module.ts";
 import { spaceModule } from "#modules/space/space-module.ts";
-import { figmaStateOn, tokenModule, validatedTokenWriterOn } from "#modules/token/token-module.ts";
+import {
+  checkTokensOn,
+  figmaStateOn,
+  tokenModule,
+  validatedTokensOn,
+  validatedTokenWriterOn,
+} from "#modules/token/token-module.ts";
 import type { Clock } from "#platform/clock.ts";
 import type { LogSink } from "#platform/logging.ts";
 import type { Mailer } from "#platform/mailer.ts";
@@ -58,7 +64,8 @@ export const composeModules = ({
     db,
     access,
     projectLockOn,
-    checkTokens: tokens.checkTokens,
+    checkTokensOn,
+    validatedTokensOn,
     validatedTokensOf: async (projectId) => (await tokens.readTokens(projectId)).tokens,
     historyWriterOn: writerOn,
     validatedTokenWriterOn: (tx) => validatedTokenWriterOn(tx, storageMeterOn(tx)),

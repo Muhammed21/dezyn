@@ -274,9 +274,9 @@ export const postgresTokenImportUnitOfWork = ({
 
 const referenced = alias(token, "referenced");
 
-export const postgresValidatedTokenReader = (db: PostgresDatabase): ValidatedTokenReader => ({
+export const postgresValidatedTokenReader = (orm: Queryable): ValidatedTokenReader => ({
   validatedValuesOf: (projectId) =>
-    db.orm
+    orm
       .select({
         tokenId: token.id,
         name: token.name,
