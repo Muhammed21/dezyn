@@ -67,7 +67,14 @@ export const postgresModeReader = (orm: Queryable): ModeReader => ({
 const postgresModesWriter = (orm: Queryable, newId: () => string): ModesWriter => ({
   create: async ({ projectId, modifier: name, modes }) => {
     const modifierId = newId();
-    await orm.insert(modifier).values({ id: modifierId, projectId, name });
+    const inserted = await orm
+      .insert(modifier)
+      .values({ id: modifierId, projectId, name })
+      .onConflictDoNothing({ target: modifier.projectId })
+      .returning({ id: modifier.id });
+    if (inserted.length === 0) {
+      return "modes_taken";
+    }
     await orm.insert(mode).values(
       modes.map(({ id, name: modeName }, position) => ({
         id,
@@ -76,6 +83,7 @@ const postgresModesWriter = (orm: Queryable, newId: () => string): ModesWriter =
         position,
       })),
     );
+    return "created";
   },
 });
 

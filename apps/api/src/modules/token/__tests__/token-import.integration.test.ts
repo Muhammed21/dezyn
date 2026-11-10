@@ -1246,6 +1246,25 @@ describe("un document Resolver crée le modificateur et les modes d'un projet vi
       ]);
     }));
 
+  it("deux imports simultanés dans un projet vide : l'un crée les modes, l'autre répond 409", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId } = await seedProject(app, db);
+      const document = resolverOf({
+        clair: { fond: color(PRIMARY_BLUE) },
+        sombre: { fond: color(NIGHT_BLUE) },
+      });
+
+      const responses = await Promise.all([
+        importTokens(app, { accessToken, projectId, document }),
+        importTokens(app, { accessToken, projectId, document }),
+      ]);
+
+      expect(
+        responses.map(({ status }) => status).toSorted((first, second) => first - second),
+      ).toEqual([201, 409]);
+      expect(await db.orm.select().from(schema.modifier)).toHaveLength(1);
+    }));
+
   it("une proposition en attente répond 400 sans créer de modes", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId } = await seedProject(app, db);

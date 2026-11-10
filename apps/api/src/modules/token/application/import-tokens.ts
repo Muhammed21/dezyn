@@ -40,7 +40,7 @@ export type CreatedModes = {
 };
 
 export interface ModesWriter {
-  create(created: CreatedModes): Promise<void>;
+  create(created: CreatedModes): Promise<"created" | "modes_taken">;
 }
 
 export type TokenImportUnit = {
@@ -61,6 +61,7 @@ export type TokenCheckOfImport = {
 
 export type ImportFailure =
   | "not_found"
+  | "modes_taken"
   | { readonly issues: readonly ImportIssue[]; readonly checks: readonly TokenCheckOfImport[] }
   | { readonly names: readonly string[] };
 
@@ -247,7 +248,9 @@ export const importTokens =
         return err({ names: taken });
       }
       if (createdModes !== undefined) {
-        await modesWriter.create(createdModes);
+        if ((await modesWriter.create(createdModes)) === "modes_taken") {
+          return err("modes_taken");
+        }
         await history.append({
           spaceId: project.spaceId,
           projectId,
