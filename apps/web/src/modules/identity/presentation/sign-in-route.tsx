@@ -21,7 +21,7 @@ const SignInForm = ({ signIn }: { readonly signIn: SignIn }) => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data, mutate } = useMutation({
+  const { data, isPending, mutate } = useMutation({
     mutationFn: signIn,
     onSuccess: async (result) => {
       if (result.ok) {
@@ -56,9 +56,11 @@ const SignInForm = ({ signIn }: { readonly signIn: SignIn }) => {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        <button type="submit">Se connecter</button>
+        <button type="submit" disabled={isPending}>
+          Se connecter
+        </button>
       </form>
-      {data?.ok === false && <p role="alert">{FAILURE_MESSAGES[data.error]}</p>}
+      {!isPending && data?.ok === false && <p role="alert">{FAILURE_MESSAGES[data.error]}</p>}
     </main>
   );
 };

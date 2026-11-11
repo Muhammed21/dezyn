@@ -46,6 +46,8 @@ const submit = async (
   await screen.getByRole("button", { name: "Se connecter" }).click();
 };
 
+const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
+
 const CREDENTIALS = { email: "ada@dezyn.test", password: "un-mot-de-passe-solide" };
 
 describe("page de connexion (ADR 0044 §7)", () => {
@@ -85,6 +87,39 @@ describe("page de connexion (ADR 0044 §7)", () => {
 
     await expect.element(screen.getByRole("alert")).toHaveTextContent(message);
     await expect.element(screen.getByRole("heading", { name: "Connexion" })).toBeVisible();
+  });
+
+  it("ne relance pas la connexion tant que la précédente est en cours", async () => {
+    const received: Credentials[] = [];
+    const screen = await renderSignIn((credentials) => {
+      received.push(credentials);
+      return pending();
+    });
+
+    await submit(screen, CREDENTIALS);
+
+    await expect.element(screen.getByRole("button", { name: "Se connecter" })).toBeDisabled();
+    expect(received).toHaveLength(1);
+  });
+
+  it("retire l'ancien message d'échec pendant une nouvelle tentative", async () => {
+    const answers: readonly Promise<Result<Session, SignInFailure>>[] = [
+      Promise.resolve(err("invalid_credentials")),
+      pending(),
+    ];
+    const attempts = { count: 0 };
+    const screen = await renderSignIn(() => {
+      const answer = answers[attempts.count] ?? pending();
+      attempts.count += 1;
+      return answer;
+    });
+    await submit(screen, CREDENTIALS);
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+
+    await screen.getByRole("button", { name: "Se connecter" }).click();
+
+    await expect.element(screen.getByRole("button", { name: "Se connecter" })).toBeDisabled();
+    expect(screen.getByRole("alert").elements()).toHaveLength(0);
   });
 
   it("s'ouvre sur un formulaire vide, sans erreur annoncée", async () => {
