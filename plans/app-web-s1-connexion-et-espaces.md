@@ -66,7 +66,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR et charge `tdd`, `tes
 ### Tranche 5 : l'app web connecte un membre et lit sa session
 
 **Valeur** : un membre ouvre sa session depuis l'app web.
-**Chemin** : création de `apps/web` (Vite, React, TanStack Router et Query). Module `identity` : domaine (`Session`), cas d'usage `signIn` et `currentSession`, port `IdentityGateway`, passerelle HTTP sur `/auth/sign-in/email` et `/auth/get-session` avec `credentials: "include"`. Racine de composition dans `main.tsx`.
+**Chemin** : création de `apps/web` (Vite, TypeScript, Vitest), sans React : React, TanStack et `main.tsx` arrivent en tranche 6 avec la route qui les utilise. Module `identity` : domaine (`Session`), cas d'usage `signIn` et `currentSession`, port `IdentityGateway`, passerelle HTTP sur `/auth/sign-in/email` et `/auth/get-session` avec `credentials: "include"`. La passerelle ne garde jamais le `token` que better-auth met dans ses réponses.
 **Critères** :
 
 - de bons identifiants donnent une session avec l'identifiant et l'email du membre ;
@@ -75,10 +75,16 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR et charge `tdd`, `tes
 - une API injoignable donne `unavailable` ; une réponse hors contrat donne `invalid_response`.
   **RED** : cas d'usage en unitaire avec une passerelle en mémoire ; passerelle en intégration contre la vraie API Hono en Node (base jetable), avec un `fetch` qui garde les cookies. Les tests importent les aides de test de l'API par une dépendance de développement.
 
+### Tranche 5 bis : aucune réponse de `/auth` ne donne le jeton de session au JavaScript
+
+**Valeur** : un script qui s'exécute dans la page ne peut pas lire ni exfiltrer le jeton de session ; le cookie HttpOnly reste le seul porteur de la session.
+**Chemin** : better-auth met `token` dans la réponse de `/auth/sign-in/email` et `session.token` dans celle de `/auth/get-session`. L'API retire ces champs des réponses de `/auth/*`, et vérifie ce que `/auth/token` (plugin jwt) donne à un appel par cookie depuis `WEB_URL`.
+**Critères** : à préciser avant le premier test ; au minimum, aucune réponse de `/auth/sign-in/email`, `/auth/sign-up/email` et `/auth/get-session` ne contient le jeton de session, et la connexion par cookie marche toujours.
+
 ### Tranche 6 : l'app web liste les espaces du membre, ou renvoie vers la connexion
 
 **Valeur** : le membre retrouve ses espaces dans le navigateur ; fin de la story S1.
-**Chemin** : module `space` : domaine (`Space`, rôle), cas d'usage `listMySpaces`, port `SpaceGateway`, passerelle HTTP qui parse `MySpacesOutput` puis traduit vers le modèle web ; `presentation` : hook TanStack Query et route `/` brute qui affiche les noms ou renvoie vers `/connexion` sur `unauthenticated`.
+**Chemin** : ajout de React, TanStack Router et Query, et de la racine de composition `main.tsx`. Module `space` : domaine (`Space`, rôle), cas d'usage `listMySpaces`, port `SpaceGateway`, passerelle HTTP qui parse `MySpacesOutput` puis traduit vers le modèle web ; `presentation` : hook TanStack Query et route `/` brute qui affiche les noms ou renvoie vers `/connexion` sur `unauthenticated`.
 **Critères** :
 
 - un membre connecté reçoit ses espaces dans le modèle web (nom, plan, rôle) ;
