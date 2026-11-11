@@ -7,3 +7,5 @@ export type Credentials = {
   readonly email: string;
   readonly password: string;
 };
+
+export type Registration = Credentials & { readonly name: string };

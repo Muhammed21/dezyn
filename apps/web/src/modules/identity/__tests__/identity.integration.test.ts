@@ -8,6 +8,7 @@ import {
   signUp,
   withIdentityApp,
 } from "@repo/api/testing/authorization-flow.ts";
+import { MySpacesOutput } from "@repo/contracts";
 import { err, ok } from "@repo/result";
 
 import { makeApiBrowser } from "../../../testing/api-browser.ts";
@@ -47,4 +48,49 @@ describe("identité de l'app web, contre la vraie API (ADR 0044 §7)", () => {
 
       expect(await identity.currentSession()).toEqual(ok(undefined));
     }));
+});
+
+const REGISTRATION = { name: ADA.name, email: ADA.email, password: ADA.password };
+
+const spacesSeenBy = (app: App, ip: string) =>
+  makeApiBrowser(app, { ip })(`${BASE_URL}/v1/spaces`, { method: "GET" });
+
+describe("inscription par l'app web, contre la vraie API (ADR 0044 §7)", () => {
+  it("un visiteur crée son compte et lit aussitôt son espace personnel", () =>
+    withIdentityApp(async (app) => {
+      const ip = makeClientIp();
+      const browser = makeApiBrowser(app, { ip });
+      const identity = createIdentity({ apiUrl: BASE_URL, fetch: browser });
+
+      const signedUp = await identity.signUp(REGISTRATION);
+
+      expect(signedUp).toEqual(ok({ userId: expect.any(String), email: ADA.email }));
+      expect(await identity.currentSession()).toEqual(signedUp);
+      const spaces = await browser(`${BASE_URL}/v1/spaces`, { method: "GET" });
+      expect(spaces.status).toBe(200);
+      expect(MySpacesOutput.parse(await spaces.json()).spaces).toEqual([
+        expect.objectContaining({ role: "owner", plan: "free" }),
+      ]);
+    }));
+
+  it("un email déjà pris donne email_taken", () =>
+    withIdentityApp(async (app) => {
+      const ip = makeClientIp();
+      await signUp(app, ip);
+
+      expect(await identityIn(app, ip).signUp(REGISTRATION)).toEqual(err("email_taken"));
+    }));
+
+  it.each([
+    ["un mot de passe de 7 caractères", { password: "7-signe" }, "invalid_password"],
+    ["un email invalide", { email: "ada-sans-arobase" }, "invalid_email"],
+  ])("%s donne l'échec attendu, sans ouvrir de session", (_case, change, failure) =>
+    withIdentityApp(async (app) => {
+      const ip = makeClientIp();
+      const identity = identityIn(app, ip);
+
+      expect(await identity.signUp({ ...REGISTRATION, ...change })).toEqual(err(failure));
+      expect((await spacesSeenBy(app, ip)).status).toBe(401);
+    }),
+  );
 });
