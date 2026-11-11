@@ -37,7 +37,7 @@ Chaque tranche suit RED-GREEN-MUTATE-KILL MUTANTS-REFACTOR et charge `tdd`, `tes
 ### Tranche 2 : le contrat de création de projet vit dans `@repo/contracts`
 
 **Valeur** : débloque la tranche 3 ; l'app web et l'API valident la même réponse.
-**Chemin** : `packages/contracts/src/project/` porte `CreateProjectInput` (le nom, de 1 à 100 caractères après `trim`), `CreatedProjectOutput` et `PlanRequiredProblem`. La route `POST /v1/spaces/:spaceId/projects` valide son entrée par le premier ; ses tests vérifient la réponse par les deux autres.
+**Chemin** : `packages/contracts/src/project/` porte `CreateProjectInput` (le nom, de 1 à 100 caractères après `trim`) et `CreatedProjectOutput` ; `packages/contracts/src/space/` porte `PlanRequiredProblem`, que renvoient aussi les invitations. La route `POST /v1/spaces/:spaceId/projects` valide son entrée par le premier ; ses tests vérifient la réponse par les deux autres.
 **Critères** : la réponse 201 et le refus « plan requis » passent les schémas importés de `@repo/contracts` ; la validation de l'entrée ne change pas (mêmes 400).
 **Exception horizontale** : déplacement vérifié par les tests existants et les nouveaux tests de contrat.
 

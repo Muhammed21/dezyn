@@ -12,6 +12,7 @@ import {
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
 import { personalSpaceOf, switchToTeam } from "#testing/space-fixtures.ts";
+import { CreatedProjectOutput, PlanRequiredProblem } from "@repo/contracts";
 import { schema } from "@repo/db";
 
 const createProject = (
@@ -69,6 +70,10 @@ describe("la création d'un projet respecte la limite de projets du plan (ADR 00
       const response = await createProject(app, { accessToken, spaceId });
 
       expect(response.status).toBe(201);
+      expect(CreatedProjectOutput.parse(await response.json())).toMatchObject({
+        spaceId,
+        name: "Nouveau projet",
+      });
       expect(await projectCountOf(db, spaceId)).toBe(3);
     }));
 
@@ -80,7 +85,9 @@ describe("la création d'un projet respecte la limite de projets du plan (ADR 00
 
       expect(response.status).toBe(403);
       expect(response.headers.get("content-type")).toBe("application/problem+json");
-      expect(await response.json()).toMatchObject(PLAN_REQUIRED);
+      const body: unknown = await response.json();
+      expect(body).toMatchObject(PLAN_REQUIRED);
+      expect(PlanRequiredProblem.safeParse(body).success).toBe(true);
       expect(await projectCountOf(db, spaceId)).toBe(3);
       expect(await historyCountOf(db, spaceId)).toBe(0);
     }));
