@@ -128,13 +128,17 @@ describe("déconnexion par l'app web, contre la vraie API (ADR 0044 §7)", () =>
         body: JSON.stringify({ email: ADA.email, password: ADA.password }),
       });
       const oldCookie = cookieOf(signedIn);
+      const replayOldCookie = () =>
+        app.request(`${BASE_URL}/v1/spaces`, {
+          headers: { cookie: oldCookie, "x-forwarded-for": ip },
+        });
+      expect((await replayOldCookie()).status).toBe(200);
 
-      await createIdentity({ apiUrl: BASE_URL, fetch: browser }).signOut();
+      expect(await createIdentity({ apiUrl: BASE_URL, fetch: browser }).signOut()).toEqual(
+        ok(undefined),
+      );
 
-      const replayed = await app.request(`${BASE_URL}/v1/spaces`, {
-        headers: { cookie: oldCookie, "x-forwarded-for": ip },
-      });
-      expect(replayed.status).toBe(401);
+      expect((await replayOldCookie()).status).toBe(401);
     }));
 
   it("sans session, la déconnexion réussit", () =>
