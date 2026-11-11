@@ -69,9 +69,11 @@ export const makeProposals = (): ProposalUseCases => ({
 export const makeApp = ({
   db = makeDatabase(),
   auth = makeAuth(),
-}: { readonly db?: Database; readonly auth?: Auth } = {}) => {
+  webUrl = "https://dezyn.dev",
+}: { readonly db?: Database; readonly auth?: Auth; readonly webUrl?: string } = {}) => {
   const records: LogRecord[] = [];
   const app = createApp({
+    webUrl,
     db,
     auth,
     log: (record) => records.push(record),

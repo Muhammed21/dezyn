@@ -15,7 +15,11 @@ const DRIZZLE_TYPE: ReadonlyMap<string, string> = new Map([
 
 const tables = Object.entries(
   getAuthTables(
-    identityAuthOptions({ baseURL: "http://127.0.0.1:3000", trustedIpHeader: "x-forwarded-for" }),
+    identityAuthOptions({
+      baseURL: "http://127.0.0.1:3000",
+      trustedIpHeader: "x-forwarded-for",
+      webOrigin: "http://127.0.0.1:5173",
+    }),
   ),
 );
 

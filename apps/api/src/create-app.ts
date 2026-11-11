@@ -34,6 +34,7 @@ import { mcpEndpoint } from "#platform/mcp.ts";
 import { type MemberEnv, requireMember } from "#platform/member-identity.ts";
 import { clientProblem, INTERNAL_ERROR, problemResponse } from "#platform/problem.ts";
 import { requestContext } from "#platform/request-context.ts";
+import { webCors } from "#platform/web-cors.ts";
 
 const MAX_BODY_BYTES = 1024 * 1024;
 
@@ -41,6 +42,7 @@ const unavailable = (c: Context<AppEnv>) =>
   problemResponse(c, { type: "about:blank", title: "Service indisponible", status: 503 });
 
 export const createApp = ({
+  webUrl,
   db,
   auth,
   log,
@@ -50,6 +52,7 @@ export const createApp = ({
   tokens,
   proposals,
 }: {
+  readonly webUrl: string;
   readonly db: Database;
   readonly auth: Auth;
   readonly log: LogSink;
@@ -74,6 +77,8 @@ export const createApp = ({
     }),
   );
 
+  app.use("/v1/*", webCors(webUrl));
+  app.use("/auth/*", webCors(webUrl));
   app.on(["GET", "POST"], "/auth/*", (c) => auth.handle(c.req.raw));
   app.route("/", authPages({ auth, baseURL: auth.baseURL }));
   const resourceMetadataUrl = new URL("/.well-known/oauth-protected-resource/v1", auth.baseURL)

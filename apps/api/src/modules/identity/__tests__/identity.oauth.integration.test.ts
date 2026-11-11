@@ -23,6 +23,7 @@ const withIdentityApp = (run: (app: ReturnType<typeof createApp>) => Promise<voi
     const db = createPostgresDatabase({ url: appUrl });
     try {
       const auth = await createIdentityAuth({
+        webUrl: "http://127.0.0.1:5173",
         db,
         secret: "secret-de-test-de-32-caracteres-au-moins",
         baseURL: BASE_URL,
@@ -32,6 +33,7 @@ const withIdentityApp = (run: (app: ReturnType<typeof createApp>) => Promise<voi
       });
       await run(
         createApp({
+          webUrl: "http://127.0.0.1:5173",
           db,
           auth,
           log: () => undefined,
@@ -71,6 +73,7 @@ describe("découverte du serveur d'autorisation et enregistrement d'un client MC
       const db = createPostgresDatabase({ url: appUrl });
 
       await createIdentityAuth({
+        webUrl: "http://127.0.0.1:5173",
         db,
         secret: "secret-de-test-de-32-caracteres-au-moins",
         baseURL: BASE_URL,

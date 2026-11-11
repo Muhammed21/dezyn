@@ -48,6 +48,7 @@ const withIdentityApp = (run: (identityApp: IdentityApp) => Promise<void>) =>
     };
     try {
       const auth = await createIdentityAuth({
+        webUrl: "http://127.0.0.1:5173",
         db,
         secret: SECRET,
         baseURL: BASE_URL,
@@ -56,6 +57,7 @@ const withIdentityApp = (run: (identityApp: IdentityApp) => Promise<void>) =>
         onUserCreated: () => Promise.resolve(),
       });
       const app = createApp({
+        webUrl: "http://127.0.0.1:5173",
         db,
         auth,
         log,
@@ -140,6 +142,7 @@ describe("identité : initialisation", () => {
       const records: LogRecord[] = [];
       try {
         const initializing = createIdentityAuth({
+          webUrl: "http://127.0.0.1:5173",
           db,
           secret: SECRET,
           baseURL: BASE_URL,
