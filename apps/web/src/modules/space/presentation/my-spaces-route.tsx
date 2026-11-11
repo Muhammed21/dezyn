@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type AnyRootRoute, createRoute, Navigate } from "@tanstack/react-router";
+import { type AnyRootRoute, createRoute, Link, Navigate } from "@tanstack/react-router";
 
 import type { Result } from "@repo/result";
 
@@ -25,7 +25,11 @@ const MySpaces = ({ listMySpaces }: { readonly listMySpaces: ListMySpaces }) => 
       <h1>Vos espaces</h1>
       <ul aria-label="Vos espaces">
         {data.value.map((space) => (
-          <li key={space.id}>{space.name}</li>
+          <li key={space.id}>
+            <Link to="/espaces/$spaceId" params={{ spaceId: space.id }}>
+              {space.name}
+            </Link>
+          </li>
         ))}
       </ul>
     </main>

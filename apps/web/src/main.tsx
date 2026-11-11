@@ -5,6 +5,8 @@ import { createRoot } from "react-dom/client";
 
 import { createIdentity } from "./modules/identity/identity-module.ts";
 import { signInRoute } from "./modules/identity/presentation/sign-in-route.tsx";
+import { spaceProjectsRoute } from "./modules/project/presentation/space-projects-route.tsx";
+import { createProjects } from "./modules/project/project-module.ts";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
 import { createSpaces } from "./modules/space/space-module.ts";
 
@@ -13,12 +15,18 @@ const fetchFromBrowser = (url: string, init: RequestInit) => window.fetch(url, i
 
 const identity = createIdentity({ apiUrl, fetch: fetchFromBrowser });
 const spaces = createSpaces({ apiUrl, fetch: fetchFromBrowser });
+const projects = createProjects({ apiUrl, fetch: fetchFromBrowser });
 
 const root = createRootRoute();
 const router = createRouter({
   routeTree: root.addChildren([
     mySpacesRoute({ parent: root, listMySpaces: spaces.listMySpaces }),
     signInRoute({ parent: root, signIn: identity.signIn }),
+    spaceProjectsRoute({
+      parent: root,
+      listProjects: projects.listProjects,
+      createProject: projects.createProject,
+    }),
   ]),
 });
 

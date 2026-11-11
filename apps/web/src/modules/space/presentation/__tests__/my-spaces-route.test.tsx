@@ -30,8 +30,15 @@ const renderMySpaces = (listMySpaces: () => Promise<Result<readonly Space[], Spa
     path: "/connexion",
     component: () => <p>Page de connexion</p>,
   });
+  const spacePage = createRoute({
+    getParentRoute: () => root,
+    path: "/espaces/$spaceId",
+    component: function SpacePage() {
+      return <p>Page de l'espace {spacePage.useParams().spaceId}</p>;
+    },
+  });
   const router = createRouter({
-    routeTree: root.addChildren([mySpacesRoute({ parent: root, listMySpaces }), signIn]),
+    routeTree: root.addChildren([mySpacesRoute({ parent: root, listMySpaces }), signIn, spacePage]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   return render(
@@ -56,6 +63,14 @@ describe("page de mes espaces (ADR 0044 §6)", () => {
     await expect.element(list.getByRole("listitem").nth(0)).toHaveTextContent("Studio Ada");
     await expect.element(list.getByRole("listitem").nth(1)).toHaveTextContent("Studio Grace");
     expect(list.getByRole("listitem").elements()).toHaveLength(2);
+  });
+
+  it("mène de chaque espace à sa page", async () => {
+    const screen = await renderMySpaces(() => Promise.resolve(ok([makeSpace()])));
+
+    await screen.getByRole("link", { name: "Studio Ada" }).click();
+
+    await expect.element(screen.getByText(`Page de l'espace ${makeSpace().id}`)).toBeVisible();
   });
 
   it("renvoie vers la connexion quand le membre n'a pas de session", async () => {
