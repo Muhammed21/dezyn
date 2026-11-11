@@ -91,6 +91,7 @@ export const createApp = ({
       sessionOf: auth.sessionOf,
       verifyAccessToken: auth.verifyAccessToken,
       resourceMetadataUrl,
+      webUrl,
     }),
   );
   const registerSpaceTools = registerListSpaces(spaces);

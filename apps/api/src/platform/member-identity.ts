@@ -27,13 +27,16 @@ export const requireMember = ({
   sessionOf,
   verifyAccessToken,
   resourceMetadataUrl,
+  webUrl,
 }: {
   readonly sessionOf: (
     headers: Headers,
   ) => Promise<Result<MemberIdentity | undefined, SessionFailure>>;
   readonly verifyAccessToken: VerifyAccessToken;
   readonly resourceMetadataUrl: string;
+  readonly webUrl: string;
 }) => {
+  const webOrigin = new URL(webUrl).origin;
   const bearer = verifyBearer({ verifyAccessToken, resourceMetadataUrl });
   return createMiddleware<MemberEnv>(async (c, next) => {
     const authorization = c.req.header("authorization");
@@ -53,7 +56,7 @@ export const requireMember = ({
     if (session.value === undefined) {
       return unauthorizedResponse(c, { resourceMetadataUrl });
     }
-    if (!READ_METHODS.has(c.req.method)) {
+    if (!READ_METHODS.has(c.req.method) && c.req.header("origin") !== webOrigin) {
       return problemResponse(c, FORBIDDEN);
     }
     c.set("identity", { userId: session.value.userId });

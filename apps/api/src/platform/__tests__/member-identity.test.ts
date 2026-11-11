@@ -10,6 +10,8 @@ const RESOURCE_METADATA = "http://127.0.0.1:3000/.well-known/oauth-protected-res
 const ADA_ID = "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
 const GRACE_ID = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
 const SESSION_COOKIE = "better-auth.session_token=session-de-ada";
+const WEB_URL = "http://127.0.0.1:5173/";
+const WEB_ORIGIN = "http://127.0.0.1:5173";
 
 const makeTokenIdentity = (): AccessTokenIdentity => ({
   userId: GRACE_ID,
@@ -39,6 +41,7 @@ const makeMemberApp = ({
           return Promise.resolve(verification);
         },
         resourceMetadataUrl: RESOURCE_METADATA,
+        webUrl: WEB_URL,
       }),
     )
     .on(["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"], "/protege", (c) =>
@@ -64,28 +67,57 @@ describe("requireMember : l'identité d'un membre sur /v1 (ADR 0044 §1 et §2)"
     expect(tokens).toEqual([]);
   });
 
-  it.each(["HEAD", "OPTIONS"])("une requête %s par cookie est une lecture", async (method) => {
+  it.each(["POST", "PUT", "PATCH", "DELETE"])(
+    "une écriture %s par cookie depuis l'origine de WEB_URL passe à la route le membre de la session",
+    async (method) => {
+      const { app } = makeMemberApp();
+
+      const response = await call(app, {
+        method,
+        headers: { cookie: SESSION_COOKIE, origin: WEB_ORIGIN },
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ userId: ADA_ID });
+    },
+  );
+
+  it.each([
+    ["sans en-tête Origin", {}],
+    ["depuis un autre sous-domaine", { origin: "http://evil.127.0.0.1:5173" }],
+    ["depuis un autre schéma", { origin: "https://127.0.0.1:5173" }],
+    ["depuis un autre port", { origin: "http://127.0.0.1:5174" }],
+    [
+      "depuis une origine qui commence comme WEB_URL",
+      { origin: "http://127.0.0.1:5173.evil.test" },
+    ],
+    ["avec l'URL de WEB_URL au lieu de son origine", { origin: WEB_URL }],
+    ["avec l'origine nulle", { origin: "null" }],
+  ])("une écriture par cookie %s répond 403, sans atteindre la route", async (_case, origin) => {
     const { app } = makeMemberApp();
 
-    const response = await call(app, { method, headers: { cookie: SESSION_COOKIE } });
+    const response = await call(app, {
+      method: "POST",
+      headers: { cookie: SESSION_COOKIE, ...origin },
+    });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(403);
+    expect(response.headers.get("content-type")).toBe("application/problem+json");
+    expect(await response.json()).toMatchObject({
+      type: "about:blank",
+      title: "Accès refusé",
+      status: 403,
+    });
   });
 
-  it.each(["POST", "PUT", "PATCH", "DELETE"])(
-    "une écriture %s par cookie répond 403, sans atteindre la route",
+  it.each(["GET", "HEAD", "OPTIONS"])(
+    "une lecture %s par cookie passe sans en-tête Origin",
     async (method) => {
       const { app } = makeMemberApp();
 
       const response = await call(app, { method, headers: { cookie: SESSION_COOKIE } });
 
-      expect(response.status).toBe(403);
-      expect(response.headers.get("content-type")).toBe("application/problem+json");
-      expect(await response.json()).toMatchObject({
-        type: "about:blank",
-        title: "Accès refusé",
-        status: 403,
-      });
+      expect(response.status).toBe(200);
     },
   );
 
@@ -113,6 +145,18 @@ describe("requireMember : l'identité d'un membre sur /v1 (ADR 0044 §1 et §2)"
     expect(response.status).toBe(503);
     expect(response.headers.get("www-authenticate")).toBeNull();
     expect(await response.json()).toMatchObject({ title: "Service indisponible", status: 503 });
+  });
+
+  it("une écriture par jeton Bearer passe sans en-tête Origin", async () => {
+    const { app } = makeMemberApp();
+
+    const response = await call(app, {
+      method: "POST",
+      headers: { authorization: "Bearer jeton-signe" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ userId: GRACE_ID });
   });
 
   it("un jeton Bearer décide seul : le membre du jeton, même en écriture, sans lire le cookie", async () => {
