@@ -85,6 +85,18 @@ describe("création d'un projet dans l'app web (ADR 0044)", () => {
     expect(calls).toEqual([]);
   });
 
+  it.each(["../../auth/sign-out", "..", "espace-1", ""])(
+    "donne not_found pour l'espace %j, qui n'est pas un UUID, sans appeler l'API",
+    async (spaceId) => {
+      const { projects, calls } = answering(json(makeCreatedProject()));
+
+      expect(await projects.createProject({ spaceId, name: "Site vitrine" })).toEqual(
+        err("not_found"),
+      );
+      expect(calls).toEqual([]);
+    },
+  );
+
   it("envoie un nom de 100 caractères", async () => {
     const { projects, calls } = answering(json(makeCreatedProject()));
 

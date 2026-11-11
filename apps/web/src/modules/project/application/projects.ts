@@ -1,4 +1,4 @@
-import { CreateProjectInput } from "@repo/contracts";
+import { CreateProjectInput, Uuid } from "@repo/contracts";
 import { err, type Result } from "@repo/result";
 
 import type { Project, ProjectCreationFailure } from "../domain/project.ts";
@@ -9,6 +9,9 @@ export const projectUseCases = ({ gateway }: { readonly gateway: ProjectGateway 
     spaceId,
     name,
   }: ProjectToCreate): Promise<Result<Project, ProjectCreationFailure>> => {
+    if (!Uuid.safeParse(spaceId).success) {
+      return err("not_found");
+    }
     const input = CreateProjectInput.safeParse({ name });
     if (!input.success) {
       return err("invalid_name");
