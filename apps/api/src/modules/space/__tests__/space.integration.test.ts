@@ -9,6 +9,7 @@ import {
   obtainAccessToken,
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
+import { MySpacesOutput } from "@repo/contracts";
 import { schema } from "@repo/db";
 
 const failingOnce = (created: (user: { id: string; name: string }) => Promise<void>) => {
@@ -39,10 +40,12 @@ describe("espace personnel à l'inscription", () => {
         headers: { authorization: `Bearer ${accessToken}` },
       });
 
+      const body: unknown = await response.json();
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
+      expect(body).toEqual({
         spaces: [{ id: expect.stringMatching(UUID), name: ADA.name, plan: "free", role: "owner" }],
       });
+      expect(MySpacesOutput.safeParse(body).success).toBe(true);
     }));
 
   it("list_spaces renvoie la même liste que GET /v1/spaces", () =>

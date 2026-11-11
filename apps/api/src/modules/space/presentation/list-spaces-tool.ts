@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { McpCall } from "#platform/mcp.ts";
+import { MySpacesOutput } from "@repo/contracts";
 
-import { MySpacesOutput } from "../contracts/my-spaces.ts";
 import type { MySpace } from "../domain/space.ts";
 
 export const registerListSpaces =
