@@ -94,3 +94,55 @@ describe("inscription par l'app web, contre la vraie API (ADR 0044 §7)", () => 
     }),
   );
 });
+
+const cookieOf = (response: Response) =>
+  response.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .join("; ");
+
+describe("déconnexion par l'app web, contre la vraie API (ADR 0044 §7)", () => {
+  it("après la déconnexion, le navigateur n'a plus de session ni d'accès à /v1", () =>
+    withIdentityApp(async (app) => {
+      const ip = makeClientIp();
+      await signUp(app, ip);
+      const browser = makeApiBrowser(app, { ip });
+      const identity = createIdentity({ apiUrl: BASE_URL, fetch: browser });
+      await identity.signIn({ email: ADA.email, password: ADA.password });
+      expect((await browser(`${BASE_URL}/v1/spaces`, { method: "GET" })).status).toBe(200);
+
+      expect(await identity.signOut()).toEqual(ok(undefined));
+
+      expect((await browser(`${BASE_URL}/v1/spaces`, { method: "GET" })).status).toBe(401);
+      expect(await identity.currentSession()).toEqual(ok(undefined));
+    }));
+
+  it("l'ancien cookie, rejoué après la déconnexion, ne donne plus accès à /v1", () =>
+    withIdentityApp(async (app) => {
+      const ip = makeClientIp();
+      await signUp(app, ip);
+      const browser = makeApiBrowser(app, { ip });
+      const signedIn = await browser(`${BASE_URL}/auth/sign-in/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: ADA.email, password: ADA.password }),
+      });
+      const oldCookie = cookieOf(signedIn);
+      const replayOldCookie = () =>
+        app.request(`${BASE_URL}/v1/spaces`, {
+          headers: { cookie: oldCookie, "x-forwarded-for": ip },
+        });
+      expect((await replayOldCookie()).status).toBe(200);
+
+      expect(await createIdentity({ apiUrl: BASE_URL, fetch: browser }).signOut()).toEqual(
+        ok(undefined),
+      );
+
+      expect((await replayOldCookie()).status).toBe(401);
+    }));
+
+  it("sans session, la déconnexion réussit", () =>
+    withIdentityApp(async (app) => {
+      expect(await identityIn(app, makeClientIp()).signOut()).toEqual(ok(undefined));
+    }));
+});

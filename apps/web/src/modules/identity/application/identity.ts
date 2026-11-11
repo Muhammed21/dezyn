@@ -17,5 +17,6 @@ export const identityUseCases = ({ gateway }: { readonly gateway: IdentityGatewa
     }
     return gateway.signUp({ ...registration, name });
   },
+  signOut: () => gateway.signOut(),
   currentSession: () => gateway.currentSession(),
 });

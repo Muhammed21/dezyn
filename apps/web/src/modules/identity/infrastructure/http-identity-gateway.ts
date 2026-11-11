@@ -92,6 +92,13 @@ export const createHttpIdentityGateway = ({
     const body = await parseJson(response, SignInResponse);
     return body.ok ? ok(sessionOf(body.value.user)) : body;
   },
+  signOut: async () => {
+    const sent = await send(fetch, `${apiUrl}/auth/sign-out`, { method: "POST" });
+    if (!sent.ok) {
+      return sent;
+    }
+    return sent.value.ok ? ok(undefined) : err(failureOf(sent.value));
+  },
   currentSession: async (): Promise<Result<Session | undefined, HttpFailure>> => {
     const sent = await send(fetch, `${apiUrl}/auth/get-session`, { method: "GET" });
     if (!sent.ok) {
