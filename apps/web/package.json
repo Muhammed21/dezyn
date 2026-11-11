@@ -11,6 +11,7 @@
     "mutation": "stryker run"
   },
   "dependencies": {
+    "@repo/contracts": "workspace:*",
     "@repo/result": "workspace:*",
     "zod": "4.6.7"
   },
