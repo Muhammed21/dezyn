@@ -5,7 +5,7 @@ export type Location = {
   readonly layer: string | undefined;
 };
 
-const MODULE_PATH = /\/apps\/api\/src\/modules\/([^/]+)\/(?:([^/]+)\/)?/;
+const MODULE_PATH = /\/apps\/(?:api|web)\/src\/modules\/([^/]+)\/(?:([^/]+)\/)?/;
 
 const API_ROOT = /^(.*\/apps\/api)\//;
 

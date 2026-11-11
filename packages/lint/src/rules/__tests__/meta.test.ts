@@ -6,6 +6,7 @@ import { layerDependencies } from "../layer-dependencies.ts";
 import { moduleBoundaries } from "../module-boundaries.ts";
 import { noDisableArchitecture } from "../no-disable-architecture.ts";
 import { pureDomain } from "../pure-domain.ts";
+import { uiInPresentation } from "../ui-in-presentation.ts";
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -21,6 +22,7 @@ describe("plugin dezyn", () => {
       "module-boundaries",
       "no-disable-architecture",
       "pure-domain",
+      "ui-in-presentation",
     ]);
   });
 
@@ -29,6 +31,7 @@ describe("plugin dezyn", () => {
     ["layer-dependencies", layerDependencies, "ADR 0020"],
     ["no-disable-architecture", noDisableArchitecture, "ADR 0020"],
     ["pure-domain", pureDomain, "ADR 0022"],
+    ["ui-in-presentation", uiInPresentation, "ADR 0044"],
   ])("%s est un problème documenté qui cite son ADR", (_name, rule, adr) => {
     expect(rule.meta?.type).toBe("problem");
     expect(rule.meta?.docs?.description).toContain(adr);
@@ -76,6 +79,22 @@ tester.run("no-disable-architecture (message)", noDisableArchitecture, {
         {
           message:
             "Une règle d'architecture ne se désactive pas par commentaire : changer la règle dans packages/lint, en revue critical (ADR 0020).",
+        },
+      ],
+    },
+  ],
+});
+
+tester.run("ui-in-presentation (message)", uiInPresentation, {
+  valid: [],
+  invalid: [
+    {
+      filename: "/repo/apps/web/src/modules/space/domain/x.ts",
+      code: 'import { useState } from "react";',
+      errors: [
+        {
+          message:
+            "react ne s'importe que dans la couche presentation d'un module ou dans main.tsx, la racine de composition (ADR 0044).",
         },
       ],
     },

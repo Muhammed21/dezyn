@@ -43,7 +43,8 @@
     "dezyn/module-boundaries": "error",
     "dezyn/layer-dependencies": "error",
     "dezyn/no-disable-architecture": "error",
-    "dezyn/pure-domain": "error"
+    "dezyn/pure-domain": "error",
+    "dezyn/ui-in-presentation": "error"
   },
   "ignorePatterns": [
     "node_modules",
