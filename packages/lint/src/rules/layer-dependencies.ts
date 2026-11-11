@@ -36,7 +36,11 @@ export const layerDependencies = defineRule({
     return onImport((source, node) => {
       const target = locateImport(context.filename, source);
       const to = target?.layer ?? ROOT_LAYER;
-      if (target?.module === importer.module && !allowed.includes(to)) {
+      if (
+        target?.app === importer.app &&
+        target.module === importer.module &&
+        !allowed.includes(to)
+      ) {
         context.report({ node, messageId: "forbiddenLayer", data: { from, to } });
       }
     });

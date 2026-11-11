@@ -35,12 +35,15 @@ describe("le linter est linté (ADR 0020)", () => {
     expect(matches(plugin)).toHaveLength(1);
   });
 
-  it.each(["module-boundaries", "layer-dependencies", "no-disable-architecture", "pure-domain"])(
-    "la règle dezyn/%s est active en erreur",
-    (rule) => {
-      expect(readConfig().rules[`dezyn/${rule}`]).toBe("error");
-    },
-  );
+  it.each([
+    "module-boundaries",
+    "layer-dependencies",
+    "no-disable-architecture",
+    "pure-domain",
+    "ui-in-presentation",
+  ])("la règle dezyn/%s est active en erreur", (rule) => {
+    expect(readConfig().rules[`dezyn/${rule}`]).toBe("error");
+  });
 });
 
 const lintTree = async (files: Record<string, string>) => {
@@ -96,6 +99,30 @@ describe("règles d'architecture, avec la vraie configuration", () => {
       `${SPACE}/domain/bad.ts`,
       'import { a } from "../../../platform/problem.ts";\nexport const b = a;\n',
       "dezyn(pure-domain)",
+    ],
+    [
+      "un module de l'app web qui importe l'intérieur d'un autre",
+      "apps/web/src/modules/space/application/bad.ts",
+      'import { a } from "../../identity/application/sign-in.ts";\nexport const b = a;\n',
+      "dezyn(module-boundaries)",
+    ],
+    [
+      "un domaine de l'app web qui importe son infrastructure",
+      "apps/web/src/modules/space/domain/bad.ts",
+      'import { a } from "../infrastructure/http-space-gateway.ts";\nexport const b = a;\n',
+      "dezyn(layer-dependencies)",
+    ],
+    [
+      "un domaine de l'app web qui importe un paquet",
+      "apps/web/src/modules/space/domain/bad.ts",
+      'import { MySpacesOutput } from "@repo/contracts";\nexport const a = MySpacesOutput;\n',
+      "dezyn(pure-domain)",
+    ],
+    [
+      "une application de l'app web qui importe React",
+      "apps/web/src/modules/space/application/bad.ts",
+      'import { useState } from "react";\nexport const a = useState;\n',
+      "dezyn(ui-in-presentation)",
     ],
     [
       "un commentaire de désactivation",
