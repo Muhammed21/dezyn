@@ -145,3 +145,84 @@ describe("session courante du navigateur (ADR 0044 §7)", () => {
     expect(await identity.currentSession()).toEqual(err("invalid_response"));
   });
 });
+
+const SIGN_UP = {
+  name: "Ada Lovelace",
+  email: "ada@dezyn.test",
+  password: "un-mot-de-passe-solide",
+};
+
+const refusedBy = (status: number, code: string) =>
+  json({ code, message: "Refus de better-auth" }, status);
+
+describe("inscription d'un visiteur depuis l'app web (ADR 0044 §7)", () => {
+  it("envoie le nom rogné, l'email et le mot de passe à better-auth avec le cookie du navigateur", async () => {
+    const { identity, calls } = answering(json({ token: "jeton", user: ADA_USER }));
+
+    await identity.signUp({ ...SIGN_UP, name: "  Ada Lovelace  " });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/auth/sign-up/email`,
+        init: {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(SIGN_UP),
+        },
+      },
+    ]);
+  });
+
+  it("donne la session du nouveau membre, sans le jeton que renvoie better-auth", async () => {
+    const { identity } = answering(json({ token: "jeton", user: ADA_USER }));
+
+    expect(await identity.signUp(SIGN_UP)).toEqual(
+      ok({ userId: ADA_USER.id, email: ADA_USER.email }),
+    );
+  });
+
+  it.each(["", "   "])("donne invalid_name pour le nom %j, sans appeler l'API", async (name) => {
+    const { identity, calls } = answering(json({ token: "jeton", user: ADA_USER }));
+
+    expect(await identity.signUp({ ...SIGN_UP, name })).toEqual(err("invalid_name"));
+    expect(calls).toEqual([]);
+  });
+
+  it.each(["ada-sans-arobase", "ada@", ""])(
+    "donne invalid_email pour l'email %j, sans appeler l'API",
+    async (email) => {
+      const { identity, calls } = answering(json({ token: "jeton", user: ADA_USER }));
+
+      expect(await identity.signUp({ ...SIGN_UP, email })).toEqual(err("invalid_email"));
+      expect(calls).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["un email déjà pris", refusedBy(422, "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"), "email_taken"],
+    ["un email invalide", refusedBy(400, "INVALID_EMAIL"), "invalid_email"],
+    ["un mot de passe trop court", refusedBy(400, "PASSWORD_TOO_SHORT"), "invalid_password"],
+    ["un mot de passe trop long", refusedBy(400, "PASSWORD_TOO_LONG"), "invalid_password"],
+    ["un autre refus 400", refusedBy(400, "VALIDATION_ERROR"), "invalid_response"],
+    ["un 400 sans code", json({ message: "Refus" }, 400), "invalid_response"],
+    ["un 400 dont le code est hérité d'Object", refusedBy(400, "toString"), "invalid_response"],
+    ["trop de tentatives", refusedBy(429, "TOO_MANY_REQUESTS"), "rate_limited"],
+    ["une panne de l'API", refusedBy(500, "INTERNAL_SERVER_ERROR"), "unavailable"],
+    ["une API indisponible", refusedBy(503, "SERVICE_UNAVAILABLE"), "unavailable"],
+    ["un corps sans membre", json({ token: "jeton" }), "invalid_response"],
+    [
+      "un corps qui n'est pas du JSON",
+      () => new Response("<html>", { status: 200 }),
+      "invalid_response",
+    ],
+  ])("donne sur %s l'échec attendu", async (_case, response, failure) => {
+    const { identity } = answering(response);
+
+    expect(await identity.signUp(SIGN_UP)).toEqual(err(failure));
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    expect(await unreachable().signUp(SIGN_UP)).toEqual(err("unavailable"));
+  });
+});
