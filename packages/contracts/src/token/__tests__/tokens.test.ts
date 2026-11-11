@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { DeclaredFigmaStatesOutput, TokenOutput, TokensOutput } from "../token.ts";
+import {
+  checkOutputSchema,
+  DeclaredFigmaStatesOutput,
+  TokenOutput,
+  TokensOutput,
+} from "../../index.ts";
 
 const makeTokenOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   id: "0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
@@ -374,5 +379,15 @@ describe("la déclaration d'un token divergent rend la proposition née de la va
         },
       },
     });
+  });
+});
+
+describe("conventions de sortie des tokens (ADR 0023 §4)", () => {
+  it.each([
+    ["TokenOutput", TokenOutput],
+    ["TokensOutput", TokensOutput],
+    ["DeclaredFigmaStatesOutput", DeclaredFigmaStatesOutput],
+  ])("%s les respecte", (name, schema) => {
+    expect(checkOutputSchema(name, schema)).toEqual([]);
   });
 });

@@ -8,6 +8,7 @@ import {
   type RecordProjectCall,
 } from "#platform/project-call.ts";
 import { Uuid } from "@repo/contracts";
+import { DeclaredFigmaStatesOutput } from "@repo/contracts";
 import { err, type Result } from "@repo/result";
 
 import type {
@@ -17,7 +18,6 @@ import type {
 } from "../application/declare-figma-states.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import { issuesOfCheck } from "../contracts/token-issues.ts";
-import { DeclaredFigmaStatesOutput } from "../contracts/token.ts";
 import type { FigmaRefusal } from "../domain/figma-declaration.ts";
 
 type MalformedStates = { readonly code: "malformed_states"; readonly issues: readonly string[] };

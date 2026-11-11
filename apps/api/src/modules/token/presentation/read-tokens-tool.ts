@@ -4,12 +4,12 @@ import { z } from "zod";
 import type { McpCall } from "#platform/mcp.ts";
 import { RECORD_FAILURE_TEXT, type RecordProjectCall } from "#platform/project-call.ts";
 import { Uuid } from "@repo/contracts";
+import { TokensOutput } from "@repo/contracts";
 import { ok, type Result } from "@repo/result";
 
 import type { ProjectTokens } from "../application/read-tokens.ts";
 import type { TokenUseCases } from "../application/token-use-cases.ts";
 import type { TokenDefinition } from "../contracts/token-definition.ts";
-import { TokensOutput } from "../contracts/token.ts";
 import { tokensOutputOf } from "./tokens-output.ts";
 
 export type PendingProposal = {
