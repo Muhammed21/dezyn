@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { PlanRequiredProblem } from "../../index.ts";
+import { checkOutputSchema, PlanRequiredProblem } from "../../index.ts";
 
 const makePlanRequired = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   type: "https://dezyn.dev/problems/plan-required",
@@ -45,5 +45,11 @@ describe("refus « plan requis »", () => {
     expect(z.toJSONSchema(PlanRequiredProblem)).toMatchObject({
       properties: { requiredPlan: { anyOf: [{ enum: ["free", "team"] }, { type: "string" }] } },
     });
+  });
+});
+
+describe("conventions de sortie du refus « plan requis » (ADR 0023 §4)", () => {
+  it("PlanRequiredProblem les respecte", () => {
+    expect(checkOutputSchema("PlanRequiredProblem", PlanRequiredProblem)).toEqual([]);
   });
 });
