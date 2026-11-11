@@ -9,6 +9,8 @@ import { spaceProjectsRoute } from "./modules/project/presentation/space-project
 import { createProjects } from "./modules/project/project-module.ts";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
 import { createSpaces } from "./modules/space/space-module.ts";
+import { projectTokensRoute } from "./modules/token/presentation/project-tokens-route.tsx";
+import { createTokens } from "./modules/token/token-module.ts";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 const fetchFromBrowser = (url: string, init: RequestInit) => window.fetch(url, init);
@@ -16,6 +18,7 @@ const fetchFromBrowser = (url: string, init: RequestInit) => window.fetch(url, i
 const identity = createIdentity({ apiUrl, fetch: fetchFromBrowser });
 const spaces = createSpaces({ apiUrl, fetch: fetchFromBrowser });
 const projects = createProjects({ apiUrl, fetch: fetchFromBrowser });
+const tokens = createTokens({ apiUrl, fetch: fetchFromBrowser });
 
 const root = createRootRoute();
 const router = createRouter({
@@ -27,6 +30,7 @@ const router = createRouter({
       listProjects: projects.listProjects,
       createProject: projects.createProject,
     }),
+    projectTokensRoute({ parent: root, readTokens: tokens.readTokens }),
   ]),
 });
 
