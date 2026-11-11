@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createPostgresDatabase } from "#db";
+import { ProjectsOutput } from "#modules/project/contracts/projects.ts";
 import type { LogRecord } from "#platform/logging.ts";
 import {
   ADA,
@@ -9,6 +10,7 @@ import {
   BASE_URL,
   makeClientIp,
   signUp,
+  WEB_URL,
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
 import { personalSpaceOf } from "#testing/space-fixtures.ts";
@@ -36,6 +38,27 @@ const revokeSessionReads = async (migratorUrl: string) => {
   } finally {
     await migrator.close();
   }
+};
+
+const createProjectByCookie = (
+  app: App,
+  { spaceId, headers }: { spaceId: string; headers: Record<string, string> },
+) =>
+  app.request(`${BASE_URL}/v1/spaces/${spaceId}/projects`, {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: JSON.stringify({ name: "Projet écrit par cookie" }),
+  });
+
+const projectNamesOf = async (
+  app: App,
+  { spaceId, cookie }: { spaceId: string; cookie: string },
+) => {
+  const listed = await app.request(`${BASE_URL}/v1/spaces/${spaceId}/projects`, {
+    headers: { cookie },
+  });
+  const { projects } = ProjectsOutput.parse(await listed.json());
+  return projects.map(({ name }) => name);
 };
 
 const listSpaces = (app: App, headers: Record<string, string>) =>
@@ -114,23 +137,36 @@ describe("/v1 avec le cookie de session de l'app web (ADR 0044)", () => {
     );
   });
 
-  it("une écriture par cookie est refusée en 403 et ne change rien", () =>
+  it("une écriture par cookie depuis l'origine de WEB_URL crée le projet", () =>
     withIdentityApp(async (app, db) => {
       const { userId, cookie } = await signedInAda(app);
       const spaceId = await personalSpaceOf(db, userId);
 
-      const response = await app.request(`${BASE_URL}/v1/spaces/${spaceId}/projects`, {
-        method: "POST",
-        headers: { cookie, "content-type": "application/json", origin: BASE_URL },
-        body: JSON.stringify({ name: "Projet écrit par cookie" }),
+      const response = await createProjectByCookie(app, {
+        spaceId,
+        headers: { cookie, origin: WEB_URL },
+      });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ spaceId, name: "Projet écrit par cookie" });
+      expect(await projectNamesOf(app, { spaceId, cookie })).toEqual(["Projet écrit par cookie"]);
+    }));
+
+  it.each([
+    ["depuis une autre origine", { origin: BASE_URL }],
+    ["sans en-tête Origin", {}],
+  ])("une écriture par cookie %s est refusée en 403 et ne crée rien", (_case, origin) =>
+    withIdentityApp(async (app, db) => {
+      const { userId, cookie } = await signedInAda(app);
+      const spaceId = await personalSpaceOf(db, userId);
+
+      const response = await createProjectByCookie(app, {
+        spaceId,
+        headers: { cookie, ...origin },
       });
 
       expect(response.status).toBe(403);
-      const projects = await listSpaces(app, { cookie });
-      expect(projects.status).toBe(200);
-      const listed = await app.request(`${BASE_URL}/v1/spaces/${spaceId}/projects`, {
-        headers: { cookie },
-      });
-      expect(await listed.json()).toEqual({ projects: [] });
-    }));
+      expect(await projectNamesOf(app, { spaceId, cookie })).toEqual([]);
+    }),
+  );
 });
