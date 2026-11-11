@@ -12,6 +12,8 @@ Trop large parce que : six modules, un nouveau mode d'authentification sur `/v1`
 
 **S1 — Un membre se connecte depuis l'app web et récupère la liste de ses espaces.**
 
+Livrée le 11 novembre 2026 (PR #194 à #200, puis la tranche 6b : pages `/` et `/connexion`).
+
 Pourquoi d'abord : c'est le squelette qui traverse tout le chemin réel (app Vite, module `identity`, cookie de session sur `/v1`, CORS de `WEB_URL`, contrat `spaces` partagé, couche anti-corruption, règles d'architecture étendues à `apps/web`). Chaque story suivante n'ajoute qu'un module ou une règle.
 
 ## Stories
