@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { planRequired } from "#modules/space/contracts/plan.ts";
-import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import type { MemberEnv } from "#platform/member-identity.ts";
 import { FORBIDDEN, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
@@ -12,7 +12,7 @@ import type { ProjectUseCases } from "../application/project-use-cases.ts";
 const ProjectRequest = z.object({ name: z.string().trim().min(1).max(100) });
 
 export const projectsRoutes = ({ createProject, listProjects }: ProjectUseCases) =>
-  new Hono<AuthenticatedEnv>()
+  new Hono<MemberEnv>()
     .get("/:spaceId/projects", async (c) => {
       const spaceId = Uuid.safeParse(c.req.param("spaceId")).data;
       if (spaceId === undefined) {

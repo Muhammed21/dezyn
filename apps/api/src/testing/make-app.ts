@@ -20,6 +20,7 @@ export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
   authorizationServerMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
   protectedResourceMetadata: () => Promise.resolve(new Response(null, { status: 404 })),
   verifyAccessToken: () => Promise.resolve(err("invalid_token")),
+  sessionOf: () => Promise.resolve(ok(undefined)),
   checkSigningKey: () => Promise.resolve(ok(undefined)),
   ...overrides,
 });

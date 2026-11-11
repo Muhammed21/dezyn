@@ -1,3 +1,4 @@
+import type { MemberIdentity, SessionFailure } from "#platform/member-identity.ts";
 import type { AccessTokenIdentity, VerificationFailure } from "@repo/auth-verifier";
 import type { Result } from "@repo/result";
 
@@ -9,5 +10,8 @@ export type Auth = {
   readonly verifyAccessToken: (
     token: string,
   ) => Promise<Result<AccessTokenIdentity, VerificationFailure>>;
+  readonly sessionOf: (
+    headers: Headers,
+  ) => Promise<Result<MemberIdentity | undefined, SessionFailure>>;
   readonly checkSigningKey: () => Promise<Result<void, "unusable">>;
 };

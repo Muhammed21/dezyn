@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { issuesOfCheck } from "#modules/token/contracts/token-issues.ts";
-import type { AuthenticatedEnv } from "#platform/access-token.ts";
+import type { MemberEnv } from "#platform/member-identity.ts";
 import { invalidRequest, type Problem, problemResponse } from "#platform/problem.ts";
 import { validate } from "#platform/validate.ts";
 import { Uuid } from "@repo/contracts";
@@ -85,7 +85,7 @@ const batchProblemOf = (
 };
 
 export const projectBatchesRoutes = ({ listBatches }: ProposalUseCases) =>
-  new Hono<AuthenticatedEnv>().get("/:projectId/proposal-batches", async (c) => {
+  new Hono<MemberEnv>().get("/:projectId/proposal-batches", async (c) => {
     const projectId = Uuid.safeParse(c.req.param("projectId")).data;
     if (projectId === undefined) {
       return c.notFound();
@@ -96,7 +96,7 @@ export const projectBatchesRoutes = ({ listBatches }: ProposalUseCases) =>
 
 export const reviewRoutes = ({ batchOf, reviewProposal, validateBatch }: ProposalUseCases) => {
   const reviewed = (decision: Decision) =>
-    new Hono<AuthenticatedEnv>().post("/:proposalId/" + decision, async (c) => {
+    new Hono<MemberEnv>().post("/:proposalId/" + decision, async (c) => {
       const proposalId = Uuid.safeParse(c.req.param("proposalId")).data;
       if (proposalId === undefined) {
         return c.notFound();
@@ -115,7 +115,7 @@ export const reviewRoutes = ({ batchOf, reviewProposal, validateBatch }: Proposa
         ? c.notFound()
         : problemResponse(c, conflictOf(outcome.error));
     });
-  return new Hono<AuthenticatedEnv>()
+  return new Hono<MemberEnv>()
     .get("/proposal-batches/:batchId", async (c) => {
       const batchId = Uuid.safeParse(c.req.param("batchId")).data;
       if (batchId === undefined) {
