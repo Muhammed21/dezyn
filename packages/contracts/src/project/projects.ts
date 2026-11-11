@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { Uuid } from "@repo/contracts";
+import { Uuid } from "../conventions/schemas.ts";
 
 export const ProjectsOutput = z.looseObject({
   projects: z.array(

@@ -2,9 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { McpCall } from "#platform/mcp.ts";
 import { Uuid } from "@repo/contracts";
+import { ProjectsOutput } from "@repo/contracts";
 
 import type { ProjectUseCases } from "../application/project-use-cases.ts";
-import { ProjectsOutput } from "../contracts/projects.ts";
 
 export const registerListProjects =
   ({ listProjects }: Pick<ProjectUseCases, "listProjects">) =>

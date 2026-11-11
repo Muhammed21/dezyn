@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ProjectsOutput } from "../projects.ts";
+import { checkOutputSchema, ProjectsOutput } from "../../index.ts";
 
 const makeProject = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   id: "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
@@ -45,5 +45,11 @@ describe("sortie de la liste des projets d'un espace", () => {
     expect(
       ProjectsOutput.safeParse({ projects: [makeProject({ historyPurgedAt: "hier" })] }).success,
     ).toBe(false);
+  });
+});
+
+describe("conventions de sortie de la liste des projets (ADR 0023 §4)", () => {
+  it("ProjectsOutput les respecte", () => {
+    expect(checkOutputSchema("ProjectsOutput", ProjectsOutput)).toEqual([]);
   });
 });
