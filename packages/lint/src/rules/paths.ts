@@ -1,11 +1,12 @@
 import { dirname, resolve } from "node:path/posix";
 
 export type Location = {
+  readonly app: string;
   readonly module: string;
   readonly layer: string | undefined;
 };
 
-const MODULE_PATH = /\/apps\/(?:api|web)\/src\/modules\/([^/]+)\/(?:([^/]+)\/)?/;
+const MODULE_PATH = /\/apps\/(api|web)\/src\/modules\/([^/]+)\/(?:([^/]+)\/)?/;
 
 const API_ROOT = /^(.*\/apps\/api)\//;
 
@@ -22,7 +23,9 @@ export const ROOT_LAYER = "racine du module";
 
 export const locate = (path: string): Location | undefined => {
   const match = MODULE_PATH.exec(path);
-  return match?.[1] === undefined ? undefined : { module: match[1], layer: match[2] };
+  return match?.[1] === undefined || match[2] === undefined
+    ? undefined
+    : { app: match[1], module: match[2], layer: match[3] };
 };
 
 const isRelative = (source: string): boolean => source.startsWith("./") || source.startsWith("../");

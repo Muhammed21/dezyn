@@ -29,6 +29,18 @@ tester.run("module-boundaries dans l'app web (ADR 0044 §6)", moduleBoundaries, 
       code: 'import { currentSession } from "../../identity/application/current-session.ts";',
       errors: [{ messageId: "crossModule", data: { from: "space", to: "identity" } }],
     },
+    ...["domain", "contracts"].map((layer) => ({
+      name: `import du dossier ${layer} du module de même nom dans l'API`,
+      filename: inModule("space", "domain/space.ts"),
+      code: `import { a } from "../../../../../api/src/modules/space/${layer}/space.ts";`,
+      errors: [{ messageId: "crossApp", data: { from: "web", to: "api" } }],
+    })),
+    {
+      name: "l'API importe un module de l'app web",
+      filename: "/repo/apps/api/src/modules/space/application/list-spaces.ts",
+      code: 'import { a } from "../../../../../web/src/modules/space/domain/space.ts";',
+      errors: [{ messageId: "crossApp", data: { from: "api", to: "web" } }],
+    },
   ],
 });
 
@@ -42,13 +54,20 @@ const WEB_LAYERS: readonly (readonly [string, readonly string[]])[] = [
 const LAYERS = ["domain", "application", "infrastructure", "presentation"];
 
 tester.run("layer-dependencies dans l'app web (ADR 0044 §6)", layerDependencies, {
-  valid: WEB_LAYERS.flatMap(([from, allowed]) =>
-    allowed.map((to) => ({
-      name: `${from} importe ${to}`,
-      filename: inModule("space", `${from}/file.ts`),
-      code: `import { a } from "../${to}/other.ts";`,
-    })),
-  ),
+  valid: [
+    ...WEB_LAYERS.flatMap(([from, allowed]) =>
+      allowed.map((to) => ({
+        name: `${from} importe ${to}`,
+        filename: inModule("space", `${from}/file.ts`),
+        code: `import { a } from "../${to}/other.ts";`,
+      })),
+    ),
+    {
+      name: "import du module de même nom dans l'API, laissé à module-boundaries",
+      filename: inModule("space", "domain/space.ts"),
+      code: 'import { a } from "../../../../../api/src/modules/space/infrastructure/x.ts";',
+    },
+  ],
   invalid: WEB_LAYERS.flatMap(([from, allowed]) =>
     LAYERS.filter((to) => !allowed.includes(to)).map((to) => ({
       name: `${from} n'importe pas ${to}`,

@@ -6,11 +6,15 @@ const MODULES = "/repo/apps/api/src/modules";
 
 describe("locate", () => {
   it.each([
-    [`${MODULES}/space/domain/space-id.ts`, { module: "space", layer: "domain" }],
-    [`${MODULES}/space/space.module.ts`, { module: "space", layer: undefined }],
+    [`${MODULES}/space/domain/space-id.ts`, { app: "api", module: "space", layer: "domain" }],
+    [`${MODULES}/space/space.module.ts`, { app: "api", module: "space", layer: undefined }],
     [
       `${MODULES}/space/presentation/http/me.controller.ts`,
-      { module: "space", layer: "presentation" },
+      { app: "api", module: "space", layer: "presentation" },
+    ],
+    [
+      "/repo/apps/web/src/modules/space/domain/space.ts",
+      { app: "web", module: "space", layer: "domain" },
     ],
   ])("situe %s", (path, location) => {
     expect(locate(path)).toEqual(location);
@@ -29,9 +33,9 @@ describe("locateImport", () => {
   const importer = `${MODULES}/project/application/create-project.ts`;
 
   it.each([
-    ["../domain/project.ts", { module: "project", layer: "domain" }],
-    ["./use-case.ts", { module: "project", layer: "application" }],
-    ["../../space/contracts/events.ts", { module: "space", layer: "contracts" }],
+    ["../domain/project.ts", { app: "api", module: "project", layer: "domain" }],
+    ["./use-case.ts", { app: "api", module: "project", layer: "application" }],
+    ["../../space/contracts/events.ts", { app: "api", module: "space", layer: "contracts" }],
   ])("situe l'import relatif %s", (source, location) => {
     expect(locateImport(importer, source)).toEqual(location);
   });
@@ -48,8 +52,8 @@ describe("locateImport, par les alias de apps/api", () => {
   const importer = `${MODULES}/project/application/create-project.ts`;
 
   it.each([
-    ["#modules/space/contracts/events.ts", { module: "space", layer: "contracts" }],
-    ["#modules/project/domain/project.ts", { module: "project", layer: "domain" }],
+    ["#modules/space/contracts/events.ts", { app: "api", module: "space", layer: "contracts" }],
+    ["#modules/project/domain/project.ts", { app: "api", module: "project", layer: "domain" }],
   ])("situe l'alias %s comme le chemin qu'il désigne", (source, location) => {
     expect(locateImport(importer, source)).toEqual(location);
   });

@@ -52,6 +52,16 @@ tester.run("ui-in-presentation (ADR 0044 §6)", uiInPresentation, {
       code: 'import { a } from "./vendor/@tanstack/query.ts";',
     },
     {
+      name: "la présentation rend du JSX",
+      filename: `${WEB}/modules/space/presentation/my-spaces.tsx`,
+      code: "export const MySpaces = () => <ul><></></ul>;",
+    },
+    {
+      name: "la racine de composition rend du JSX",
+      filename: `${WEB}/main.tsx`,
+      code: "export const app = <div />;",
+    },
+    {
       name: "un fichier de l'API",
       filename: "/repo/apps/api/src/modules/space/domain/space.ts",
       code: 'import { useState } from "react";',
@@ -94,6 +104,18 @@ tester.run("ui-in-presentation (ADR 0044 §6)", uiInPresentation, {
       filename: `${WEB}/modules/space/space-module.ts`,
       code: 'import { useState } from "react";',
       errors: [{ messageId: "outsidePresentation", data: { source: "react" } }],
+    },
+    {
+      name: "une application rend un élément JSX sans importer React",
+      filename: `${WEB}/modules/space/application/list-my-spaces.tsx`,
+      code: "export const a = <div />;",
+      errors: [{ messageId: "jsxOutsidePresentation" }],
+    },
+    {
+      name: "une infrastructure rend un fragment JSX sans importer React",
+      filename: `${WEB}/modules/space/infrastructure/view.tsx`,
+      code: "export const a = <></>;",
+      errors: [{ messageId: "jsxOutsidePresentation" }],
     },
     {
       name: "un import dynamique de React hors présentation",

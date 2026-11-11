@@ -11,6 +11,8 @@ export const moduleBoundaries = defineRule({
         "Un module de l'API n'importe un autre module que par son dossier contracts/ (ADR 0020)",
     },
     messages: {
+      crossApp:
+        "L'app {{from}} importe l'intérieur des modules de l'app {{to}} : partager le contrat par @repo/contracts (ADR 0044).",
       crossModule:
         "Le module {{from}} importe l'intérieur du module {{to}} : passer par {{to}}/contracts/ (ADR 0020).",
     },
@@ -22,6 +24,14 @@ export const moduleBoundaries = defineRule({
     }
     return onImport((source, node) => {
       const target = locateImport(context.filename, source);
+      if (target !== undefined && target.app !== importer.app) {
+        context.report({
+          node,
+          messageId: "crossApp",
+          data: { from: importer.app, to: target.app },
+        });
+        return;
+      }
       if (
         target !== undefined &&
         target.module !== importer.module &&

@@ -100,3 +100,35 @@ tester.run("ui-in-presentation (message)", uiInPresentation, {
     },
   ],
 });
+
+tester.run("module-boundaries entre les apps (message)", moduleBoundaries, {
+  valid: [],
+  invalid: [
+    {
+      filename: "/repo/apps/web/src/modules/space/domain/x.ts",
+      code: 'import { a } from "../../../../../api/src/modules/space/domain/space.ts";',
+      errors: [
+        {
+          message:
+            "L'app web importe l'intérieur des modules de l'app api : partager le contrat par @repo/contracts (ADR 0044).",
+        },
+      ],
+    },
+  ],
+});
+
+tester.run("ui-in-presentation, JSX (message)", uiInPresentation, {
+  valid: [],
+  invalid: [
+    {
+      filename: "/repo/apps/web/src/modules/space/domain/x.tsx",
+      code: "export const a = <div />;",
+      errors: [
+        {
+          message:
+            "Le JSX ne s'écrit que dans la couche presentation d'un module ou dans main.tsx, la racine de composition (ADR 0044).",
+        },
+      ],
+    },
+  ],
+});
