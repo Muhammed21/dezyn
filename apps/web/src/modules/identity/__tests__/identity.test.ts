@@ -201,6 +201,23 @@ describe("inscription d'un visiteur depuis l'app web (ADR 0044 §7)", () => {
 
   it.each([
     ["un email déjà pris", refusedBy(422, "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"), "email_taken"],
+    [
+      "un compte que l'API n'a pas pu créer",
+      refusedBy(422, "FAILED_TO_CREATE_USER"),
+      "unavailable",
+    ],
+    [
+      "un compte refusé en 400 à la création",
+      refusedBy(400, "FAILED_TO_CREATE_USER"),
+      "unavailable",
+    ],
+    [
+      "une session que l'API n'a pas pu créer",
+      refusedBy(400, "FAILED_TO_CREATE_SESSION"),
+      "unavailable",
+    ],
+    ["un autre refus 422", refusedBy(422, "VALIDATION_ERROR"), "invalid_response"],
+    ["un 422 sans code", json({ message: "Refus" }, 422), "invalid_response"],
     ["un email invalide", refusedBy(400, "INVALID_EMAIL"), "invalid_email"],
     ["un mot de passe trop court", refusedBy(400, "PASSWORD_TOO_SHORT"), "invalid_password"],
     ["un mot de passe trop long", refusedBy(400, "PASSWORD_TOO_LONG"), "invalid_password"],

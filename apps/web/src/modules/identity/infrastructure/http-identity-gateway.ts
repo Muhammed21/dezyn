@@ -25,22 +25,22 @@ const UNAUTHORIZED = 401;
 const BAD_REQUEST = 400;
 const UNPROCESSABLE_ENTITY = 422;
 
-const INVALID_DETAILS: ReadonlyMap<string, SignUpFailure> = new Map([
+const REFUSALS: ReadonlyMap<string, SignUpFailure> = new Map([
+  ["USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", "email_taken"],
   ["INVALID_EMAIL", "invalid_email"],
   ["PASSWORD_TOO_SHORT", "invalid_password"],
   ["PASSWORD_TOO_LONG", "invalid_password"],
+  ["FAILED_TO_CREATE_USER", "unavailable"],
+  ["FAILED_TO_CREATE_SESSION", "unavailable"],
 ]);
 
 const signUpRefusalOf = async (response: Response): Promise<SignUpFailure> => {
-  if (response.status === UNPROCESSABLE_ENTITY) {
-    return "email_taken";
-  }
   if (response.status === TOO_MANY_REQUESTS) {
     return "rate_limited";
   }
-  if (response.status === BAD_REQUEST) {
+  if (response.status === BAD_REQUEST || response.status === UNPROCESSABLE_ENTITY) {
     const refusal = await parseJson(response, BetterAuthRefusal);
-    return (refusal.ok && INVALID_DETAILS.get(refusal.value.code)) || "invalid_response";
+    return (refusal.ok && REFUSALS.get(refusal.value.code)) || "invalid_response";
   }
   return failureOf(response);
 };
