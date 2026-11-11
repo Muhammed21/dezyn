@@ -243,3 +243,43 @@ describe("inscription d'un visiteur depuis l'app web (ADR 0044 §7)", () => {
     expect(await unreachable().signUp(SIGN_UP)).toEqual(err("unavailable"));
   });
 });
+
+describe("déconnexion d'un membre depuis l'app web (ADR 0044 §7)", () => {
+  it("demande à better-auth de fermer la session du cookie du navigateur", async () => {
+    const { identity, calls } = answering(json({ success: true }));
+
+    await identity.signOut();
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/auth/sign-out`,
+        init: { method: "POST", credentials: "include" },
+      },
+    ]);
+  });
+
+  it.each([
+    ["une session fermée", json({ success: true })],
+    ["une réponse sans corps", () => new Response(null, { status: 204 })],
+  ])("réussit sur %s", async (_case, response) => {
+    const { identity } = answering(response);
+
+    expect(await identity.signOut()).toEqual(ok(undefined));
+  });
+
+  it.each([
+    [429, "unavailable"],
+    [500, "unavailable"],
+    [503, "unavailable"],
+    [403, "invalid_response"],
+    [400, "invalid_response"],
+  ])("donne sur une réponse %i l'échec attendu", async (status, failure) => {
+    const { identity } = answering(json({ code: "REFUS" }, status));
+
+    expect(await identity.signOut()).toEqual(err(failure));
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    expect(await unreachable().signOut()).toEqual(err("unavailable"));
+  });
+});
