@@ -27,6 +27,7 @@ export const buildApi = async ({
 }) => {
   const modules = composeModules({ db, mailer, webUrl, log });
   const auth = await createIdentityAuth({
+    webUrl,
     db,
     secret: authSecret,
     secrets: authSecrets,
@@ -35,5 +36,5 @@ export const buildApi = async ({
     log,
     onUserCreated: modules.spaces.createPersonalSpace,
   });
-  return { app: createApp({ db, auth, log, ...modules }), modules };
+  return { app: createApp({ webUrl, db, auth, log, ...modules }), modules };
 };

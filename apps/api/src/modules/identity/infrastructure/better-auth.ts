@@ -103,16 +103,20 @@ const guardRefreshGrant = async (ctx: GenericEndpointContext): Promise<void> => 
 export const identityAuthOptions = ({
   baseURL,
   trustedIpHeader,
+  webOrigin,
 }: {
   readonly baseURL: string;
   readonly trustedIpHeader: string;
+  readonly webOrigin: string;
 }) =>
   ({
     basePath: "/auth",
     baseURL,
+    trustedOrigins: [webOrigin],
     advanced: {
       database: { generateId: generateIdentityId },
       ipAddress: { ipAddressHeaders: [trustedIpHeader] },
+      disableOriginCheck: false,
     },
     rateLimit: {
       enabled: true,
@@ -178,6 +182,7 @@ export const createIdentityAuth = async ({
   onUserCreated,
   clock = () => new Date(),
   secrets = [],
+  webUrl,
 }: {
   readonly db: PostgresDatabase;
   readonly secret: string;
@@ -187,10 +192,11 @@ export const createIdentityAuth = async ({
   readonly log: LogSink;
   readonly onUserCreated: (user: { readonly id: string; readonly name: string }) => Promise<void>;
   readonly clock?: Clock;
+  readonly webUrl: string;
 }): Promise<Auth> => {
   const build = () =>
     betterAuth({
-      ...identityAuthOptions({ baseURL, trustedIpHeader }),
+      ...identityAuthOptions({ baseURL, trustedIpHeader, webOrigin: new URL(webUrl).origin }),
       databaseHooks: {
         user: {
           create: {

@@ -22,6 +22,7 @@ afterAll(() => Promise.all([reachableDatabase.close(), unroutableDatabase.close(
 describe("GET /health", () => {
   it("répond 200 quand PostgreSQL répond", async () => {
     const app = createApp({
+      webUrl: "http://127.0.0.1:5173",
       db: reachableDatabase,
       auth: makeAuth(),
       log: () => undefined,
@@ -40,6 +41,7 @@ describe("GET /health", () => {
 
   it("répond 503 en moins de 3 s quand PostgreSQL est injoignable", async () => {
     const app = createApp({
+      webUrl: "http://127.0.0.1:5173",
       db: unroutableDatabase,
       auth: makeAuth(),
       log: () => undefined,
@@ -61,6 +63,7 @@ describe("GET /health", () => {
     const closedDatabase = createPostgresDatabase({ url: process.env.DATABASE_URL ?? "" });
     await closedDatabase.close();
     const app = createApp({
+      webUrl: "http://127.0.0.1:5173",
       db: closedDatabase,
       auth: makeAuth(),
       log: () => undefined,

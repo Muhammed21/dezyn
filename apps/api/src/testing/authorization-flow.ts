@@ -93,6 +93,7 @@ export const startIdentityApp = async ({
       clock,
     });
     const auth = await createIdentityAuth({
+      webUrl: WEB_URL,
       db,
       secret,
       secrets,
@@ -104,6 +105,7 @@ export const startIdentityApp = async ({
     });
     return {
       app: createApp({
+        webUrl: WEB_URL,
         db,
         auth,
         log: () => undefined,
