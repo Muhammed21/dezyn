@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createPostgresDatabase } from "#db";
-import { ProjectsOutput } from "#modules/project/contracts/projects.ts";
 import type { LogRecord } from "#platform/logging.ts";
 import {
   ADA,
@@ -14,6 +13,7 @@ import {
   withIdentityApp,
 } from "#testing/authorization-flow.ts";
 import { personalSpaceOf } from "#testing/space-fixtures.ts";
+import { ProjectsOutput } from "@repo/contracts";
 
 const signInCookie = async (app: App, ip: string) => {
   const response = await app.request(`${BASE_URL}/auth/sign-in/email`, {
