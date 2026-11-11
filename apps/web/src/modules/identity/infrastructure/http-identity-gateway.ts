@@ -31,8 +31,12 @@ const parse = async <T>(response: Response, schema: z.ZodType<T>) => {
   return parsed.success ? ok(parsed.data) : err("invalid_response" as const);
 };
 
+const TOO_MANY_REQUESTS = 429;
+
 const failureOf = (response: Response): HttpFailure =>
-  response.status >= 500 ? "unavailable" : "invalid_response";
+  response.status >= 500 || response.status === TOO_MANY_REQUESTS
+    ? "unavailable"
+    : "invalid_response";
 
 export const createHttpIdentityGateway = ({
   apiUrl,
@@ -53,6 +57,9 @@ export const createHttpIdentityGateway = ({
     const response = sent.value;
     if (response.status === 401) {
       return err("invalid_credentials");
+    }
+    if (response.status === TOO_MANY_REQUESTS) {
+      return err("rate_limited");
     }
     if (!response.ok) {
       return err(failureOf(response));

@@ -2,7 +2,11 @@ import type { Result } from "@repo/result";
 
 import type { Credentials, Session } from "../domain/session.ts";
 
-export type SignInFailure = "invalid_credentials" | "unavailable" | "invalid_response";
+export type SignInFailure =
+  | "invalid_credentials"
+  | "rate_limited"
+  | "unavailable"
+  | "invalid_response";
 
 export type SessionFailure = "unavailable" | "invalid_response";
 

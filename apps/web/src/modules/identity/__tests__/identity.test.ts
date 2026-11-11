@@ -69,6 +69,12 @@ describe("connexion d'un membre depuis l'app web (ADR 0044 §7)", () => {
     expect(await identity.signIn(CREDENTIALS)).toEqual(err("invalid_credentials"));
   });
 
+  it("donne rate_limited quand la limite de débit de better-auth refuse la tentative", async () => {
+    const { identity } = answering(json({ message: "Too many requests" }, 429));
+
+    expect(await identity.signIn(CREDENTIALS)).toEqual(err("rate_limited"));
+  });
+
   it("donne unavailable quand l'API est injoignable", async () => {
     expect(await unreachable().signIn(CREDENTIALS)).toEqual(err("unavailable"));
   });
@@ -123,8 +129,8 @@ describe("session courante du navigateur (ADR 0044 §7)", () => {
     expect(await unreachable().currentSession()).toEqual(err("unavailable"));
   });
 
-  it("donne unavailable sur une réponse 500", async () => {
-    const { identity } = answering(json({}, 500));
+  it.each([500, 429])("donne unavailable sur une réponse %i", async (status) => {
+    const { identity } = answering(json({}, status));
 
     expect(await identity.currentSession()).toEqual(err("unavailable"));
   });
