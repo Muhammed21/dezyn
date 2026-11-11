@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { extensibleUnion, openEnum, Uuid } from "@repo/contracts";
+import { extensibleUnion, openEnum, Uuid } from "../conventions/schemas.ts";
 
 const DefinitionOutput = z.looseObject({
   name: z.string(),
