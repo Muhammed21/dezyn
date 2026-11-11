@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type AnyRootRoute, createRoute, Navigate } from "@tanstack/react-router";
+import { type AnyRootRoute, createRoute, Link, Navigate } from "@tanstack/react-router";
 import { type SubmitEvent, useState } from "react";
 
 import type { Result } from "@repo/result";
@@ -122,7 +122,11 @@ const SpaceProjects = ({
       ) : (
         <ul aria-label="Projets">
           {data.value.map((project) => (
-            <li key={project.id}>{project.name}</li>
+            <li key={project.id}>
+              <Link to="/projets/$projectId" params={{ projectId: project.id }}>
+                {project.name}
+              </Link>
+            </li>
           ))}
         </ul>
       )}

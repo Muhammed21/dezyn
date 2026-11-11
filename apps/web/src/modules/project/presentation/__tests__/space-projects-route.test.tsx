@@ -62,10 +62,18 @@ const renderSpaceProjects = ({
     path: "/connexion",
     component: () => <p>Page de connexion</p>,
   });
+  const projectPage = createRoute({
+    getParentRoute: () => root,
+    path: "/projets/$projectId",
+    component: function ProjectPage() {
+      return <p>Page du projet {projectPage.useParams().projectId}</p>;
+    },
+  });
   const router = createRouter({
     routeTree: root.addChildren([
       spaceProjectsRoute({ parent: root, listProjects, createProject }),
       signIn,
+      projectPage,
     ]),
     history: createMemoryHistory({ initialEntries: [`/espaces/${SPACE_ID}`] }),
   });
@@ -100,6 +108,14 @@ describe("page des projets d'un espace (ADR 0044 §6)", () => {
     await expect.element(list.getByRole("listitem").nth(1)).toHaveTextContent("Site vitrine");
     expect(list.getByRole("listitem").elements()).toHaveLength(2);
     expect(asked).toEqual([SPACE_ID]);
+  });
+
+  it("mène de chaque projet à sa page", async () => {
+    const screen = await renderSpaceProjects({ listProjects: listing([makeProject()]) });
+
+    await screen.getByRole("link", { name: "Site vitrine" }).click();
+
+    await expect.element(screen.getByText(`Page du projet ${makeProject().id}`)).toBeVisible();
   });
 
   it("annonce un espace sans projet", async () => {
