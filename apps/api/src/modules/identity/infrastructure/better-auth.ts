@@ -112,6 +112,7 @@ export const identityAuthOptions = ({
   ({
     basePath: "/auth",
     baseURL,
+    disabledPaths: ["/token"],
     trustedOrigins: [webOrigin],
     advanced: {
       database: { generateId: generateIdentityId },
@@ -136,7 +137,10 @@ export const identityAuthOptions = ({
       }),
     },
     plugins: [
-      jwt({ jwks: { rotationInterval: 90 * DAY_SECONDS, gracePeriod: DAY_SECONDS } }),
+      jwt({
+        jwks: { rotationInterval: 90 * DAY_SECONDS, gracePeriod: DAY_SECONDS },
+        disableSettingJwtHeader: true,
+      }),
       oauthProvider({
         loginPage: "/login",
         consentPage: "/consent",
@@ -171,6 +175,42 @@ const initialized = async <A extends { readonly $context: Promise<unknown> }>({
     await retried.$context;
     return retried;
   }
+};
+
+const withoutTokens = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(withoutTokens);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => key !== "token")
+        .map(([key, child]) => [key, withoutTokens(child)]),
+    );
+  }
+  return value;
+};
+
+const parsedJson = (text: string): { readonly value: unknown } | undefined => {
+  try {
+    return { value: JSON.parse(text) };
+  } catch {
+    return undefined;
+  }
+};
+
+const withoutSessionTokens = async (response: Response) => {
+  const json = parsedJson(await response.clone().text());
+  if (json === undefined) {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  return new Response(JSON.stringify(withoutTokens(json.value)), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 };
 
 export const createIdentityAuth = async ({
@@ -233,7 +273,7 @@ export const createIdentityAuth = async ({
 
   return {
     baseURL,
-    handle: (request) => auth.handler(request),
+    handle: async (request) => withoutSessionTokens(await auth.handler(request)),
     verifyAccessToken: verifier.verify,
     sessionOf: async (headers) => {
       try {
