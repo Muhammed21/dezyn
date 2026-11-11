@@ -15,3 +15,7 @@ export type ProjectCreationFailure =
   | "unavailable"
   | "invalid_response"
   | PlanRequired;
+
+export type ListedProject = Project & { readonly historyPurgedAt: Date | undefined };
+
+export type ProjectsFailure = "unauthenticated" | "not_found" | "unavailable" | "invalid_response";

@@ -1,10 +1,11 @@
-import { CreatedProjectOutput, PlanRequiredProblem } from "@repo/contracts";
+import { CreatedProjectOutput, PlanRequiredProblem, ProjectsOutput } from "@repo/contracts";
 import { err, ok } from "@repo/result";
 
 import { failureOf, type Fetch, parseJson, send } from "../../../platform/http.ts";
 import type { ProjectGateway } from "../application/project-gateway.ts";
 import type { ProjectCreationFailure } from "../domain/project.ts";
 
+const OK = 200;
 const CREATED = 201;
 const BAD_REQUEST = 400;
 const UNAUTHORIZED = 401;
@@ -58,5 +59,34 @@ export const createHttpProjectGateway = ({
       name: body.value.name,
       createdAt: new Date(body.value.createdAt),
     });
+  },
+  listProjects: async ({ spaceId }) => {
+    const sent = await send(fetch, `${apiUrl}/v1/spaces/${spaceId}/projects`, { method: "GET" });
+    if (!sent.ok) {
+      return sent;
+    }
+    const response = sent.value;
+    if (response.status === UNAUTHORIZED) {
+      return err("unauthenticated");
+    }
+    if (response.status === NOT_FOUND) {
+      return err("not_found");
+    }
+    if (response.status !== OK) {
+      return err(failureOf(response));
+    }
+    const body = await parseJson(response, ProjectsOutput);
+    if (!body.ok) {
+      return body;
+    }
+    return ok(
+      body.value.projects.map(({ id, name, createdAt, historyPurgedAt }) => ({
+        id,
+        spaceId,
+        name,
+        createdAt: new Date(createdAt),
+        historyPurgedAt: historyPurgedAt === null ? undefined : new Date(historyPurgedAt),
+      })),
+    );
   },
 });
