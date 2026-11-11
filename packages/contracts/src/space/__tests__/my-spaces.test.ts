@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { MySpacesOutput } from "../my-spaces.ts";
+import { checkOutputSchema, MySpacesOutput } from "../../index.ts";
 
 const makeSpace = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   id: "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
@@ -43,5 +43,11 @@ describe("sortie de la liste de mes espaces", () => {
         },
       },
     });
+  });
+});
+
+describe("conventions de sortie de la liste de mes espaces (ADR 0023 §4)", () => {
+  it("MySpacesOutput les respecte", () => {
+    expect(checkOutputSchema("MySpacesOutput", MySpacesOutput)).toEqual([]);
   });
 });

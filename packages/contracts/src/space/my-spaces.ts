@@ -1,8 +1,10 @@
 import { z } from "zod";
 
-import { openEnum, Uuid } from "@repo/contracts";
+import { openEnum, Uuid } from "../conventions/schemas.ts";
 
-import { PLANS, ROLES } from "../domain/space.ts";
+export const PLANS = ["free", "team"] as const;
+
+export const ROLES = ["owner", "editor"] as const;
 
 export const MySpacesOutput = z.looseObject({
   spaces: z.array(
