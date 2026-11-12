@@ -23,7 +23,23 @@ const makeSpace = (overrides: Partial<Space> = {}): Space => ({
   ...overrides,
 });
 
-const renderMySpaces = (listMySpaces: () => Promise<Result<readonly Space[], SpacesFailure>>) => {
+type ListMySpaces = () => Promise<Result<readonly Space[], SpacesFailure>>;
+type SignOut = () => Promise<Result<undefined, unknown>>;
+
+const signedOut: SignOut = () => Promise.resolve(ok(undefined));
+
+const listing =
+  (spaces: readonly Space[]): ListMySpaces =>
+  () =>
+    Promise.resolve(ok(spaces));
+
+const renderMySpaces = (
+  listMySpaces: ListMySpaces,
+  {
+    signOut = signedOut,
+    queryClient = new QueryClient(),
+  }: { readonly signOut?: SignOut; readonly queryClient?: QueryClient } = {},
+) => {
   const root = createRootRoute();
   const signIn = createRoute({
     getParentRoute: () => root,
@@ -38,11 +54,15 @@ const renderMySpaces = (listMySpaces: () => Promise<Result<readonly Space[], Spa
     },
   });
   const router = createRouter({
-    routeTree: root.addChildren([mySpacesRoute({ parent: root, listMySpaces }), signIn, spacePage]),
+    routeTree: root.addChildren([
+      mySpacesRoute({ parent: root, listMySpaces, signOut }),
+      signIn,
+      spacePage,
+    ]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
@@ -90,4 +110,65 @@ describe("page de mes espaces (ADR 0044 §6)", () => {
       expect(screen.getByRole("list").elements()).toHaveLength(0);
     },
   );
+});
+
+const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
+
+describe("déconnexion depuis mes espaces (ADR 0044 §7)", () => {
+  it("ferme la session, vide les données lues et mène à la connexion", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["projects", makeSpace().id], ok([]));
+    const calls = { count: 0 };
+    const screen = await renderMySpaces(listing([makeSpace()]), {
+      queryClient,
+      signOut: () => {
+        calls.count += 1;
+        return Promise.resolve(ok(undefined));
+      },
+    });
+
+    await screen.getByRole("button", { name: "Se déconnecter" }).click();
+
+    await expect.element(screen.getByText("Page de connexion")).toBeVisible();
+    expect(calls.count).toBe(1);
+    expect(queryClient.getQueryCache().getAll()).toEqual([]);
+  });
+
+  it("ne relance pas la déconnexion tant que la précédente est en cours", async () => {
+    const calls = { count: 0 };
+    const screen = await renderMySpaces(listing([makeSpace()]), {
+      signOut: () => {
+        calls.count += 1;
+        return pending();
+      },
+    });
+
+    await screen.getByRole("button", { name: "Se déconnecter" }).click();
+
+    await expect.element(screen.getByRole("button", { name: "Se déconnecter" })).toBeDisabled();
+    expect(calls.count).toBe(1);
+  });
+
+  it("annonce l'échec de la déconnexion et garde les espaces affichés", async () => {
+    const queryClient = new QueryClient();
+    const screen = await renderMySpaces(listing([makeSpace()]), {
+      queryClient,
+      signOut: () => Promise.resolve(err("unavailable")),
+    });
+
+    await screen.getByRole("button", { name: "Se déconnecter" }).click();
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("La déconnexion est impossible pour le moment.");
+    await expect.element(screen.getByRole("link", { name: "Studio Ada" })).toBeVisible();
+    expect(queryClient.getQueryData(["my-spaces"])).toEqual(ok([makeSpace()]));
+  });
+
+  it("s'ouvre sans alerte de déconnexion", async () => {
+    const screen = await renderMySpaces(listing([makeSpace()]));
+
+    await expect.element(screen.getByRole("button", { name: "Se déconnecter" })).toBeEnabled();
+    expect(screen.getByRole("alert").elements()).toHaveLength(0);
+  });
 });
