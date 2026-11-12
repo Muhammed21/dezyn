@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
-import { isInternalImport, locate, locateImport } from "../paths.ts";
+import { API_IMPORTS, isInternalImport, locate, locateImport } from "../paths.ts";
 
 const MODULES = "/repo/apps/api/src/modules";
 
@@ -89,5 +91,15 @@ describe("locateImport, par les alias de apps/api", () => {
     expect(
       locateImport("/repo/packages/db/src/index.ts", "#modules/space/contracts/events.ts"),
     ).toBeUndefined();
+  });
+});
+
+describe("API_IMPORTS", () => {
+  it("recopie exactement le champ imports de apps/api/package.json", () => {
+    const manifest: unknown = JSON.parse(
+      readFileSync(new URL("../../../../../apps/api/package.json", import.meta.url), "utf8"),
+    );
+
+    expect(manifest).toHaveProperty("imports", API_IMPORTS);
   });
 });
