@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { HistoryOutput } from "../history.ts";
+import { checkOutputSchema, HistoryOutput } from "../../index.ts";
 
 const makeEntry = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   id: "0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
@@ -148,5 +148,11 @@ describe("le contrat de sortie de l'historique reste ouvert (ADR 0023)", () => {
         },
       },
     });
+  });
+});
+
+describe("conventions de sortie de l'historique (ADR 0023 §4)", () => {
+  it("HistoryOutput les respecte", () => {
+    expect(checkOutputSchema("HistoryOutput", HistoryOutput)).toEqual([]);
   });
 });
