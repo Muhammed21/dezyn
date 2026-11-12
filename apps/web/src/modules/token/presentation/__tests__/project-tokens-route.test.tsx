@@ -12,7 +12,7 @@ import { render } from "vitest-browser-react";
 import { err, ok, type Result } from "@repo/result";
 
 import type { ProjectTokens, Token, TokensFailure } from "../../domain/token.ts";
-import { projectTokensRoute } from "../project-tokens-route.tsx";
+import { projectTokensRoute, refreshProjectTokens } from "../project-tokens-route.tsx";
 
 const PROJECT_ID = "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
 const OTHER_PROJECT_ID = "5a3b0d2f-8c4e-4f9b-a021-3d6e7f8a9b0c";
@@ -44,6 +44,7 @@ const ProjectProposals = ({ projectId }: { readonly projectId: string }) => (
 const renderProjectTokens = (
   readTokens: ReadTokens,
   history = createMemoryHistory({ initialEntries: [`/projets/${PROJECT_ID}`] }),
+  queryClient = new QueryClient(),
 ) => {
   const root = createRootRoute();
   const signIn = createRoute({
@@ -59,7 +60,7 @@ const renderProjectTokens = (
     history,
   });
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
@@ -110,6 +111,44 @@ describe("page des tokens d'un projet (ADR 0044 §6)", () => {
     await expect
       .element(tokenItems(screen).nth(0))
       .toHaveTextContent(`token.de.${OTHER_PROJECT_ID}`);
+  });
+
+  it("relit les tokens du projet quand on le lui demande, par exemple après une relecture", async () => {
+    const queryClient = new QueryClient();
+    const reads = { count: 0 };
+    const screen = await renderProjectTokens(
+      () => {
+        reads.count += 1;
+        return reading({ modes: [], tokens: [makeToken({ name: `lecture.${reads.count}` })] })({
+          projectId: PROJECT_ID,
+        });
+      },
+      undefined,
+      queryClient,
+    );
+    await expect.element(tokenItems(screen).nth(0)).toHaveTextContent("lecture.1");
+
+    await refreshProjectTokens(queryClient)({ projectId: PROJECT_ID });
+
+    await expect.element(tokenItems(screen).nth(0)).toHaveTextContent("lecture.2");
+  });
+
+  it("ne relit pas les tokens d'un autre projet", async () => {
+    const queryClient = new QueryClient();
+    const reads = { count: 0 };
+    await renderProjectTokens(
+      () => {
+        reads.count += 1;
+        return reading({ modes: [], tokens: [] })({ projectId: PROJECT_ID });
+      },
+      undefined,
+      queryClient,
+    );
+    await expect.poll(() => reads.count).toBe(1);
+
+    await refreshProjectTokens(queryClient)({ projectId: OTHER_PROJECT_ID });
+
+    expect(reads.count).toBe(1);
   });
 
   it("montre le type, la valeur brute en JSON et la description d'un token", async () => {

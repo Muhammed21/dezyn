@@ -13,7 +13,7 @@ import {
 } from "@repo/api/testing/authorization-flow.ts";
 import { personalSpaceOf } from "@repo/api/testing/space-fixtures.ts";
 import { addToken, makeColorToken, PRIMARY_BLUE } from "@repo/api/testing/token-fixtures.ts";
-import { CreatedProjectOutput } from "@repo/contracts";
+import { CreatedProjectOutput, TokensOutput } from "@repo/contracts";
 import { err, ok } from "@repo/result";
 
 import { makeApiBrowser } from "../../../testing/api-browser.ts";
@@ -159,5 +159,85 @@ describe("lecture d'un lot de propositions par l'app web, contre la vraie API (A
       const grace = await signedIn(app, GRACE);
 
       expect(await grace.proposals.readBatch({ batchId })).toEqual(err("not_found"));
+    }));
+});
+
+const proposalIdsOf = async (
+  proposals: ReturnType<typeof createProposals>,
+  { projectId }: { projectId: string },
+) => {
+  const listed = await proposals.listBatches({ projectId });
+  const batch = await proposals.readBatch({
+    batchId: listed.ok ? (listed.value[0]?.id ?? "") : "",
+  });
+  return batch.ok ? batch.value.proposals.map(({ id }) => id) : [];
+};
+
+const validatedNamesOf = async (
+  fetch: (url: string, init: RequestInit) => Promise<Response>,
+  { projectId }: { projectId: string },
+) => {
+  const response = await fetch(`${BASE_URL}/v1/projects/${projectId}/tokens`, { method: "GET" });
+  return TokensOutput.parse(await response.json()).tokens.map(({ name }) => name);
+};
+
+describe("relecture d'une proposition par l'app web, contre la vraie API (ADR 0012 §1, ADR 0044 §6)", () => {
+  it("valider une proposition fait du token une donnée validée du projet", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals, fetch } = await projectOf(app, db);
+      await proposeByAi(app, { userId, projectId, tokens: [makeColorToken()] });
+      const [proposalId = ""] = await proposalIdsOf(proposals, { projectId });
+
+      expect(await proposals.reviewProposal({ proposalId, decision: "validate" })).toEqual(
+        ok({ id: proposalId, name: "couleur.fond.primaire", kind: "create", status: "validated" }),
+      );
+      expect(await validatedNamesOf(fetch, { projectId })).toEqual(["couleur.fond.primaire"]);
+    }));
+
+  it("relire une seconde fois la même proposition donne already_reviewed", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals } = await projectOf(app, db);
+      await proposeByAi(app, { userId, projectId, tokens: [makeColorToken()] });
+      const [proposalId = ""] = await proposalIdsOf(proposals, { projectId });
+      await proposals.reviewProposal({ proposalId, decision: "validate" });
+
+      expect(await proposals.reviewProposal({ proposalId, decision: "reject" })).toEqual(
+        err("already_reviewed"),
+      );
+    }));
+
+  it("valider une référence vers un token non validé donne invalid_proposal avec son erreur", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals } = await projectOf(app, db);
+      await proposeByAi(app, {
+        userId,
+        projectId,
+        tokens: [
+          makeColorToken({ name: "couleur.bleu.500" }),
+          makeColorToken({ $value: "{couleur.bleu.500}" }),
+        ],
+      });
+      const [, semanticId = ""] = await proposalIdsOf(proposals, { projectId });
+
+      expect(
+        await proposals.reviewProposal({ proposalId: semanticId, decision: "validate" }),
+      ).toEqual(
+        err({
+          reason: "invalid_proposal",
+          errors: [{ path: "$value", message: "Référence vers un token non validé" }],
+        }),
+      );
+    }));
+
+  it("rejeter une proposition laisse le projet sans le token", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals, fetch } = await projectOf(app, db);
+      await proposeByAi(app, { userId, projectId, tokens: [makeColorToken()] });
+      const [proposalId = ""] = await proposalIdsOf(proposals, { projectId });
+
+      expect(await proposals.reviewProposal({ proposalId, decision: "reject" })).toEqual(
+        ok({ id: proposalId, name: "couleur.fond.primaire", kind: "create", status: "rejected" }),
+      );
+      expect(await validatedNamesOf(fetch, { projectId })).toEqual([]);
     }));
 });

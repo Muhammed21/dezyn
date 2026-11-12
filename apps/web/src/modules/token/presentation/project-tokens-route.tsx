@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { type AnyRootRoute, createRoute, Link, Navigate } from "@tanstack/react-router";
 import type { ComponentType } from "react";
 
@@ -11,6 +11,13 @@ type ReadTokens = (project: {
 }) => Promise<Result<ProjectTokens, TokensFailure>>;
 
 type ProjectProposals = ComponentType<{ readonly projectId: string }>;
+
+const tokensKeyOf = (projectId: string) => ["tokens", projectId];
+
+export const refreshProjectTokens =
+  (queryClient: QueryClient) =>
+  ({ projectId }: { readonly projectId: string }) =>
+    queryClient.invalidateQueries({ queryKey: tokensKeyOf(projectId) });
 
 const READING_MESSAGES: Readonly<Record<Exclude<TokensFailure, "unauthenticated">, string>> = {
   not_found: "Ce projet est introuvable.",
@@ -50,7 +57,7 @@ const ProjectTokensList = ({
   readonly ProjectProposals: ProjectProposals;
 }) => {
   const { data } = useQuery({
-    queryKey: ["tokens", projectId],
+    queryKey: tokensKeyOf(projectId),
     queryFn: () => readTokens({ projectId }),
   });
   if (data === undefined) {

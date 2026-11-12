@@ -1,6 +1,13 @@
 import type { Result } from "@repo/result";
 
-import type { Batch, BatchSummary, ProposalFailure } from "../domain/proposal.ts";
+import type {
+  Batch,
+  BatchSummary,
+  Decision,
+  ProposalFailure,
+  ReviewedProposal,
+  ReviewFailure,
+} from "../domain/proposal.ts";
 
 export type ProposalGateway = {
   readonly listBatches: (project: {
@@ -9,4 +16,8 @@ export type ProposalGateway = {
   readonly readBatch: (batch: {
     readonly batchId: string;
   }) => Promise<Result<Batch, ProposalFailure>>;
+  readonly reviewProposal: (review: {
+    readonly proposalId: string;
+    readonly decision: Decision;
+  }) => Promise<Result<ReviewedProposal, ReviewFailure>>;
 };
