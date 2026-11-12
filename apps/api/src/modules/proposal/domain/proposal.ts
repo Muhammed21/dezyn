@@ -1,6 +1,12 @@
 import type { TokenDefinition } from "#modules/token/contracts/token-definition.ts";
 
-export type BatchState = "open" | "closed";
+export const BATCH_STATES = ["open", "closed"] as const;
+
+export type BatchState = (typeof BATCH_STATES)[number];
+
+export const PROPOSAL_KINDS = ["create", "update"] as const;
+
+export type ProposalKind = (typeof PROPOSAL_KINDS)[number];
 
 export type ProposalBatch = {
   readonly id: string;
@@ -17,13 +23,15 @@ export type Proposal = {
   readonly id: string;
   readonly batchId: string;
   readonly name: string;
-  readonly kind: "create" | "update";
+  readonly kind: ProposalKind;
   readonly token: TokenDefinition;
   readonly status: ProposalStatus;
   readonly createdAt: Date;
 };
 
-export type ProposalStatus = "proposed" | "validated" | "rejected" | "replaced";
+export const PROPOSAL_STATUSES = ["proposed", "validated", "rejected", "replaced"] as const;
+
+export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 
 export type Decision = "validate" | "reject";
 

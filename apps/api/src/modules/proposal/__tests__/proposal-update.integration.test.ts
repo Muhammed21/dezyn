@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { type App, BASE_URL, callMcp, withIdentityApp } from "#testing/authorization-flow.ts";
 import { seedModes, seedProject } from "#testing/project-fixtures.ts";
 import { addToken, historyOf, makeColorToken, PRIMARY_BLUE } from "#testing/token-fixtures.ts";
+import { ProposalBatchOutput } from "@repo/contracts";
 import { schema } from "@repo/db";
 
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
@@ -88,9 +89,9 @@ describe("l'IA propose la modification d'un token validé (ADR 0012 §3)", () =>
         })
       ).structuredContent;
 
-      const reviewed = await (
-        await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
-      ).json();
+      const reviewed = ProposalBatchOutput.parse(
+        await (await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })).json(),
+      );
 
       expect(reviewed.proposals).toEqual([
         {

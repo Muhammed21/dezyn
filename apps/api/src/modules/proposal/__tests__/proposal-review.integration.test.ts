@@ -17,6 +17,11 @@ import {
   PRIMARY_BLUE,
   seedValidatedToken,
 } from "#testing/token-fixtures.ts";
+import {
+  ProposalBatchesOutput,
+  ProposalBatchOutput,
+  ReviewedProposalOutput,
+} from "@repo/contracts";
 
 const REVIEW_CORRELATION_ID = "relecture-1";
 
@@ -80,7 +85,7 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
       });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
+      expect(ProposalBatchesOutput.parse(await response.json())).toEqual({
         batches: [{ id: batch.id, intent: null, state: "open", toReview: 2 }],
       });
     }));
@@ -97,7 +102,7 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
       const response = await request(app, { accessToken, path: `/proposal-batches/${batch.id}` });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
+      expect(ProposalBatchOutput.parse(await response.json())).toEqual({
         id: batch.id,
         projectId,
         intent: null,
@@ -131,7 +136,7 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
       });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
+      expect(ReviewedProposalOutput.parse(await response.json())).toEqual({
         id: proposals[0].id,
         name: "couleur.fond.primaire",
         kind: "create",
@@ -166,7 +171,9 @@ describe("l'éditeur relit les propositions de l'IA, lot par lot (ADR 0012 §1, 
         await request(app, { accessToken, path: `/proposal-batches/${batch.id}` })
       ).json();
 
-      expect(await response.json()).toMatchObject({ status: "rejected" });
+      expect(ReviewedProposalOutput.parse(await response.json())).toMatchObject({
+        status: "rejected",
+      });
       expect(reviewed.proposals).toMatchObject([{ status: "rejected" }]);
       expect((await readTokens(app, { accessToken, projectId })).tokens).toEqual([]);
     }));

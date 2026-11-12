@@ -2,8 +2,7 @@ import { z } from "zod";
 
 import { extensibleUnion, openEnum, Uuid } from "../conventions/schemas.ts";
 
-const DefinitionOutput = z.looseObject({
-  name: z.string(),
+export const TokenValueOutput = z.looseObject({
   $type: openEnum([
     "color",
     "dimension",
@@ -19,6 +18,8 @@ const DefinitionOutput = z.looseObject({
   $description: z.string().optional(),
   $extensions: z.record(z.string(), z.unknown()).optional(),
 });
+
+const DefinitionOutput = TokenValueOutput.extend({ name: z.string() });
 
 const FigmaStateEnum = openEnum(["synced", "missing_in_figma", "duplicate_in_figma", "diverged"]);
 

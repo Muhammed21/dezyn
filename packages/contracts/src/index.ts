@@ -6,3 +6,12 @@ export { PlanRequiredProblem } from "./space/plan-required.ts";
 export { ProjectsOutput } from "./project/projects.ts";
 export { DeclaredFigmaStatesOutput, TokenOutput, TokensOutput } from "./token/tokens.ts";
 export { HistoryOutput } from "./history/history.ts";
+export {
+  BATCH_STATES,
+  PROPOSAL_KINDS,
+  PROPOSAL_STATUSES,
+  ProposalBatchesOutput,
+  ProposalBatchOutput,
+  ReviewedProposalOutput,
+  ValidatedBatchOutput,
+} from "./proposal/review.ts";
