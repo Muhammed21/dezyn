@@ -11,6 +11,7 @@ const makeSpace = (overrides: Readonly<Record<string, unknown>> = {}) => ({
   name: "Studio Ada",
   plan: "free",
   role: "owner",
+  allowedActions: ["space.read", "project.create"],
   ...overrides,
 });
 

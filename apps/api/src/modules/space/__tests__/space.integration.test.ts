@@ -29,10 +29,21 @@ const signUp = (app: App, ip: string) =>
     body: JSON.stringify(ADA),
   });
 
+const OWNER_ACTIONS = [
+  "space.read",
+  "project.create",
+  "member.invite",
+  "member.leave",
+  "member.manage",
+  "token.create",
+  "token.declareFigmaState",
+  "proposal.review",
+];
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 describe("espace personnel à l'inscription", () => {
-  it("après inscription, GET /v1/spaces renvoie son espace personnel, plan free, rôle owner", () =>
+  it("après inscription, GET /v1/spaces renvoie son espace personnel, plan free, rôle owner, toutes les actions", () =>
     withIdentityApp(async (app) => {
       const { accessToken } = await obtainAccessToken(app);
 
@@ -43,7 +54,15 @@ describe("espace personnel à l'inscription", () => {
       const body: unknown = await response.json();
       expect(response.status).toBe(200);
       expect(body).toEqual({
-        spaces: [{ id: expect.stringMatching(UUID), name: ADA.name, plan: "free", role: "owner" }],
+        spaces: [
+          {
+            id: expect.stringMatching(UUID),
+            name: ADA.name,
+            plan: "free",
+            role: "owner",
+            allowedActions: OWNER_ACTIONS,
+          },
+        ],
       });
       expect(MySpacesOutput.safeParse(body).success).toBe(true);
     }));

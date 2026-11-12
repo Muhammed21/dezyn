@@ -22,6 +22,14 @@ import { schema } from "@repo/db";
 
 const PLAN_REQUIRED = "https://dezyn.dev/problems/plan-required";
 
+const EDITOR_ACTIONS = [
+  "space.read",
+  "member.leave",
+  "token.create",
+  "token.declareFigmaState",
+  "proposal.review",
+];
+
 const accept = (app: App, { accessToken, token }: { accessToken: string; token: string }) =>
   app.request(`${BASE_URL}/v1/invitations/${token}/accept`, {
     method: "POST",
@@ -82,7 +90,7 @@ const acceptedAtOf = async (db: PostgresDatabase, token: string) => {
 };
 
 describe("l'invité accepte l'invitation et devient éditeur (ADR 0011 §4, ADR 0017)", () => {
-  it("une invitation valide fait de l'invité un éditeur, qui voit l'espace", () => {
+  it("une invitation valide fait de l'invité un éditeur, qui voit l'espace et ses actions d'éditeur", () => {
     const outbox = makeOutbox();
     return withIdentityApp(
       async (app, db) => {
@@ -97,12 +105,14 @@ describe("l'invité accepte l'invitation et devient éditeur (ADR 0011 §4, ADR 
           name: ADA.name,
           plan: "team",
           role: "editor",
+          allowedActions: EDITOR_ACTIONS,
         });
         expect((await listSpaces(app, grace.accessToken)).spaces).toContainEqual({
           id: spaceId,
           name: ADA.name,
           plan: "team",
           role: "editor",
+          allowedActions: EDITOR_ACTIONS,
         });
       },
       { mailer: outbox.mailer },

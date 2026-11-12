@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type Action, can, type Membership } from "../can.ts";
+import { ACTIONS, type Action, allowedActionsOf, can, type Membership } from "../can.ts";
 
 const makeMembership = (overrides: Partial<Membership> = {}): Membership => ({
   spaceId: "6d1f0c2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f",
@@ -40,5 +40,31 @@ describe("can : ce que peut faire un membre dans un espace (ADR 0017 §3)", () =
     ["un non-membre", "member.manage", false, undefined],
   ])("%s, pour %s : %s", (_who, action, allowed, membership) => {
     expect(can({ membership, action })).toBe(allowed);
+  });
+});
+
+describe("allowedActionsOf : les actions qu'un rôle accorde, pour les clients (ADR 0044 §5)", () => {
+  it("un propriétaire reçoit toutes les actions, dans l'ordre du domaine", () => {
+    expect(allowedActionsOf("owner")).toEqual(ACTIONS);
+  });
+
+  it("un éditeur reçoit proposal.review, sans inviter, gérer les membres ni créer de projet", () => {
+    expect(allowedActionsOf("editor")).toEqual([
+      "space.read",
+      "member.leave",
+      "token.create",
+      "token.declareFigmaState",
+      "proposal.review",
+    ]);
+  });
+
+  it.each(["owner", "editor"] as const)("pour %s, suit can() action par action", (role) => {
+    const membership = makeMembership({ role });
+
+    expect(allowedActionsOf(role)).toEqual(ACTIONS.filter((action) => can({ membership, action })));
+  });
+
+  it("le domaine connaît les 8 actions, chacune une fois", () => {
+    expect(new Set(ACTIONS).size).toBe(8);
   });
 });

@@ -6,7 +6,7 @@ import {
   acceptanceRefusal,
   INVITEE_ROLE,
 } from "../domain/acceptance.ts";
-import type { MySpace, Role } from "../domain/space.ts";
+import { type MySpace, mySpaceOf, type Role, type SpaceWithRole } from "../domain/space.ts";
 
 export type NewMember = { readonly id: string; readonly role: Role; readonly joinedAt: Date };
 
@@ -18,7 +18,7 @@ export interface InvitationAcceptance {
   accept(
     request: { readonly tokenHash: string; readonly userId: string },
     decide: AcceptanceDecision,
-  ): Promise<Result<MySpace, AcceptanceRefusal>>;
+  ): Promise<Result<SpaceWithRole, AcceptanceRefusal>>;
 }
 
 export const acceptInvitation =
@@ -33,12 +33,19 @@ export const acceptInvitation =
     readonly newId: () => string;
     readonly now: () => Date;
   }) =>
-  ({ token, userId }: { readonly token: string; readonly userId: string }) => {
+  async ({
+    token,
+    userId,
+  }: {
+    readonly token: string;
+    readonly userId: string;
+  }): Promise<Result<MySpace, AcceptanceRefusal>> => {
     const at = now();
-    return acceptance.accept({ tokenHash: hashToken(token), userId }, (facts) => {
+    const accepted = await acceptance.accept({ tokenHash: hashToken(token), userId }, (facts) => {
       const refusal = acceptanceRefusal({ ...facts, now: at });
       return refusal === undefined
         ? ok({ id: newId(), role: INVITEE_ROLE, joinedAt: at })
         : err(refusal);
     });
+    return accepted.ok ? ok(mySpaceOf(accepted.value)) : accepted;
   };

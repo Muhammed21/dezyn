@@ -1,3 +1,5 @@
+import { type Action, allowedActionsOf } from "./can.ts";
+
 export const PLANS = ["free", "team"] as const;
 
 export type Plan = (typeof PLANS)[number];
@@ -6,12 +8,19 @@ export const ROLES = ["owner", "editor"] as const;
 
 export type Role = (typeof ROLES)[number];
 
-export type MySpace = {
+export type SpaceWithRole = {
   readonly id: string;
   readonly name: string;
   readonly plan: Plan;
   readonly role: Role;
 };
+
+export type MySpace = SpaceWithRole & { readonly allowedActions: readonly Action[] };
+
+export const mySpaceOf = (space: SpaceWithRole): MySpace => ({
+  ...space,
+  allowedActions: allowedActionsOf(space.role),
+});
 
 export type PersonalSpace = {
   readonly space: { readonly id: string; readonly name: string; readonly plan: Plan };

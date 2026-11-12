@@ -35,7 +35,7 @@ const seedSpace = async (db: PostgresDatabase) => {
 };
 
 describe("lire un espace (ADR 0017 §3)", () => {
-  it("un membre lit son espace, avec son rôle", () =>
+  it("un membre lit son espace, avec son rôle et les actions qu'il lui permet", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, userId } = await obtainAccessToken(app);
       const spaceId = await personalSpaceOf(db, userId);
@@ -48,6 +48,16 @@ describe("lire un espace (ADR 0017 §3)", () => {
         name: ADA.name,
         plan: "free",
         role: "owner",
+        allowedActions: [
+          "space.read",
+          "project.create",
+          "member.invite",
+          "member.leave",
+          "member.manage",
+          "token.create",
+          "token.declareFigmaState",
+          "proposal.review",
+        ],
       });
     }));
 
