@@ -7,7 +7,9 @@ export { ProjectsOutput } from "./project/projects.ts";
 export { DeclaredFigmaStatesOutput, TokenOutput, TokensOutput } from "./token/tokens.ts";
 export { HistoryOutput } from "./history/history.ts";
 export {
+  AlreadyReviewedProblem,
   BATCH_STATES,
+  InvalidProposalProblem,
   PROPOSAL_KINDS,
   PROPOSAL_STATUSES,
   ProposalBatchesOutput,

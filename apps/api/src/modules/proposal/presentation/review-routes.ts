@@ -47,9 +47,13 @@ const proposalOutputOf = (
 
 const conflictOf = (failure: Exclude<ReviewFailure, "not_found">): Problem =>
   failure === "already_reviewed"
-    ? { type: "about:blank", title: "Proposition déjà relue", status: 409 }
+    ? {
+        type: "https://dezyn.dev/problems/already-reviewed",
+        title: "Proposition déjà relue",
+        status: 409,
+      }
     : {
-        type: "about:blank",
+        type: "https://dezyn.dev/problems/invalid-proposal",
         title: "Proposition invalide",
         status: 409,
         errors: issuesOfCheck(failure),
