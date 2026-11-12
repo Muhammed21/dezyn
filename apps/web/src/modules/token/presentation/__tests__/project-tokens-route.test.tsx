@@ -122,6 +122,14 @@ describe("page des tokens d'un projet (ADR 0044 §6)", () => {
     expect(values.getByRole("listitem").elements()).toHaveLength(2);
   });
 
+  it("mène à l'historique du projet", async () => {
+    const screen = await renderProjectTokens(reading({ modes: [], tokens: [] }));
+
+    await expect
+      .element(screen.getByRole("link", { name: "Historique" }))
+      .toHaveAttribute("href", `/projets/${PROJECT_ID}/historique`);
+  });
+
   it("annonce un projet sans token", async () => {
     const screen = await renderProjectTokens(reading({ modes: [], tokens: [] }));
 

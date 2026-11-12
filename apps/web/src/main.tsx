@@ -3,6 +3,8 @@ import { createRootRoute, createRouter, RouterProvider } from "@tanstack/react-r
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { createHistory } from "./modules/history/history-module.ts";
+import { projectHistoryRoute } from "./modules/history/presentation/project-history-route.tsx";
 import { createIdentity } from "./modules/identity/identity-module.ts";
 import { signInRoute } from "./modules/identity/presentation/sign-in-route.tsx";
 import { signUpRoute } from "./modules/identity/presentation/sign-up-route.tsx";
@@ -21,6 +23,7 @@ const appRouter = (apiUrl: string) => {
   const spaces = createSpaces({ apiUrl, fetch: fetchFromBrowser });
   const projects = createProjects({ apiUrl, fetch: fetchFromBrowser });
   const tokens = createTokens({ apiUrl, fetch: fetchFromBrowser });
+  const projectHistory = createHistory({ apiUrl, fetch: fetchFromBrowser });
 
   const root = createRootRoute();
   return createRouter({
@@ -39,6 +42,7 @@ const appRouter = (apiUrl: string) => {
         readSpace: spaces.readSpace,
       }),
       projectTokensRoute({ parent: root, readTokens: tokens.readTokens }),
+      projectHistoryRoute({ parent: root, readHistory: projectHistory.readHistory }),
     ]),
   });
 };
