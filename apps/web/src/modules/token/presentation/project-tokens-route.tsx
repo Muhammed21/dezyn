@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { type AnyRootRoute, createRoute, Link, Navigate } from "@tanstack/react-router";
+import type { ComponentType } from "react";
 
 import type { Result } from "@repo/result";
 
@@ -8,6 +9,8 @@ import type { ProjectTokens, Token, TokensFailure } from "../domain/token.ts";
 type ReadTokens = (project: {
   readonly projectId: string;
 }) => Promise<Result<ProjectTokens, TokensFailure>>;
+
+type ProjectProposals = ComponentType<{ readonly projectId: string }>;
 
 const READING_MESSAGES: Readonly<Record<Exclude<TokensFailure, "unauthenticated">, string>> = {
   not_found: "Ce projet est introuvable.",
@@ -40,9 +43,11 @@ const TokenValue = ({
 const ProjectTokensList = ({
   projectId,
   readTokens,
+  ProjectProposals,
 }: {
   readonly projectId: string;
   readonly readTokens: ReadTokens;
+  readonly ProjectProposals: ProjectProposals;
 }) => {
   const { data } = useQuery({
     queryKey: ["tokens", projectId],
@@ -79,6 +84,7 @@ const ProjectTokensList = ({
           ))}
         </ul>
       )}
+      <ProjectProposals projectId={projectId} />
     </main>
   );
 };
@@ -86,16 +92,24 @@ const ProjectTokensList = ({
 export const projectTokensRoute = ({
   parent,
   readTokens,
+  ProjectProposals,
 }: {
   readonly parent: AnyRootRoute;
   readonly readTokens: ReadTokens;
+  readonly ProjectProposals: ProjectProposals;
 }) => {
   const route = createRoute({
     getParentRoute: () => parent,
     path: "/projets/$projectId",
     component: function ProjectTokensPage() {
       const { projectId } = route.useParams();
-      return <ProjectTokensList projectId={projectId} readTokens={readTokens} />;
+      return (
+        <ProjectTokensList
+          projectId={projectId}
+          readTokens={readTokens}
+          ProjectProposals={ProjectProposals}
+        />
+      );
     },
   });
   return route;
