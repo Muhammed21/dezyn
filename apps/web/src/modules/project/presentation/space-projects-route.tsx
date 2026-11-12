@@ -16,6 +16,9 @@ type ListProjects = (space: {
   readonly spaceId: string;
 }) => Promise<Result<readonly ListedProject[], ProjectsFailure>>;
 type CreateProject = (project: ProjectToCreate) => Promise<Result<Project, ProjectCreationFailure>>;
+type ReadSpace = (space: {
+  readonly spaceId: string;
+}) => Promise<Result<{ readonly allowedActions: readonly string[] }, unknown>>;
 
 const UNKNOWN_SPACE = "Cet espace est introuvable.";
 
@@ -95,15 +98,23 @@ const SpaceProjects = ({
   spaceId,
   listProjects,
   createProject,
+  readSpace,
 }: {
   readonly spaceId: string;
   readonly listProjects: ListProjects;
   readonly createProject: CreateProject;
+  readonly readSpace: ReadSpace;
 }) => {
   const { data } = useQuery({
     queryKey: ["projects", spaceId],
     queryFn: () => listProjects({ spaceId }),
   });
+  const { data: space } = useQuery({
+    queryKey: ["space", spaceId],
+    queryFn: () => readSpace({ spaceId }),
+  });
+  const canCreateProject =
+    space?.ok === true && space.value.allowedActions.includes("project.create");
   if (data === undefined) {
     return <p>Chargement des projets…</p>;
   }
@@ -130,7 +141,7 @@ const SpaceProjects = ({
           ))}
         </ul>
       )}
-      <CreateProjectForm spaceId={spaceId} createProject={createProject} />
+      {canCreateProject && <CreateProjectForm spaceId={spaceId} createProject={createProject} />}
     </main>
   );
 };
@@ -139,10 +150,12 @@ export const spaceProjectsRoute = ({
   parent,
   listProjects,
   createProject,
+  readSpace,
 }: {
   readonly parent: AnyRootRoute;
   readonly listProjects: ListProjects;
   readonly createProject: CreateProject;
+  readonly readSpace: ReadSpace;
 }) => {
   const route = createRoute({
     getParentRoute: () => parent,
@@ -154,6 +167,7 @@ export const spaceProjectsRoute = ({
           spaceId={spaceId}
           listProjects={listProjects}
           createProject={createProject}
+          readSpace={readSpace}
         />
       );
     },

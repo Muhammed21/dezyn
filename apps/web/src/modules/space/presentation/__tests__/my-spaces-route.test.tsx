@@ -20,6 +20,7 @@ const makeSpace = (overrides: Partial<Space> = {}): Space => ({
   name: "Studio Ada",
   plan: "free",
   role: "owner",
+  allowedActions: ["space.read", "project.create"],
   ...overrides,
 });
 

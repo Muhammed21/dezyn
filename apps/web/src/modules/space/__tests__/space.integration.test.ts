@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   ADA,
+  type App,
   BASE_URL,
+  GRACE,
   makeClientIp,
   signUp,
   withIdentityApp,
 } from "@repo/api/testing/authorization-flow.ts";
+import { personalSpaceOf, seedTeamSpaceWith } from "@repo/api/testing/space-fixtures.ts";
 import { err, ok } from "@repo/result";
 
 import { makeApiBrowser } from "../../../testing/api-browser.ts";
@@ -29,7 +32,15 @@ describe("espaces du membre dans l'app web, contre la vraie API (ADR 0044 §6)",
       const spaces = await createSpaces({ apiUrl: BASE_URL, fetch }).listMySpaces();
 
       expect(spaces).toEqual(
-        ok([{ id: expect.stringMatching(UUID), name: ADA.name, plan: "free", role: "owner" }]),
+        ok([
+          {
+            id: expect.stringMatching(UUID),
+            name: ADA.name,
+            plan: "free",
+            role: "owner",
+            allowedActions: expect.arrayContaining(["project.create", "member.invite"]),
+          },
+        ]),
       );
     }));
 
@@ -40,5 +51,50 @@ describe("espaces du membre dans l'app web, contre la vraie API (ADR 0044 §6)",
       expect(await createSpaces({ apiUrl: BASE_URL, fetch }).listMySpaces()).toEqual(
         err("unauthenticated"),
       );
+    }));
+});
+
+const signedInAda = async (app: App) => {
+  const ip = makeClientIp();
+  const userId = await signUp(app, ip);
+  const fetch = makeApiBrowser(app, { ip });
+  await fetch(`${BASE_URL}/auth/sign-in/email`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: ADA.email, password: ADA.password }),
+  });
+  return { userId, spaces: createSpaces({ apiUrl: BASE_URL, fetch }) };
+};
+
+describe("lecture d'un espace par l'app web, contre la vraie API (ADR 0044 §5)", () => {
+  it("le propriétaire lit son espace, avec project.create", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, spaces } = await signedInAda(app);
+      const spaceId = await personalSpaceOf(db, userId);
+
+      const read = await spaces.readSpace({ spaceId });
+
+      expect(read).toEqual(ok(expect.objectContaining({ id: spaceId, role: "owner" })));
+      expect(read.ok && read.value.allowedActions).toContain("project.create");
+    }));
+
+  it("un éditeur lit l'espace d'équipe sans project.create", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, spaces } = await signedInAda(app);
+      const spaceId = await seedTeamSpaceWith(db, { userId, role: "editor" });
+
+      const read = await spaces.readSpace({ spaceId });
+
+      expect(read).toEqual(ok(expect.objectContaining({ id: spaceId, role: "editor" })));
+      expect(read.ok && read.value.allowedActions).toContain("proposal.review");
+      expect(read.ok && read.value.allowedActions).not.toContain("project.create");
+    }));
+
+  it("l'espace personnel d'un autre membre donne not_found", () =>
+    withIdentityApp(async (app, db) => {
+      const { spaces } = await signedInAda(app);
+      const graceSpaceId = await personalSpaceOf(db, await signUp(app, makeClientIp(), GRACE));
+
+      expect(await spaces.readSpace({ spaceId: graceSpaceId })).toEqual(err("not_found"));
     }));
 });
