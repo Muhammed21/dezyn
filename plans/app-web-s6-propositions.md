@@ -22,7 +22,7 @@ Un éditeur valide ou rejette depuis l'app web une proposition écrite par l'IA,
   - 400 pour une proposition hors du lot.
 - Le contrôle d'`Origin` couvre déjà toute écriture par cookie sur `/v1` (S2).
 - `kind` vaut `create` ou `update` ; les suppressions de l'ADR 0026 arrivent avec leur propre chantier.
-- Les sorties de ces routes vivent dans les tests de l'API ; `@repo/contracts` ne les décrit pas encore.
+- `@repo/contracts` décrit les sorties de ces routes (`src/proposal/review.ts`).
 
 ## Critères d'acceptation
 
