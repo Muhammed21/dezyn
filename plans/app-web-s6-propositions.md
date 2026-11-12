@@ -14,8 +14,8 @@ Un éditeur valide ou rejette depuis l'app web une proposition écrite par l'IA,
 - `GET /v1/proposal-batches/:batchId` : `{ id, projectId, intent, state, proposals: [{ id, name, kind, status, validated, proposed }] }`.
 - `POST /v1/proposals/:proposalId/validate` et `…/reject` : `{ id, name, kind, status }`, permis par `proposal.review`.
   - 404 : proposition inconnue ou hors des espaces du membre.
-  - 409 « Proposition déjà relue » (`about:blank`).
-  - 409 « Proposition invalide » avec `errors` (`about:blank`).
+  - 409 « Proposition déjà relue » (`https://dezyn.dev/problems/already-reviewed`).
+  - 409 « Proposition invalide » avec `errors` (`https://dezyn.dev/problems/invalid-proposal`).
 - `POST /v1/proposal-batches/:batchId/validate` `{ rejected: [uuid] }` : `{ id, state: "closed", validated, rejected }`.
   - 409 « Lot ouvert ».
   - 409 « Lot invalide » avec `errors`.

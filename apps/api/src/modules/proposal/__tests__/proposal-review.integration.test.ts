@@ -18,6 +18,8 @@ import {
   seedValidatedToken,
 } from "#testing/token-fixtures.ts";
 import {
+  AlreadyReviewedProblem,
+  InvalidProposalProblem,
   ProposalBatchesOutput,
   ProposalBatchOutput,
   ReviewedProposalOutput,
@@ -276,8 +278,8 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
       ).json();
 
       expect(response.status).toBe(409);
-      expect(await response.json()).toMatchObject({
-        type: "about:blank",
+      expect(AlreadyReviewedProblem.parse(await response.json())).toMatchObject({
+        type: "https://dezyn.dev/problems/already-reviewed",
         title: "Proposition déjà relue",
       });
       expect(reviewed.proposals).toMatchObject([{ status: "replaced" }]);
@@ -303,8 +305,8 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
       ).json();
 
       expect(response.status).toBe(409);
-      expect(await response.json()).toMatchObject({
-        type: "about:blank",
+      expect(InvalidProposalProblem.parse(await response.json())).toMatchObject({
+        type: "https://dezyn.dev/problems/invalid-proposal",
         title: "Proposition invalide",
         errors: [{ path: "name", message: "Nom déjà pris dans le projet" }],
       });
@@ -343,8 +345,8 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
 
       expect(response.status).toBe(409);
       expect(response.headers.get("content-type")).toContain("application/problem+json");
-      expect(await response.json()).toMatchObject({
-        type: "about:blank",
+      expect(AlreadyReviewedProblem.parse(await response.json())).toMatchObject({
+        type: "https://dezyn.dev/problems/already-reviewed",
         title: "Proposition déjà relue",
         status: 409,
       });
@@ -370,8 +372,8 @@ describe("seul un membre relit, et une proposition ne se relit qu'une fois (ADR 
       const late = await validate(proposals[1].id);
 
       expect(early.status).toBe(409);
-      expect(await early.json()).toMatchObject({
-        type: "about:blank",
+      expect(InvalidProposalProblem.parse(await early.json())).toMatchObject({
+        type: "https://dezyn.dev/problems/invalid-proposal",
         title: "Proposition invalide",
         errors: [{ path: "$value", message: "Référence vers un token non validé" }],
       });

@@ -51,3 +51,16 @@ export const ValidatedBatchOutput = z.looseObject({
   validated: z.array(Uuid),
   rejected: z.array(Uuid),
 });
+
+export const AlreadyReviewedProblem = z.looseObject({
+  type: z.literal("https://dezyn.dev/problems/already-reviewed"),
+  title: z.string(),
+  status: z.literal(409),
+});
+
+export const InvalidProposalProblem = z.looseObject({
+  type: z.literal("https://dezyn.dev/problems/invalid-proposal"),
+  title: z.string(),
+  status: z.literal(409),
+  errors: z.array(z.looseObject({ path: z.string(), message: z.string() })),
+});
