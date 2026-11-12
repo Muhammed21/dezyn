@@ -12,7 +12,7 @@ import {
   withIdentityApp,
 } from "@repo/api/testing/authorization-flow.ts";
 import { personalSpaceOf } from "@repo/api/testing/space-fixtures.ts";
-import { makeColorToken } from "@repo/api/testing/token-fixtures.ts";
+import { addToken, makeColorToken, PRIMARY_BLUE } from "@repo/api/testing/token-fixtures.ts";
 import { CreatedProjectOutput } from "@repo/contracts";
 import { err, ok } from "@repo/result";
 
@@ -44,11 +44,14 @@ const projectOf = async (app: App, db: Database) => {
   return { ...ada, projectId: CreatedProjectOutput.parse(await created.json()).id };
 };
 
+const aiOf = async (app: App, { userId }: { userId: string }) =>
+  (await obtainAccessToken(app, { user: ADA, registeredId: userId })).accessToken;
+
 const proposeByAi = async (
   app: App,
   { userId, projectId, tokens }: { userId: string; projectId: string; tokens: readonly object[] },
 ) => {
-  const { accessToken } = await obtainAccessToken(app, { user: ADA, registeredId: userId });
+  const accessToken = await aiOf(app, { userId });
   await callMcp(app, {
     token: accessToken,
     method: "tools/call",
@@ -98,5 +101,63 @@ describe("lecture des lots de propositions par l'app web, contre la vraie API (A
       });
 
       expect(await anonymous.listBatches({ projectId })).toEqual(err("unauthenticated"));
+    }));
+});
+
+const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
+
+describe("lecture d'un lot de propositions par l'app web, contre la vraie API (ADR 0044 §6)", () => {
+  it("le membre lit une création et une modification, avec la valeur validée de la modification", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals } = await projectOf(app, db);
+      await addToken(app, { accessToken: await aiOf(app, { userId }), projectId });
+      await proposeByAi(app, {
+        userId,
+        projectId,
+        tokens: [
+          makeColorToken({ $value: NIGHT_BLUE }),
+          makeColorToken({ name: "couleur.bleu.500" }),
+        ],
+      });
+      const listed = await proposals.listBatches({ projectId });
+      const batchId = listed.ok ? (listed.value[0]?.id ?? "") : "";
+
+      expect(await proposals.readBatch({ batchId })).toEqual(
+        ok({
+          id: batchId,
+          projectId,
+          intent: undefined,
+          state: "open",
+          proposals: [
+            {
+              id: expect.any(String),
+              name: "couleur.fond.primaire",
+              kind: "update",
+              status: "proposed",
+              validated: { $type: "color", $value: PRIMARY_BLUE },
+              proposed: { $type: "color", $value: NIGHT_BLUE },
+            },
+            {
+              id: expect.any(String),
+              name: "couleur.bleu.500",
+              kind: "create",
+              status: "proposed",
+              validated: undefined,
+              proposed: { $type: "color", $value: PRIMARY_BLUE },
+            },
+          ],
+        }),
+      );
+    }));
+
+  it("un non-membre reçoit not_found", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals } = await projectOf(app, db);
+      await proposeByAi(app, { userId, projectId, tokens: [makeColorToken()] });
+      const listed = await proposals.listBatches({ projectId });
+      const batchId = listed.ok ? (listed.value[0]?.id ?? "") : "";
+      const grace = await signedIn(app, GRACE);
+
+      expect(await grace.proposals.readBatch({ batchId })).toEqual(err("not_found"));
     }));
 });

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Navigate } from "@tanstack/react-router";
+import { Link, Navigate } from "@tanstack/react-router";
 
 import type { Result } from "@repo/result";
 
@@ -22,7 +22,11 @@ const BatchList = ({ batches }: { readonly batches: readonly BatchSummary[] }) =
     <ul aria-label="Lots de propositions">
       {batches.map(({ id, intent, state, toReview }) => (
         <li key={id}>
-          <p>{intent ?? "Sans intention"}</p>
+          <p>
+            <Link to="/lots/$batchId" params={{ batchId: id }}>
+              {intent ?? "Sans intention"}
+            </Link>
+          </p>
           <p>{STATE_LABELS[state]}</p>
           <p>{toReview} à relire</p>
         </li>
