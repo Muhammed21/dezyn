@@ -3,6 +3,7 @@ export default {
   testRunner: "vitest",
   plugins: ["@stryker-mutator/vitest-runner"],
   coverageAnalysis: "perTest",
+  inPlace: true,
   reporters: ["clear-text", "progress", "html"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
   mutate: ["src/rules/**/*.ts", "src/directives.ts", "src/scan.ts", "!src/**/*.test.ts"],
