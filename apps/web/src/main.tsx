@@ -36,6 +36,7 @@ const appRouter = (apiUrl: string) => {
         parent: root,
         listProjects: projects.listProjects,
         createProject: projects.createProject,
+        readSpace: spaces.readSpace,
       }),
       projectTokensRoute({ parent: root, readTokens: tokens.readTokens }),
     ]),

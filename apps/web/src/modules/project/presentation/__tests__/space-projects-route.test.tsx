@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouter,
   RouterProvider,
+  type RouterHistory,
 } from "@tanstack/react-router";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
@@ -27,6 +28,17 @@ type ListProjects = (space: {
   readonly spaceId: string;
 }) => Promise<Result<readonly ListedProject[], ProjectsFailure>>;
 type CreateProject = (project: ProjectToCreate) => Promise<Result<Project, ProjectCreationFailure>>;
+type ReadSpace = (space: {
+  readonly spaceId: string;
+}) => Promise<Result<{ readonly allowedActions: readonly string[] }, string>>;
+
+const allowing =
+  (allowedActions: readonly string[]): ReadSpace =>
+  () =>
+    Promise.resolve(ok({ allowedActions }));
+
+const OWNER_ACTIONS = ["space.read", "project.create", "member.invite"];
+const EDITOR_ACTIONS = ["space.read", "token.create", "proposal.review"];
 
 const makeProject = (overrides: Partial<ListedProject> = {}): ListedProject => ({
   id: "0b6f3c2a-8d4e-4f1a-9c7b-5e2d1a0f9b8c",
@@ -52,9 +64,13 @@ const refusing =
 const renderSpaceProjects = ({
   listProjects = listing([]),
   createProject = refusing("unavailable"),
+  readSpace = allowing(OWNER_ACTIONS),
+  history = createMemoryHistory({ initialEntries: [`/espaces/${SPACE_ID}`] }),
 }: {
   readonly listProjects?: ListProjects;
   readonly createProject?: CreateProject;
+  readonly readSpace?: ReadSpace;
+  readonly history?: RouterHistory;
 } = {}) => {
   const root = createRootRoute();
   const signIn = createRoute({
@@ -71,11 +87,11 @@ const renderSpaceProjects = ({
   });
   const router = createRouter({
     routeTree: root.addChildren([
-      spaceProjectsRoute({ parent: root, listProjects, createProject }),
+      spaceProjectsRoute({ parent: root, listProjects, createProject, readSpace }),
       signIn,
       projectPage,
     ]),
-    history: createMemoryHistory({ initialEntries: [`/espaces/${SPACE_ID}`] }),
+    history,
   });
   return render(
     <QueryClientProvider client={new QueryClient()}>
@@ -266,5 +282,77 @@ describe("page des projets d'un espace (ADR 0044 §6)", () => {
 
     await expect.element(screen.getByRole("button", { name: "Créer le projet" })).toBeDisabled();
     expect(screen.getByRole("alert").elements()).toHaveLength(0);
+  });
+});
+
+const projectList = (screen: Awaited<ReturnType<typeof renderSpaceProjects>>) =>
+  screen.getByRole("list", { name: "Projets" });
+
+describe("création de projet selon les actions permises de l'espace (ADR 0044 §5)", () => {
+  it("propose le formulaire quand l'espace permet project.create, pour l'espace de l'adresse", async () => {
+    const asked: string[] = [];
+    const screen = await renderSpaceProjects({
+      readSpace: ({ spaceId }) => {
+        asked.push(spaceId);
+        return allowing(OWNER_ACTIONS)({ spaceId });
+      },
+    });
+
+    await expect.element(screen.getByRole("button", { name: "Créer le projet" })).toBeVisible();
+    expect(asked).toEqual([SPACE_ID]);
+  });
+
+  it("ne propose pas le formulaire à un éditeur, et garde la liste des projets", async () => {
+    const screen = await renderSpaceProjects({
+      listProjects: listing([makeProject()]),
+      readSpace: allowing(EDITOR_ACTIONS),
+    });
+
+    await expect.element(projectList(screen)).toHaveTextContent("Site vitrine");
+    expect(screen.getByLabelText("Nom du projet").elements()).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Créer le projet" }).elements()).toHaveLength(0);
+  });
+
+  it("ne propose pas le formulaire tant que l'espace se lit", async () => {
+    const screen = await renderSpaceProjects({
+      listProjects: listing([makeProject()]),
+      readSpace: () => pending(),
+    });
+
+    await expect.element(projectList(screen)).toHaveTextContent("Site vitrine");
+    expect(screen.getByRole("button", { name: "Créer le projet" }).elements()).toHaveLength(0);
+  });
+
+  it.each(["unauthenticated", "not_found", "unavailable", "invalid_response"])(
+    "ne propose pas le formulaire si la lecture de l'espace échoue (%s), sans alerte",
+    async (failure) => {
+      const screen = await renderSpaceProjects({
+        listProjects: listing([makeProject()]),
+        readSpace: () => Promise.resolve(err(failure)),
+      });
+
+      await expect.element(projectList(screen)).toHaveTextContent("Site vitrine");
+      expect(screen.getByRole("button", { name: "Créer le projet" }).elements()).toHaveLength(0);
+      expect(screen.getByRole("alert").elements()).toHaveLength(0);
+    },
+  );
+
+  it("relit les actions de chaque espace : d'un espace propriétaire à un espace éditeur, le formulaire disparaît", async () => {
+    const editorSpaceId = "9b8a7f6e-5d4c-4b3a-8f2e-1d0c9b8a7f6e";
+    const history = createMemoryHistory({ initialEntries: [`/espaces/${SPACE_ID}`] });
+    const screen = await renderSpaceProjects({
+      history,
+      listProjects: listing([makeProject()]),
+      readSpace: ({ spaceId }) =>
+        allowing(spaceId === SPACE_ID ? OWNER_ACTIONS : EDITOR_ACTIONS)({ spaceId }),
+    });
+    await expect.element(screen.getByRole("button", { name: "Créer le projet" })).toBeVisible();
+
+    history.push(`/espaces/${editorSpaceId}`);
+
+    await expect
+      .poll(() => screen.getByRole("button", { name: "Créer le projet" }).elements())
+      .toHaveLength(0);
+    await expect.element(projectList(screen)).toHaveTextContent("Site vitrine");
   });
 });
