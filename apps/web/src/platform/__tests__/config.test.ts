@@ -77,4 +77,31 @@ describe("configuration de l'app web au démarrage", () => {
       configOf({ env: makeEnv(), href: "https://pr-12.dezyn-web.workers.dev/", ...PRODUCTION }),
     ).toEqual({ kind: "ready", apiUrl: API_URL });
   });
+
+  it.each([
+    ["absente", undefined],
+    ["vide", ""],
+  ])("en production, une WEB_URL %s ne bloque pas l'app, qui ne s'en sert pas", (_case, value) => {
+    expect(
+      configOf({
+        env: makeEnv({ VITE_WEB_URL: value }),
+        href: "https://dezyn.dev/",
+        ...PRODUCTION,
+      }),
+    ).toEqual({ kind: "ready", apiUrl: API_URL });
+  });
+
+  it("en production, refuse toujours une VITE_API_URL absente", () => {
+    expect(
+      configOf({
+        env: makeEnv({ VITE_API_URL: undefined }),
+        href: "https://dezyn.dev/",
+        ...PRODUCTION,
+      }),
+    ).toEqual({
+      kind: "invalid",
+      message:
+        "Configuration invalide : VITE_API_URL manque ou n'est pas une URL http(s) (voir .env.example).",
+    });
+  });
 });
