@@ -10,6 +10,8 @@ import { signInRoute } from "./modules/identity/presentation/sign-in-route.tsx";
 import { signUpRoute } from "./modules/identity/presentation/sign-up-route.tsx";
 import { spaceProjectsRoute } from "./modules/project/presentation/space-projects-route.tsx";
 import { createProjects } from "./modules/project/project-module.ts";
+import { projectProposals } from "./modules/proposal/presentation/project-proposals.tsx";
+import { createProposals } from "./modules/proposal/proposal-module.ts";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
 import { createSpaces } from "./modules/space/space-module.ts";
 import { projectTokensRoute } from "./modules/token/presentation/project-tokens-route.tsx";
@@ -24,6 +26,7 @@ const appRouter = (apiUrl: string) => {
   const projects = createProjects({ apiUrl, fetch: fetchFromBrowser });
   const tokens = createTokens({ apiUrl, fetch: fetchFromBrowser });
   const projectHistory = createHistory({ apiUrl, fetch: fetchFromBrowser });
+  const proposals = createProposals({ apiUrl, fetch: fetchFromBrowser });
 
   const root = createRootRoute();
   return createRouter({
@@ -41,7 +44,11 @@ const appRouter = (apiUrl: string) => {
         createProject: projects.createProject,
         readSpace: spaces.readSpace,
       }),
-      projectTokensRoute({ parent: root, readTokens: tokens.readTokens }),
+      projectTokensRoute({
+        parent: root,
+        readTokens: tokens.readTokens,
+        ProjectProposals: projectProposals({ listBatches: proposals.listBatches }),
+      }),
       projectHistoryRoute({ parent: root, readHistory: projectHistory.readHistory }),
     ]),
   });

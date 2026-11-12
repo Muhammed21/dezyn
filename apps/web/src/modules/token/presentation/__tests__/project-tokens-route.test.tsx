@@ -15,6 +15,7 @@ import type { ProjectTokens, Token, TokensFailure } from "../../domain/token.ts"
 import { projectTokensRoute } from "../project-tokens-route.tsx";
 
 const PROJECT_ID = "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
+const OTHER_PROJECT_ID = "5a3b0d2f-8c4e-4f9b-a021-3d6e7f8a9b0c";
 const PRIMARY_BLUE = { colorSpace: "srgb", components: [0.2, 0.4, 0.8], hex: "#3366cc" };
 const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4], hex: "#1a3366" };
 
@@ -36,7 +37,14 @@ const reading =
   () =>
     Promise.resolve(ok(tokens));
 
-const renderProjectTokens = (readTokens: ReadTokens) => {
+const ProjectProposals = ({ projectId }: { readonly projectId: string }) => (
+  <p>Propositions du projet {projectId}</p>
+);
+
+const renderProjectTokens = (
+  readTokens: ReadTokens,
+  history = createMemoryHistory({ initialEntries: [`/projets/${PROJECT_ID}`] }),
+) => {
   const root = createRootRoute();
   const signIn = createRoute({
     getParentRoute: () => root,
@@ -44,8 +52,11 @@ const renderProjectTokens = (readTokens: ReadTokens) => {
     component: () => <p>Page de connexion</p>,
   });
   const router = createRouter({
-    routeTree: root.addChildren([projectTokensRoute({ parent: root, readTokens }), signIn]),
-    history: createMemoryHistory({ initialEntries: [`/projets/${PROJECT_ID}`] }),
+    routeTree: root.addChildren([
+      projectTokensRoute({ parent: root, readTokens, ProjectProposals }),
+      signIn,
+    ]),
+    history,
   });
   return render(
     <QueryClientProvider client={new QueryClient()}>
@@ -81,6 +92,24 @@ describe("page des tokens d'un projet (ADR 0044 §6)", () => {
     await expect.element(tokenItems(screen).nth(1)).toHaveTextContent("espacement.petit");
     expect(tokenItems(screen).elements()).toHaveLength(2);
     expect(asked).toEqual([PROJECT_ID]);
+  });
+
+  it("relit les tokens de chaque projet : d'un projet à l'autre, les tokens changent", async () => {
+    const history = createMemoryHistory({ initialEntries: [`/projets/${PROJECT_ID}`] });
+    const screen = await renderProjectTokens(
+      ({ projectId }) =>
+        reading({ modes: [], tokens: [makeToken({ name: `token.de.${projectId}` })] })({
+          projectId,
+        }),
+      history,
+    );
+    await expect.element(tokenItems(screen).nth(0)).toHaveTextContent(`token.de.${PROJECT_ID}`);
+
+    history.push(`/projets/${OTHER_PROJECT_ID}`);
+
+    await expect
+      .element(tokenItems(screen).nth(0))
+      .toHaveTextContent(`token.de.${OTHER_PROJECT_ID}`);
   });
 
   it("montre le type, la valeur brute en JSON et la description d'un token", async () => {
@@ -128,6 +157,12 @@ describe("page des tokens d'un projet (ADR 0044 §6)", () => {
     await expect
       .element(screen.getByRole("link", { name: "Historique" }))
       .toHaveAttribute("href", `/projets/${PROJECT_ID}/historique`);
+  });
+
+  it("montre les propositions du projet de l'adresse, sous ses tokens", async () => {
+    const screen = await renderProjectTokens(reading({ modes: [], tokens: [makeToken()] }));
+
+    await expect.element(screen.getByText(`Propositions du projet ${PROJECT_ID}`)).toBeVisible();
   });
 
   it("annonce un projet sans token", async () => {
