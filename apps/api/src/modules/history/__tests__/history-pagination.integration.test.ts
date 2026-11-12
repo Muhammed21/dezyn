@@ -1,50 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { PostgresDatabase } from "#db";
 import { type App, BASE_URL, withIdentityApp } from "#testing/authorization-flow.ts";
+import { seedHistoryEntries } from "#testing/history-fixtures.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
 import { HistoryOutput } from "@repo/contracts";
-import { schema } from "@repo/db";
 
 const SAME_INSTANT = new Date("2026-10-01T09:00:00.000Z");
 
 const idOf = (index: number) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
 
 const minutesBefore = (index: number) => new Date(SAME_INSTANT.getTime() - index * 60_000);
-
-const authorIdOf = async (db: PostgresDatabase) => {
-  const [author] = await db.orm.select({ id: schema.historyAuthor.id }).from(schema.historyAuthor);
-  return author?.id ?? "";
-};
-
-const seedEntries = async (
-  db: PostgresDatabase,
-  {
-    spaceId,
-    projectId,
-    entries,
-  }: {
-    spaceId: string;
-    projectId: string;
-    entries: readonly { id: string; occurredAt: Date }[];
-  },
-) => {
-  const authorId = await authorIdOf(db);
-  await db.orm.insert(schema.historyEntry).values(
-    entries.map(({ id, occurredAt }) => ({
-      id,
-      spaceId,
-      projectId,
-      action: "project.created",
-      authorId,
-      clientId: null,
-      before: null,
-      after: null,
-      correlationId: "semis",
-      occurredAt,
-    })),
-  );
-};
 
 const readPage = async (
   app: App,
@@ -76,7 +41,7 @@ describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", 
   it("des plus récentes aux plus anciennes, sans perdre ni répéter deux entrées à la même date", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId, spaceId } = await seedProject(app, db);
-      await seedEntries(db, {
+      await seedHistoryEntries(db, {
         spaceId,
         projectId,
         entries: [
@@ -99,7 +64,7 @@ describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", 
   it("chaque page, la première comme les suivantes, suit le contrat partagé de l'historique (ADR 0044 §4)", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId, spaceId } = await seedProject(app, db);
-      await seedEntries(db, {
+      await seedHistoryEntries(db, {
         spaceId,
         projectId,
         entries: [
@@ -119,7 +84,7 @@ describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", 
   it("une page pleine qui est la dernière ne rend pas de curseur", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId, spaceId } = await seedProject(app, db);
-      await seedEntries(db, {
+      await seedHistoryEntries(db, {
         spaceId,
         projectId,
         entries: [{ id: idOf(1), occurredAt: SAME_INSTANT }],
@@ -134,7 +99,7 @@ describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", 
   it("sans limit, une page rend 50 entrées", () =>
     withIdentityApp(async (app, db) => {
       const { accessToken, projectId, spaceId } = await seedProject(app, db);
-      await seedEntries(db, {
+      await seedHistoryEntries(db, {
         spaceId,
         projectId,
         entries: Array.from({ length: 50 }, (_, index) => ({

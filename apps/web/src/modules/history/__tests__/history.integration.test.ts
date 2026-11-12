@@ -9,6 +9,7 @@ import {
   signUp,
   withIdentityApp,
 } from "@repo/api/testing/authorization-flow.ts";
+import { seedHistoryEntries } from "@repo/api/testing/history-fixtures.ts";
 import { personalSpaceOf } from "@repo/api/testing/space-fixtures.ts";
 import { CreatedProjectOutput } from "@repo/contracts";
 import { err } from "@repo/result";
@@ -38,7 +39,7 @@ const projectOf = async (app: App, db: Database) => {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ name: "Site vitrine" }),
   });
-  return { ...ada, projectId: CreatedProjectOutput.parse(await created.json()).id };
+  return { ...ada, spaceId, projectId: CreatedProjectOutput.parse(await created.json()).id };
 };
 
 describe("lecture de l'historique d'un projet par l'app web, contre la vraie API (ADR 0044 §6)", () => {
@@ -59,7 +60,34 @@ describe("lecture de l'historique d'un projet par l'app web, contre la vraie API
           },
         ],
         purgedBefore: undefined,
+        nextCursor: undefined,
       });
+    }));
+
+  it("au-delà d'une page, le membre lit tout l'historique de curseur en curseur, sans doublon", () =>
+    withIdentityApp(async (app, db) => {
+      const { spaceId, projectId, history } = await projectOf(app, db);
+      const seeded = Array.from({ length: 60 }, (_, index) => ({
+        id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+        occurredAt: new Date(Date.UTC(2026, 0, 1, 0, index)),
+      }));
+      await seedHistoryEntries(db, { spaceId, projectId, entries: seeded });
+
+      const readFrom = async (cursor?: string): Promise<readonly string[]> => {
+        const page = await history.readHistory({ projectId, cursor });
+        if (!page.ok) {
+          throw new Error(page.error);
+        }
+        const ids = page.value.entries.map(({ id }) => id);
+        return page.value.nextCursor === undefined
+          ? ids
+          : [...ids, ...(await readFrom(page.value.nextCursor))];
+      };
+      const ids = await readFrom();
+
+      expect(ids).toHaveLength(61);
+      expect(new Set(ids).size).toBe(61);
+      expect(ids.slice(1)).toEqual(seeded.map(({ id }) => id).toReversed());
     }));
 
   it("un non-membre reçoit not_found", () =>

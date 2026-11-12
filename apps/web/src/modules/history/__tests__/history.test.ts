@@ -98,8 +98,27 @@ describe("lecture de l'historique d'un projet dans l'app web (ADR 0044 §6)", ()
           },
         ],
         purgedBefore: undefined,
+        nextCursor: undefined,
       }),
     );
+  });
+
+  it("demande la page suivante avec le curseur donné par l'API", async () => {
+    const { history, calls } = answering(json(makePageOutput()));
+
+    await history.readHistory({ projectId: PROJECT_ID, cursor: "eyJpZCI6IjEifQ==" });
+
+    expect(calls.map(({ url }) => url)).toEqual([
+      `${API_URL}/v1/projects/${PROJECT_ID}/history?cursor=eyJpZCI6IjEifQ%3D%3D`,
+    ]);
+  });
+
+  it("donne le curseur de la page suivante", async () => {
+    const { history } = answering(json(makePageOutput({ nextCursor: "eyJpZCI6IjEifQ" })));
+
+    const page = await history.readHistory({ projectId: PROJECT_ID });
+
+    expect(page.ok && page.value.nextCursor).toBe("eyJpZCI6IjEifQ");
   });
 
   it("garde l'IA qui a agi", async () => {
@@ -206,6 +225,7 @@ describe("lecture de l'historique d'un projet dans l'app web (ADR 0044 §6)", ()
 
   it.each([
     ["une page sans date de purge", json({ entries: [], nextCursor: null })],
+    ["une page sans curseur suivant", json({ entries: [], purgedBefore: null })],
     [
       "une entrée sans date",
       json(makePageOutput({ entries: [makeEntryOutput({ occurredAt: undefined })] })),

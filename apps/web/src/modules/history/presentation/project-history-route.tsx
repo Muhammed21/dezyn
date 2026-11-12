@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { type InfiniteData, useInfiniteQuery } from "@tanstack/react-query";
 import { type AnyRootRoute, createRoute, Navigate } from "@tanstack/react-router";
 
 import type { Result } from "@repo/result";
@@ -10,9 +10,14 @@ import type {
   HistoryPage,
 } from "../domain/history.ts";
 
+type HistoryReading = Result<HistoryPage, HistoryFailure>;
+
+type Cursor = string | undefined;
+
 type ReadHistory = (project: {
   readonly projectId: string;
-}) => Promise<Result<HistoryPage, HistoryFailure>>;
+  readonly cursor?: string;
+}) => Promise<HistoryReading>;
 
 const READING_MESSAGES: Readonly<Record<Exclude<HistoryFailure, "unauthenticated">, string>> = {
   not_found: "Ce projet est introuvable.",
@@ -58,21 +63,36 @@ const ProjectHistory = ({
   readonly projectId: string;
   readonly readHistory: ReadHistory;
 }) => {
-  const { data } = useQuery({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery<
+    HistoryReading,
+    Error,
+    InfiniteData<HistoryReading, Cursor>,
+    readonly string[],
+    Cursor
+  >({
     queryKey: ["history", projectId],
-    queryFn: () => readHistory({ projectId }),
+    queryFn: ({ pageParam }) => readHistory({ projectId, cursor: pageParam }),
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.ok ? lastPage.value.nextCursor : lastPageParam,
   });
-  if (data === undefined) {
+  const [first, ...older] = data?.pages ?? [];
+  if (first === undefined) {
     return <p>Chargement de l'historique…</p>;
   }
-  if (!data.ok) {
-    return data.error === "unauthenticated" ? (
+  if (!first.ok) {
+    return first.error === "unauthenticated" ? (
       <Navigate to="/connexion" />
     ) : (
-      <p role="alert">{READING_MESSAGES[data.error]}</p>
+      <p role="alert">{READING_MESSAGES[first.error]}</p>
     );
   }
-  const { entries, purgedBefore } = data.value;
+  const last = older.at(-1) ?? first;
+  if (!last.ok && last.error === "unauthenticated") {
+    return <Navigate to="/connexion" />;
+  }
+  const entries = [first, ...older].flatMap((page) => (page.ok ? page.value.entries : []));
+  const { purgedBefore } = first.value;
   return (
     <main>
       <h1>Historique</h1>
@@ -84,6 +104,14 @@ const ProjectHistory = ({
           <Entry key={entry.id} entry={entry} />
         ))}
       </ul>
+      {!last.ok && (
+        <p role="alert">Les entrées plus anciennes sont indisponibles pour le moment.</p>
+      )}
+      {hasNextPage && (
+        <button type="button" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+          Entrées plus anciennes
+        </button>
+      )}
     </main>
   );
 };
