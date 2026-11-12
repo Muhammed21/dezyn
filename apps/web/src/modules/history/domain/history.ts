@@ -13,6 +13,7 @@ export type HistoryEntry = {
 export type HistoryPage = {
   readonly entries: readonly HistoryEntry[];
   readonly purgedBefore: Date | undefined;
+  readonly nextCursor: string | undefined;
 };
 
 export type HistoryFailure = "unauthenticated" | "not_found" | "unavailable" | "invalid_response";

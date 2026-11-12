@@ -33,8 +33,9 @@ export const createHttpHistoryGateway = ({
   readonly apiUrl: string;
   readonly fetch: Fetch;
 }): HistoryGateway => ({
-  readHistory: async ({ projectId }) => {
-    const sent = await send(fetch, `${apiUrl}/v1/projects/${projectId}/history`, {
+  readHistory: async ({ projectId, cursor }) => {
+    const query = cursor === undefined ? "" : `?${new URLSearchParams({ cursor })}`;
+    const sent = await send(fetch, `${apiUrl}/v1/projects/${projectId}/history${query}`, {
       method: "GET",
     });
     if (!sent.ok) {
@@ -54,10 +55,11 @@ export const createHttpHistoryGateway = ({
     if (!body.ok) {
       return body;
     }
-    const { entries, purgedBefore } = body.value;
+    const { entries, purgedBefore, nextCursor } = body.value;
     return ok({
       entries: entries.map(entryOf),
       purgedBefore: purgedBefore === null ? undefined : new Date(purgedBefore),
+      nextCursor: nextCursor ?? undefined,
     });
   },
 });

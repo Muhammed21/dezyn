@@ -7,8 +7,12 @@ import type { HistoryGateway } from "./history-gateway.ts";
 export const historyUseCases = ({ gateway }: { readonly gateway: HistoryGateway }) => ({
   readHistory: async ({
     projectId,
+    cursor,
   }: {
     readonly projectId: string;
+    readonly cursor?: string;
   }): Promise<Result<HistoryPage, HistoryFailure>> =>
-    Uuid.safeParse(projectId).success ? gateway.readHistory({ projectId }) : err("not_found"),
+    Uuid.safeParse(projectId).success
+      ? gateway.readHistory({ projectId, cursor })
+      : err("not_found"),
 });

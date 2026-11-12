@@ -20,6 +20,7 @@ const PURGED_BEFORE = new Date("2026-09-01T12:00:00.000Z");
 
 type ReadHistory = (project: {
   readonly projectId: string;
+  readonly cursor?: string;
 }) => Promise<Result<HistoryPage, HistoryFailure>>;
 
 const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
@@ -34,7 +35,9 @@ const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 const reading =
   (page: Partial<HistoryPage> = {}): ReadHistory =>
   () =>
-    Promise.resolve(ok({ entries: [makeEntry()], purgedBefore: undefined, ...page }));
+    Promise.resolve(
+      ok({ entries: [makeEntry()], purgedBefore: undefined, nextCursor: undefined, ...page }),
+    );
 
 const renderProjectHistory = (
   readHistory: ReadHistory,
@@ -190,5 +193,142 @@ describe("page de l'historique d'un projet (ADR 0044 §6)", () => {
     history.push(`/projets/${otherProjectId}/historique`);
 
     await expect.element(entryItems(screen).nth(0)).toHaveTextContent("Token créé");
+  });
+});
+
+const NEXT_CURSOR = "eyJpZCI6IjEifQ";
+const OLDER_ENTRY = makeEntry({
+  id: "6b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+  action: "token.created",
+});
+
+const olderButton = (screen: Awaited<ReturnType<typeof renderProjectHistory>>) =>
+  screen.getByRole("button", { name: "Entrées plus anciennes" });
+
+const byCursor =
+  (
+    pages: Readonly<Record<string, () => Promise<Result<HistoryPage, HistoryFailure>>>>,
+  ): ReadHistory =>
+  ({ cursor }) =>
+    (pages[cursor ?? "first"] ?? (() => Promise.resolve(err("invalid_response"))))();
+
+const page = (overrides: Partial<HistoryPage>) => () =>
+  Promise.resolve(
+    ok({ entries: [makeEntry()], purgedBefore: undefined, nextCursor: undefined, ...overrides }),
+  );
+
+describe("entrées plus anciennes de l'historique (ADR 0044 §6)", () => {
+  it("charge la page suivante avec le curseur de l'API et l'ajoute sous la liste", async () => {
+    const asked: (string | undefined)[] = [];
+    const pages = byCursor({
+      first: page({ nextCursor: NEXT_CURSOR }),
+      [NEXT_CURSOR]: page({ entries: [OLDER_ENTRY] }),
+    });
+    const screen = await renderProjectHistory((project) => {
+      asked.push(project.cursor);
+      return pages(project);
+    });
+
+    await olderButton(screen).click();
+
+    await expect.element(entryItems(screen).nth(1)).toHaveTextContent("Token créé");
+    await expect.element(entryItems(screen).nth(0)).toHaveTextContent("Projet créé");
+    expect(entryItems(screen).elements()).toHaveLength(2);
+    expect(asked).toEqual([undefined, NEXT_CURSOR]);
+  });
+
+  it("ne propose pas d'entrées plus anciennes sur la dernière page", async () => {
+    const screen = await renderProjectHistory(reading());
+
+    await expect.element(entryItems(screen).nth(0)).toBeVisible();
+    expect(olderButton(screen).elements()).toHaveLength(0);
+  });
+
+  it("retire le bouton une fois la dernière page chargée", async () => {
+    const screen = await renderProjectHistory(
+      byCursor({
+        first: page({ nextCursor: NEXT_CURSOR }),
+        [NEXT_CURSOR]: page({ entries: [OLDER_ENTRY] }),
+      }),
+    );
+
+    await olderButton(screen).click();
+
+    await expect.element(entryItems(screen).nth(1)).toBeVisible();
+    expect(olderButton(screen).elements()).toHaveLength(0);
+  });
+
+  it("ne relance pas le chargement tant que le précédent est en cours", async () => {
+    const asked: (string | undefined)[] = [];
+    const screen = await renderProjectHistory((project) => {
+      asked.push(project.cursor);
+      return project.cursor === undefined
+        ? page({ nextCursor: NEXT_CURSOR })()
+        : new Promise(() => {});
+    });
+
+    await olderButton(screen).click();
+
+    await expect.element(olderButton(screen)).toBeDisabled();
+    expect(asked).toEqual([undefined, NEXT_CURSOR]);
+  });
+
+  it("garde l'annonce de purge de la première page", async () => {
+    const screen = await renderProjectHistory(
+      byCursor({
+        first: page({ nextCursor: NEXT_CURSOR, purgedBefore: PURGED_BEFORE }),
+        [NEXT_CURSOR]: page({ entries: [OLDER_ENTRY], purgedBefore: undefined }),
+      }),
+    );
+
+    await olderButton(screen).click();
+
+    await expect.element(entryItems(screen).nth(1)).toBeVisible();
+    await expect
+      .element(screen.getByText(/^Les entrées antérieures au 1 septembre 2026/))
+      .toBeVisible();
+  });
+
+  it.each(["unavailable", "invalid_response", "not_found"] as const)(
+    "garde la liste et annonce l'échec %s de la page suivante, puis réessaie",
+    async (failure) => {
+      const attempts = { count: 0 };
+      const screen = await renderProjectHistory(
+        byCursor({
+          first: page({ nextCursor: NEXT_CURSOR }),
+          [NEXT_CURSOR]: () => {
+            attempts.count += 1;
+            return attempts.count === 1
+              ? Promise.resolve(err(failure))
+              : page({ entries: [OLDER_ENTRY] })();
+          },
+        }),
+      );
+
+      await olderButton(screen).click();
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("Les entrées plus anciennes sont indisponibles pour le moment.");
+      await expect.element(entryItems(screen).nth(0)).toHaveTextContent("Projet créé");
+
+      await olderButton(screen).click();
+
+      await expect.element(entryItems(screen).nth(1)).toHaveTextContent("Token créé");
+      expect(screen.getByRole("alert").elements()).toHaveLength(0);
+    },
+  );
+
+  it("renvoie vers la connexion quand la session expire avant la page suivante", async () => {
+    const screen = await renderProjectHistory(
+      byCursor({
+        first: page({ nextCursor: NEXT_CURSOR }),
+        [NEXT_CURSOR]: () => Promise.resolve(err("unauthenticated")),
+      }),
+    );
+
+    await olderButton(screen).click();
+
+    await expect.element(screen.getByText("Page de connexion")).toBeVisible();
   });
 });
