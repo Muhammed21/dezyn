@@ -76,7 +76,7 @@ const ReviewRefusal = ({ failure }: { readonly failure: ReviewFailure }) => {
       <p>Cette proposition est invalide :</p>
       <ul>
         {failure.errors.map(({ path, message }) => (
-          <li key={path}>
+          <li key={`${path}:${message}`}>
             {path} : {message}
           </li>
         ))}

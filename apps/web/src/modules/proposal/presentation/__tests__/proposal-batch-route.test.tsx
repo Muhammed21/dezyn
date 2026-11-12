@@ -7,7 +7,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import { err, ok, type Result } from "@repo/result";
@@ -399,6 +399,32 @@ describe("relecture d'une proposition depuis la page du lot (ADR 0012 §1, ADR 0
       .toBeEnabled();
     expect(reads.count).toBe(1);
     expect(reviewed).toEqual([]);
+  });
+
+  it("montre deux erreurs sur le même champ, sans que React confonde leurs lignes", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { screen } = await renderBatch(reading(makeBatch()), {
+      reviewProposal: () =>
+        Promise.resolve(
+          err({
+            reason: "invalid_proposal",
+            errors: [
+              { path: "name", message: "Nom déjà pris dans le projet" },
+              { path: "name", message: "Nom en conflit de groupe avec le token couleur" },
+            ],
+          }),
+        ),
+    });
+
+    await proposalItems(screen).nth(0).getByRole("button", { name: "Valider" }).click();
+
+    const alert = proposalItems(screen).nth(0).getByRole("alert");
+    await expect
+      .element(alert.getByRole("listitem").nth(1))
+      .toHaveTextContent("name : Nom en conflit de groupe avec le token couleur");
+    expect(alert.getByRole("listitem").elements()).toHaveLength(2);
+    expect(consoleError.mock.calls.flat().join(" ")).not.toContain("same key");
+    consoleError.mockRestore();
   });
 
   it.each([
