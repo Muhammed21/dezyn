@@ -13,7 +13,7 @@ This block is written and re-added by `turbo` before repository-scoped commands 
 
 ### Issue tracker
 
-Les tickets vivent dans les GitHub Issues de `Muhammed21/dezyn` (via `gh`). Voir `docs/agents/issue-tracker.md`.
+Les tickets vivent dans les GitHub Issues de `Muhammed21/dezyn.dev` (via `gh`). Voir `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

@@ -2,7 +2,7 @@
 
 **Type:** reference
 
-Les tickets et les specs de ce dépôt vivent dans les GitHub Issues de `Muhammed21/dezyn`. Toutes les opérations passent par la CLI `gh`.
+Les tickets et les specs de ce dépôt vivent dans les GitHub Issues de `Muhammed21/dezyn.dev`. Toutes les opérations passent par la CLI `gh`.
 
 ## Conventions
 
