@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Membership } from "../../domain/can.ts";
+import { allowedActionsOf, type Membership } from "../../domain/can.ts";
 import { inMemoryMembershipReader } from "../membership-reader.ts";
 import { readSpace } from "../read-space.ts";
 
@@ -26,12 +26,12 @@ const readWith = (memberships: readonly Membership[]) =>
   });
 
 describe("lire un espace", () => {
-  it("rend l'espace et le rôle du membre qui le lit", async () => {
+  it("rend l'espace, le rôle du membre qui le lit et les actions que ce rôle lui permet", async () => {
     const read = readWith([makeMembership({ role: "editor" })]);
 
     expect(await read({ spaceId: SPACE.id, userId: ADA })).toEqual({
       ok: true,
-      value: { ...SPACE, role: "editor" },
+      value: { ...SPACE, role: "editor", allowedActions: allowedActionsOf("editor") },
     });
   });
 

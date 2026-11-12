@@ -5,7 +5,7 @@ import { schema } from "@repo/db";
 
 import type { SpaceFinder } from "../application/read-space.ts";
 import type { SpaceStore } from "../application/spaces.ts";
-import { StoredMySpace, StoredSpace } from "./stored-rows.ts";
+import { StoredSpaceWithRole, StoredSpace } from "./stored-rows.ts";
 
 const { space, spaceMember } = schema;
 
@@ -29,6 +29,6 @@ export const postgresSpaceStore = (db: PostgresDatabase): SpaceStore & SpaceFind
       .innerJoin(space, eq(space.id, spaceMember.spaceId))
       .where(and(eq(spaceMember.userId, userId), isNull(spaceMember.closedAt)))
       .orderBy(spaceMember.joinedAt);
-    return rows.map((row) => StoredMySpace.parse(row));
+    return rows.map((row) => StoredSpaceWithRole.parse(row));
   },
 });

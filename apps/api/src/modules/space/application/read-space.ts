@@ -1,7 +1,7 @@
 import { err, ok, type Result } from "@repo/result";
 
 import { can } from "../domain/can.ts";
-import type { MySpace, Plan } from "../domain/space.ts";
+import { type MySpace, mySpaceOf, type Plan } from "../domain/space.ts";
 import type { MembershipKey, MembershipReader } from "./membership-reader.ts";
 
 export type SpaceFinder = {
@@ -23,5 +23,5 @@ export const readSpace =
     if (membership === undefined || !can({ membership, action: "space.read" })) {
       return err("not_found");
     }
-    return ok({ ...(await spaces.find(key.spaceId)), role: membership.role });
+    return ok(mySpaceOf({ ...(await spaces.find(key.spaceId)), role: membership.role }));
   };

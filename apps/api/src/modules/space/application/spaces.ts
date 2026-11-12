@@ -1,7 +1,14 @@
 import type { Result } from "@repo/result";
 
 import type { AcceptanceRefusal } from "../domain/acceptance.ts";
-import { type MySpace, type PersonalSpace, personalSpaceOf, type Role } from "../domain/space.ts";
+import {
+  type MySpace,
+  mySpaceOf,
+  type PersonalSpace,
+  personalSpaceOf,
+  type Role,
+  type SpaceWithRole,
+} from "../domain/space.ts";
 import type { InvitationFailure, SentInvitation } from "./invite-member.ts";
 import type { DepartureFailure } from "./leave-space.ts";
 import type { RemovalFailure, RoleChangeFailure } from "./manage-members.ts";
@@ -34,7 +41,7 @@ type MemberRequest = {
 
 export interface SpaceStore {
   createPersonal(personal: PersonalSpace): Promise<void>;
-  listOpenMembershipsOf(userId: string): Promise<readonly MySpace[]>;
+  listOpenMembershipsOf(userId: string): Promise<readonly SpaceWithRole[]>;
 }
 
 export const createPersonalSpace =
@@ -54,5 +61,5 @@ export const createPersonalSpace =
 
 export const listMySpaces =
   ({ store }: { readonly store: SpaceStore }) =>
-  (userId: string) =>
-    store.listOpenMembershipsOf(userId);
+  async (userId: string): Promise<readonly MySpace[]> =>
+    (await store.listOpenMembershipsOf(userId)).map(mySpaceOf);

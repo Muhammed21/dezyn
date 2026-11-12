@@ -64,7 +64,12 @@ describe("le seed de dev crée un utilisateur prêt à se connecter, avec un esp
       expect(spaces.body.spaces).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ plan: "free", role: "owner" }),
-          { id: seeded.value.spaceId, name: "Studio Muhammed", plan: "team", role: "owner" },
+          expect.objectContaining({
+            id: seeded.value.spaceId,
+            name: "Studio Muhammed",
+            plan: "team",
+            role: "owner",
+          }),
         ]),
       );
       expect(tokens).toEqual({ status: 200, body: { modes: [], tokens: [] } });

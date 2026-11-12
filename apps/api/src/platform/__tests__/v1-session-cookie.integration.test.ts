@@ -74,7 +74,12 @@ describe("/v1 avec le cookie de session de l'app web (ADR 0044)", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         spaces: [
-          { id: await personalSpaceOf(db, userId), name: ADA.name, plan: "free", role: "owner" },
+          expect.objectContaining({
+            id: await personalSpaceOf(db, userId),
+            name: ADA.name,
+            plan: "free",
+            role: "owner",
+          }),
         ],
       });
     }));

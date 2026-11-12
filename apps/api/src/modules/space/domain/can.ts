@@ -1,14 +1,17 @@
 import type { Role } from "./space.ts";
 
-export type Action =
-  | "space.read"
-  | "project.create"
-  | "member.invite"
-  | "member.leave"
-  | "member.manage"
-  | "token.create"
-  | "token.declareFigmaState"
-  | "proposal.review";
+export const ACTIONS = [
+  "space.read",
+  "project.create",
+  "member.invite",
+  "member.leave",
+  "member.manage",
+  "token.create",
+  "token.declareFigmaState",
+  "proposal.review",
+] as const;
+
+export type Action = (typeof ACTIONS)[number];
 
 export type Membership = {
   readonly spaceId: string;
@@ -43,3 +46,6 @@ export const can = ({
   readonly membership: Membership | undefined;
   readonly action: Action;
 }): boolean => membership !== undefined && PERMISSIONS[membership.role].has(action);
+
+export const allowedActionsOf = (role: Role): readonly Action[] =>
+  ACTIONS.filter((action) => PERMISSIONS[role].has(action));
