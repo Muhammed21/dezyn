@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type AnyRootRoute, createRoute, Navigate } from "@tanstack/react-router";
+import { type AnyRootRoute, createRoute, Link, Navigate } from "@tanstack/react-router";
 
 import type { Result } from "@repo/result";
 
@@ -62,6 +62,9 @@ const ProjectTokensList = ({
   return (
     <main>
       <h1>Tokens</h1>
+      <Link to="/projets/$projectId/historique" params={{ projectId }}>
+        Historique
+      </Link>
       {tokens.length === 0 ? (
         <p>Aucun token pour le moment.</p>
       ) : (
