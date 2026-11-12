@@ -110,3 +110,163 @@ describe("lecture des lots de propositions d'un projet dans l'app web (ADR 0044 
     expect(await proposals.listBatches({ projectId: PROJECT_ID })).toEqual(err("invalid_response"));
   });
 });
+
+const BATCH_ID = "0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
+const PRIMARY_BLUE = { colorSpace: "srgb", components: [0.1, 0.4, 0.9] };
+const NIGHT_BLUE = { colorSpace: "srgb", components: [0.1, 0.2, 0.4] };
+
+const makeProposalOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  id: "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+  name: "couleur.fond.primaire",
+  kind: "create",
+  status: "proposed",
+  validated: null,
+  proposed: { $type: "color", $value: PRIMARY_BLUE },
+  ...overrides,
+});
+
+const makeLotOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  id: BATCH_ID,
+  projectId: PROJECT_ID,
+  intent: "Palette de la marque",
+  state: "closed",
+  proposals: [makeProposalOutput()],
+  ...overrides,
+});
+
+const firstProposalOf = async (proposals: ReturnType<typeof answering>["proposals"]) => {
+  const batch = await proposals.readBatch({ batchId: BATCH_ID });
+  return batch.ok ? batch.value.proposals[0] : undefined;
+};
+
+describe("lecture d'un lot de propositions dans l'app web (ADR 0044 §6)", () => {
+  it("demande le lot à l'API avec le cookie du navigateur", async () => {
+    const { proposals, calls } = answering(json(makeLotOutput()));
+
+    await proposals.readBatch({ batchId: BATCH_ID });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/v1/proposal-batches/${BATCH_ID}`,
+        init: { method: "GET", credentials: "include" },
+      },
+    ]);
+  });
+
+  it("donne le lot et ses propositions dans l'ordre de l'API, avec leurs valeurs", async () => {
+    const update = makeProposalOutput({
+      id: "3e8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b",
+      name: "couleur.bleu.500",
+      kind: "update",
+      status: "validated",
+      validated: { $type: "color", $value: PRIMARY_BLUE },
+      proposed: { $type: "color", $value: NIGHT_BLUE, $description: "Bleu nuit" },
+    });
+    const { proposals } = answering(
+      json(makeLotOutput({ proposals: [makeProposalOutput(), update] })),
+    );
+
+    expect(await proposals.readBatch({ batchId: BATCH_ID })).toEqual(
+      ok({
+        id: BATCH_ID,
+        projectId: PROJECT_ID,
+        intent: "Palette de la marque",
+        state: "closed",
+        proposals: [
+          {
+            id: makeProposalOutput().id,
+            name: "couleur.fond.primaire",
+            kind: "create",
+            status: "proposed",
+            validated: undefined,
+            proposed: { $type: "color", $value: PRIMARY_BLUE },
+          },
+          {
+            id: update.id,
+            name: "couleur.bleu.500",
+            kind: "update",
+            status: "validated",
+            validated: { $type: "color", $value: PRIMARY_BLUE },
+            proposed: { $type: "color", $value: NIGHT_BLUE, $description: "Bleu nuit" },
+          },
+        ],
+      }),
+    );
+  });
+
+  it("donne un lot sans intention", async () => {
+    const { proposals } = answering(json(makeLotOutput({ intent: null, state: "open" })));
+
+    const batch = await proposals.readBatch({ batchId: BATCH_ID });
+
+    expect(batch.ok && [batch.value.intent, batch.value.state]).toEqual([undefined, "open"]);
+  });
+
+  it.each(["rejected", "replaced"])("garde le statut %s", async (status) => {
+    const { proposals } = answering(
+      json(makeLotOutput({ proposals: [makeProposalOutput({ status })] })),
+    );
+
+    expect((await firstProposalOf(proposals))?.status).toBe(status);
+  });
+
+  it("garde un état, une nature et un statut que l'app ne connaît pas (ADR 0023 §2)", async () => {
+    const { proposals } = answering(
+      json(
+        makeLotOutput({
+          state: "archived",
+          proposals: [makeProposalOutput({ kind: "delete", status: "withdrawn" })],
+        }),
+      ),
+    );
+
+    const batch = await proposals.readBatch({ batchId: BATCH_ID });
+
+    expect(batch.ok && batch.value.state).toBe("unknown");
+    expect(batch.ok && batch.value.proposals[0]).toMatchObject({
+      kind: "unknown",
+      status: "unknown",
+    });
+  });
+
+  it("donne not_found pour un identifiant qui n'est pas un UUID, sans appeler l'API", async () => {
+    const { proposals, calls } = answering(json(makeLotOutput()));
+
+    expect(await proposals.readBatch({ batchId: "lot-1" })).toEqual(err("not_found"));
+    expect(calls).toEqual([]);
+  });
+
+  it.each([
+    [401, "unauthenticated"],
+    [404, "not_found"],
+    [500, "unavailable"],
+    [429, "unavailable"],
+    [400, "invalid_response"],
+  ] as const)("donne, sur une réponse %i, %s", async (status, failure) => {
+    const { proposals } = answering(json({}, status));
+
+    expect(await proposals.readBatch({ batchId: BATCH_ID })).toEqual(err(failure));
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const proposals = createProposals({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(await proposals.readBatch({ batchId: BATCH_ID })).toEqual(err("unavailable"));
+  });
+
+  it.each([
+    ["un lot sans propositions", json(makeLotOutput({ proposals: undefined }))],
+    [
+      "une proposition sans valeur proposée",
+      json(makeLotOutput({ proposals: [makeProposalOutput({ proposed: undefined })] })),
+    ],
+    ["un corps qui n'est pas du JSON", () => new Response("<html>", { status: 200 })],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { proposals } = answering(response);
+
+    expect(await proposals.readBatch({ batchId: BATCH_ID })).toEqual(err("invalid_response"));
+  });
+});

@@ -11,6 +11,7 @@ import { signUpRoute } from "./modules/identity/presentation/sign-up-route.tsx";
 import { spaceProjectsRoute } from "./modules/project/presentation/space-projects-route.tsx";
 import { createProjects } from "./modules/project/project-module.ts";
 import { projectProposals } from "./modules/proposal/presentation/project-proposals.tsx";
+import { proposalBatchRoute } from "./modules/proposal/presentation/proposal-batch-route.tsx";
 import { createProposals } from "./modules/proposal/proposal-module.ts";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
 import { createSpaces } from "./modules/space/space-module.ts";
@@ -50,6 +51,7 @@ const appRouter = (apiUrl: string) => {
         ProjectProposals: projectProposals({ listBatches: proposals.listBatches }),
       }),
       projectHistoryRoute({ parent: root, readHistory: projectHistory.readHistory }),
+      proposalBatchRoute({ parent: root, readBatch: proposals.readBatch }),
     ]),
   });
 };

@@ -90,6 +90,19 @@ describe("propositions d'un projet (ADR 0012 §1, ADR 0044 §6)", () => {
     expect(asked).toEqual([PROJECT_ID]);
   });
 
+  it("mène à la page de chaque lot", async () => {
+    const { screen } = await renderProposals(
+      listing([makeBatch(), makeBatch({ id: "1c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b" })]),
+    );
+
+    await expect
+      .element(batchItems(screen).nth(0).getByRole("link"))
+      .toHaveAttribute("href", "/lots/0b8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b");
+    await expect
+      .element(batchItems(screen).nth(1).getByRole("link"))
+      .toHaveAttribute("href", "/lots/1c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b");
+  });
+
   it("nomme Sans intention un lot ouvert sans intention", async () => {
     const { screen } = await renderProposals(listing([makeBatch({ intent: undefined })]));
 
