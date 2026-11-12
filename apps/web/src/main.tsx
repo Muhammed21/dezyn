@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 
 import { createIdentity } from "./modules/identity/identity-module.ts";
 import { signInRoute } from "./modules/identity/presentation/sign-in-route.tsx";
+import { signUpRoute } from "./modules/identity/presentation/sign-up-route.tsx";
 import { spaceProjectsRoute } from "./modules/project/presentation/space-projects-route.tsx";
 import { createProjects } from "./modules/project/project-module.ts";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
@@ -25,6 +26,7 @@ const router = createRouter({
   routeTree: root.addChildren([
     mySpacesRoute({ parent: root, listMySpaces: spaces.listMySpaces }),
     signInRoute({ parent: root, signIn: identity.signIn }),
+    signUpRoute({ parent: root, signUp: identity.signUp }),
     spaceProjectsRoute({
       parent: root,
       listProjects: projects.listProjects,

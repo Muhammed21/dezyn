@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type AnyRootRoute, createRoute, useNavigate } from "@tanstack/react-router";
+import { type AnyRootRoute, createRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type SubmitEvent, useState } from "react";
 
 import type { Result } from "@repo/result";
@@ -61,6 +61,7 @@ const SignInForm = ({ signIn }: { readonly signIn: SignIn }) => {
         </button>
       </form>
       {!isPending && data?.ok === false && <p role="alert">{FAILURE_MESSAGES[data.error]}</p>}
+      <Link to="/inscription">Créer un compte</Link>
     </main>
   );
 };
