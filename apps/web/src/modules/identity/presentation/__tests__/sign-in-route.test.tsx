@@ -26,8 +26,13 @@ const renderSignIn = (signIn: SignIn, queryClient: QueryClient = new QueryClient
     path: "/",
     component: () => <p>Accueil</p>,
   });
+  const signUp = createRoute({
+    getParentRoute: () => root,
+    path: "/inscription",
+    component: () => <p>Page d'inscription</p>,
+  });
   const router = createRouter({
-    routeTree: root.addChildren([signInRoute({ parent: root, signIn }), home]),
+    routeTree: root.addChildren([signInRoute({ parent: root, signIn }), home, signUp]),
     history: createMemoryHistory({ initialEntries: ["/connexion"] }),
   });
   return render(
@@ -128,5 +133,13 @@ describe("page de connexion (ADR 0044 §7)", () => {
     await expect.element(screen.getByLabelText("Email")).toHaveValue("");
     await expect.element(screen.getByLabelText("Mot de passe")).toHaveValue("");
     expect(screen.getByRole("alert").elements()).toHaveLength(0);
+  });
+
+  it("mène à l'inscription", async () => {
+    const screen = await renderSignIn(() => Promise.resolve(ok(ADA)));
+
+    await screen.getByRole("link", { name: "Créer un compte" }).click();
+
+    await expect.element(screen.getByText("Page d'inscription")).toBeVisible();
   });
 });
