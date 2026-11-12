@@ -24,7 +24,11 @@ const tokens = createTokens({ apiUrl, fetch: fetchFromBrowser });
 const root = createRootRoute();
 const router = createRouter({
   routeTree: root.addChildren([
-    mySpacesRoute({ parent: root, listMySpaces: spaces.listMySpaces }),
+    mySpacesRoute({
+      parent: root,
+      listMySpaces: spaces.listMySpaces,
+      signOut: identity.signOut,
+    }),
     signInRoute({ parent: root, signIn: identity.signIn }),
     signUpRoute({ parent: root, signUp: identity.signUp }),
     spaceProjectsRoute({
