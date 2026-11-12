@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PostgresDatabase } from "#db";
 import { type App, BASE_URL, withIdentityApp } from "#testing/authorization-flow.ts";
 import { seedProject } from "#testing/project-fixtures.ts";
+import { HistoryOutput } from "@repo/contracts";
 import { schema } from "@repo/db";
 
 const SAME_INSTANT = new Date("2026-10-01T09:00:00.000Z");
@@ -93,6 +94,26 @@ describe("un membre lit l'historique d'un projet page par page (ADR 0004 §3)", 
       expect(pages.map((page) => page.entries.length)).toEqual([2, 2, 2]);
       expect(ids.slice(1)).toEqual([idOf(4), idOf(3), idOf(2), idOf(1), idOf(5)]);
       expect(pages.at(-1)?.nextCursor).toBeNull();
+    }));
+
+  it("chaque page, la première comme les suivantes, suit le contrat partagé de l'historique (ADR 0044 §4)", () =>
+    withIdentityApp(async (app, db) => {
+      const { accessToken, projectId, spaceId } = await seedProject(app, db);
+      await seedEntries(db, {
+        spaceId,
+        projectId,
+        entries: [
+          { id: idOf(1), occurredAt: minutesBefore(1) },
+          { id: idOf(2), occurredAt: minutesBefore(2) },
+        ],
+      });
+
+      const pages = await readAllPages(app, { accessToken, projectId, limit: 2 });
+
+      expect(pages).toHaveLength(2);
+      pages.forEach((page) => {
+        expect(HistoryOutput.parse(page)).toEqual(page);
+      });
     }));
 
   it("une page pleine qui est la dernière ne rend pas de curseur", () =>

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { extensibleUnion, openEnum, Uuid } from "@repo/contracts";
+import { extensibleUnion, openEnum, Uuid } from "../conventions/schemas.ts";
 
-export const HistoryAuthor = extensibleUnion("kind", [
+const HistoryAuthor = extensibleUnion("kind", [
   z.looseObject({
     kind: z.literal("member"),
     userId: Uuid,
@@ -11,7 +11,7 @@ export const HistoryAuthor = extensibleUnion("kind", [
   }),
 ]);
 
-export const HistoryEntryOutput = z.looseObject({
+const HistoryEntryOutput = z.looseObject({
   id: Uuid,
   action: openEnum([
     "project.created",
