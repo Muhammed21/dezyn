@@ -12,42 +12,55 @@ import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx"
 import { createSpaces } from "./modules/space/space-module.ts";
 import { projectTokensRoute } from "./modules/token/presentation/project-tokens-route.tsx";
 import { createTokens } from "./modules/token/token-module.ts";
+import { configOf } from "./platform/config.ts";
 
-const apiUrl = import.meta.env.VITE_API_URL;
 const fetchFromBrowser = (url: string, init: RequestInit) => window.fetch(url, init);
 
-const identity = createIdentity({ apiUrl, fetch: fetchFromBrowser });
-const spaces = createSpaces({ apiUrl, fetch: fetchFromBrowser });
-const projects = createProjects({ apiUrl, fetch: fetchFromBrowser });
-const tokens = createTokens({ apiUrl, fetch: fetchFromBrowser });
+const appRouter = (apiUrl: string) => {
+  const identity = createIdentity({ apiUrl, fetch: fetchFromBrowser });
+  const spaces = createSpaces({ apiUrl, fetch: fetchFromBrowser });
+  const projects = createProjects({ apiUrl, fetch: fetchFromBrowser });
+  const tokens = createTokens({ apiUrl, fetch: fetchFromBrowser });
 
-const root = createRootRoute();
-const router = createRouter({
-  routeTree: root.addChildren([
-    mySpacesRoute({
-      parent: root,
-      listMySpaces: spaces.listMySpaces,
-      signOut: identity.signOut,
-    }),
-    signInRoute({ parent: root, signIn: identity.signIn }),
-    signUpRoute({ parent: root, signUp: identity.signUp }),
-    spaceProjectsRoute({
-      parent: root,
-      listProjects: projects.listProjects,
-      createProject: projects.createProject,
-    }),
-    projectTokensRoute({ parent: root, readTokens: tokens.readTokens }),
-  ]),
+  const root = createRootRoute();
+  return createRouter({
+    routeTree: root.addChildren([
+      mySpacesRoute({
+        parent: root,
+        listMySpaces: spaces.listMySpaces,
+        signOut: identity.signOut,
+      }),
+      signInRoute({ parent: root, signIn: identity.signIn }),
+      signUpRoute({ parent: root, signUp: identity.signUp }),
+      spaceProjectsRoute({
+        parent: root,
+        listProjects: projects.listProjects,
+        createProject: projects.createProject,
+      }),
+      projectTokensRoute({ parent: root, readTokens: tokens.readTokens }),
+    ]),
+  });
+};
+
+const config = configOf({
+  env: import.meta.env,
+  href: window.location.href,
+  dev: import.meta.env.DEV,
 });
-
 const container = document.getElementById("root");
 
-if (container !== null) {
+if (config.kind === "redirect") {
+  window.location.replace(config.to);
+} else if (container !== null) {
   createRoot(container).render(
     <StrictMode>
-      <QueryClientProvider client={new QueryClient()}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
+      {config.kind === "ready" ? (
+        <QueryClientProvider client={new QueryClient()}>
+          <RouterProvider router={appRouter(config.apiUrl)} />
+        </QueryClientProvider>
+      ) : (
+        <p role="alert">{config.message}</p>
+      )}
     </StrictMode>,
   );
 }
