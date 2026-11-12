@@ -19,6 +19,7 @@ import {
   PRIMARY_BLUE,
   seedValidatedToken,
 } from "#testing/token-fixtures.ts";
+import { ValidatedBatchOutput } from "@repo/contracts";
 
 import { postgresProposalStore } from "../infrastructure/postgres-proposals.ts";
 
@@ -204,7 +205,7 @@ describe("valider un lot fermé valide ses propositions Proposées, sauf celles 
       });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
+      expect(ValidatedBatchOutput.parse(await response.json())).toEqual({
         id: batch.id,
         state: "closed",
         validated: expect.arrayContaining([proposals[0].id, proposals[2].id]),
