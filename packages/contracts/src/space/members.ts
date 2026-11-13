@@ -25,3 +25,15 @@ export const SelfRemovalProblem = z.looseObject({
   title: z.string(),
   status: z.literal(409),
 });
+
+export const AlreadyMemberProblem = z.looseObject({
+  type: z.literal("https://dezyn.dev/problems/already-member"),
+  title: z.string(),
+  status: z.literal(409),
+});
+
+export const EmailMismatchProblem = z.looseObject({
+  type: z.literal("https://dezyn.dev/problems/email-mismatch"),
+  title: z.string(),
+  status: z.literal(403),
+});

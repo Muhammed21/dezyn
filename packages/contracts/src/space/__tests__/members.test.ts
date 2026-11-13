@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AlreadyMemberProblem,
   ChangedRoleOutput,
+  EmailMismatchProblem,
   checkOutputSchema,
   LastOwnerProblem,
   SelfRemovalProblem,
@@ -109,12 +111,62 @@ describe("refus « un membre quitte l'espace par son départ » (ADR 0031)", () 
   });
 });
 
+const makeAlreadyMember = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  type: "https://dezyn.dev/problems/already-member",
+  title: "Déjà membre de l'espace",
+  status: 409,
+  ...overrides,
+});
+
+const makeEmailMismatch = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  type: "https://dezyn.dev/problems/email-mismatch",
+  title: "Invitation adressée à un autre email",
+  status: 403,
+  ...overrides,
+});
+
+describe("refus « déjà membre de l'espace » (ADR 0017 §2)", () => {
+  it("garde une clé ajoutée plus tard par le serveur (ADR 0023)", () => {
+    const later = makeAlreadyMember({ instance: "/v1/invitations" });
+
+    expect(AlreadyMemberProblem.parse(later)).toEqual(later);
+  });
+
+  it.each([
+    ["d'un autre type", { type: "about:blank" }],
+    ["du type d'un dernier propriétaire", { type: "https://dezyn.dev/problems/last-owner" }],
+    ["d'un autre statut", { status: 403 }],
+    ["sans titre", { title: undefined }],
+  ])("refuse un problème %s", (_case, overrides) => {
+    expect(AlreadyMemberProblem.safeParse(makeAlreadyMember(overrides)).success).toBe(false);
+  });
+});
+
+describe("refus « invitation adressée à un autre email » (ADR 0011)", () => {
+  it("garde une clé ajoutée plus tard par le serveur (ADR 0023)", () => {
+    const later = makeEmailMismatch({ instance: "/v1/invitations" });
+
+    expect(EmailMismatchProblem.parse(later)).toEqual(later);
+  });
+
+  it.each([
+    ["d'un autre type", { type: "about:blank" }],
+    ["du type d'un plan requis", { type: "https://dezyn.dev/problems/plan-required" }],
+    ["d'un autre statut", { status: 409 }],
+    ["sans titre", { title: undefined }],
+  ])("refuse un problème %s", (_case, overrides) => {
+    expect(EmailMismatchProblem.safeParse(makeEmailMismatch(overrides)).success).toBe(false);
+  });
+});
+
 describe("conventions de sortie des membres et des invitations (ADR 0023 §4)", () => {
   it.each([
     ["SentInvitationOutput", SentInvitationOutput],
     ["ChangedRoleOutput", ChangedRoleOutput],
     ["LastOwnerProblem", LastOwnerProblem],
     ["SelfRemovalProblem", SelfRemovalProblem],
+    ["AlreadyMemberProblem", AlreadyMemberProblem],
+    ["EmailMismatchProblem", EmailMismatchProblem],
   ])("%s les respecte", (name, schema) => {
     expect(checkOutputSchema(name, schema)).toEqual([]);
   });

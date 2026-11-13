@@ -18,7 +18,7 @@ const acceptanceProblem = (c: Context<MemberEnv>, refusal: AcceptanceRefusal) =>
   }
   if (refusal === "email_mismatch") {
     return problemResponse(c, {
-      type: "about:blank",
+      type: "https://dezyn.dev/problems/email-mismatch",
       title: "Invitation adressée à un autre email",
       status: 403,
     });

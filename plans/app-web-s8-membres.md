@@ -13,13 +13,13 @@ Un propriétaire invite, change un rôle ou retire un membre depuis l'app web, e
   - 404 : espace inconnu ou hors des espaces du membre.
   - 403 « Accès refusé » : le membre n'a pas `member.invite`.
   - 403 `https://dezyn.dev/problems/plan-required`.
-  - 409 « Déjà membre de l'espace ».
+  - 409 « Déjà membre de l'espace » (`https://dezyn.dev/problems/already-member`).
   - 503 « Email d'invitation non envoyé ».
 - L'email d'invitation mène à `WEB_URL/invitations/:token`.
 - `POST /v1/invitations/:token/accept` : l'espace rejoint, de la forme `MySpaceOutput`.
   - 410 « Invitation expirée ou déjà utilisée ».
-  - 403 « Invitation adressée à un autre email ».
-  - 409 « Déjà membre de l'espace ».
+  - 403 « Invitation adressée à un autre email » (`https://dezyn.dev/problems/email-mismatch`).
+  - 409 « Déjà membre de l'espace » (`https://dezyn.dev/problems/already-member`).
   - 403 `plan-required`.
 - `PATCH /v1/spaces/:spaceId/members/:memberId` `{ role }` : `{ userId, role }`, permis par `member.manage`.
   - 409 `https://dezyn.dev/problems/last-owner`.

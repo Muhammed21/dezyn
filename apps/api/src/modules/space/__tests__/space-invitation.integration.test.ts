@@ -13,7 +13,7 @@ import {
   switchToTeam,
   tokenOf,
 } from "#testing/space-fixtures.ts";
-import { SentInvitationOutput } from "@repo/contracts";
+import { AlreadyMemberProblem, SentInvitationOutput } from "@repo/contracts";
 import { schema } from "@repo/db";
 import { err } from "@repo/result";
 
@@ -138,8 +138,8 @@ describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 00
         const response = await invite(app, { accessToken, spaceId, email: "Ada@Dezyn.TEST" });
 
         expect(response.status).toBe(409);
-        expect(await response.json()).toMatchObject({
-          type: "about:blank",
+        expect(AlreadyMemberProblem.parse(await response.json())).toMatchObject({
+          type: "https://dezyn.dev/problems/already-member",
           title: "Déjà membre de l'espace",
           status: 409,
         });
