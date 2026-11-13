@@ -17,6 +17,7 @@ import {
   seedSpaceWithInvitedEditor,
   seedTeamSpace,
 } from "#testing/space-fixtures.ts";
+import { ChangedRoleOutput, LastOwnerProblem, SelfRemovalProblem } from "@repo/contracts";
 
 const LAST_OWNER = "https://dezyn.dev/problems/last-owner";
 
@@ -72,7 +73,10 @@ describe("un propriétaire change le rôle d'un membre (ADR 0011 §5, ADR 0017 �
         });
 
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ userId: grace.userId, role: "owner" });
+        expect(ChangedRoleOutput.parse(await response.json())).toEqual({
+          userId: grace.userId,
+          role: "owner",
+        });
         expect(await membershipsOf(db, { spaceId, userId: grace.userId })).toEqual(
           expect.arrayContaining([
             { role: "editor", closedAt: expect.any(Date), closedReason: "role_changed" },
@@ -120,7 +124,10 @@ describe("un propriétaire change le rôle d'un membre (ADR 0011 §5, ADR 0017 �
         });
 
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ userId: grace.userId, role: "editor" });
+        expect(ChangedRoleOutput.parse(await response.json())).toEqual({
+          userId: grace.userId,
+          role: "editor",
+        });
         expect(await membershipsOf(db, { spaceId, userId: grace.userId })).toEqual([
           { role: "editor", closedAt: null, closedReason: null },
         ]);
@@ -143,7 +150,7 @@ describe("un propriétaire change le rôle d'un membre (ADR 0011 §5, ADR 0017 �
 
       expect(response.status).toBe(409);
       expect(response.headers.get("content-type")).toBe("application/problem+json");
-      expect(await response.json()).toMatchObject({
+      expect(LastOwnerProblem.parse(await response.json())).toMatchObject({
         type: LAST_OWNER,
         title: "Dernier propriétaire de l'espace",
         status: 409,
@@ -395,7 +402,7 @@ describe("un propriétaire retire un membre (ADR 0031)", () => {
       const response = await removeMember(app, { accessToken, spaceId, memberId: userId });
 
       expect(response.status).toBe(409);
-      expect(await response.json()).toMatchObject({
+      expect(SelfRemovalProblem.parse(await response.json())).toMatchObject({
         type: SELF_REMOVAL,
         title: "Un membre quitte l'espace par son départ",
         status: 409,

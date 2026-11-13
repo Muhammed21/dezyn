@@ -15,6 +15,7 @@ import {
   seedSpaceWithInvitedEditor,
   seedTeamSpace,
 } from "#testing/space-fixtures.ts";
+import { LastOwnerProblem } from "@repo/contracts";
 
 const LAST_OWNER = "https://dezyn.dev/problems/last-owner";
 
@@ -77,7 +78,7 @@ describe("un membre quitte l'espace, sauf le dernier propriétaire (ADR 0011 §5
 
       expect(response.status).toBe(409);
       expect(response.headers.get("content-type")).toBe("application/problem+json");
-      expect(await response.json()).toMatchObject({
+      expect(LastOwnerProblem.parse(await response.json())).toMatchObject({
         type: LAST_OWNER,
         title: "Dernier propriétaire de l'espace",
         status: 409,
