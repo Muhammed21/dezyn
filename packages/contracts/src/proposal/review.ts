@@ -64,3 +64,16 @@ export const InvalidProposalProblem = z.looseObject({
   status: z.literal(409),
   errors: z.array(z.looseObject({ path: z.string(), message: z.string() })),
 });
+
+export const BatchOpenProblem = z.looseObject({
+  type: z.literal("https://dezyn.dev/problems/batch-open"),
+  title: z.string(),
+  status: z.literal(409),
+});
+
+export const InvalidBatchProblem = z.looseObject({
+  type: z.literal("https://dezyn.dev/problems/invalid-batch"),
+  title: z.string(),
+  status: z.literal(409),
+  errors: z.array(z.looseObject({ path: z.string(), message: z.string() })),
+});
