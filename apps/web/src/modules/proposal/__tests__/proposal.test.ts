@@ -401,3 +401,113 @@ describe("relecture d'une proposition dans l'app web (ADR 0012 §1, ADR 0044 §6
     ).toEqual(err("unavailable"));
   });
 });
+
+const REJECTED_ID = "3e9f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
+
+const makeValidatedBatchOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  id: BATCH_ID,
+  state: "closed",
+  validated: [PROPOSAL_ID],
+  rejected: [REJECTED_ID],
+  ...overrides,
+});
+
+describe("validation d'un lot dans l'app web (ADR 0013 §4, ADR 0044 §6)", () => {
+  it("envoie à l'API les propositions rejetées, avec le cookie du navigateur", async () => {
+    const { proposals, calls } = answering(json(makeValidatedBatchOutput()));
+
+    await proposals.validateBatch({ batchId: BATCH_ID, rejected: [REJECTED_ID] });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/v1/proposal-batches/${BATCH_ID}/validate`,
+        init: {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ rejected: [REJECTED_ID] }),
+        },
+      },
+    ]);
+  });
+
+  it("donne les propositions validées et rejetées du lot", async () => {
+    const { proposals } = answering(json(makeValidatedBatchOutput()));
+
+    expect(await proposals.validateBatch({ batchId: BATCH_ID, rejected: [REJECTED_ID] })).toEqual(
+      ok({ validated: [PROPOSAL_ID], rejected: [REJECTED_ID] }),
+    );
+  });
+
+  it("donne not_found pour un identifiant qui n'est pas un UUID, sans appeler l'API", async () => {
+    const { proposals, calls } = answering(json(makeValidatedBatchOutput()));
+
+    expect(await proposals.validateBatch({ batchId: "lot-1", rejected: [] })).toEqual(
+      err("not_found"),
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it("donne batch_open pour un lot encore ouvert", async () => {
+    const { proposals } = answering(problem({ type: "https://dezyn.dev/problems/batch-open" }));
+
+    expect(await proposals.validateBatch({ batchId: BATCH_ID, rejected: [] })).toEqual(
+      err("batch_open"),
+    );
+  });
+
+  it("donne invalid_batch avec chaque erreur du lot", async () => {
+    const errors = [
+      { path: `proposals.${PROPOSAL_ID}.$value`, message: "Référence vers un token non validé" },
+      { path: `proposals.${PROPOSAL_ID}.name`, message: "Nom déjà pris dans le projet" },
+    ];
+    const { proposals } = answering(
+      problem({ type: "https://dezyn.dev/problems/invalid-batch", errors }),
+    );
+
+    expect(await proposals.validateBatch({ batchId: BATCH_ID, rejected: [] })).toEqual(
+      err({ reason: "invalid_batch", errors }),
+    );
+  });
+
+  it.each([
+    ["un 409 d'un autre type", problem({ type: "about:blank" })],
+    ["un lot invalide sans erreurs", problem({ type: "https://dezyn.dev/problems/invalid-batch" })],
+    ["un 409 qui n'est pas du JSON", () => new Response("<html>", { status: 409 })],
+    ["une proposition hors du lot", problem({ type: "about:blank" }, 400)],
+    [
+      "un lot validé sans propositions rejetées",
+      json(makeValidatedBatchOutput({ rejected: undefined })),
+    ],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { proposals } = answering(response);
+
+    expect(await proposals.validateBatch({ batchId: BATCH_ID, rejected: [] })).toEqual(
+      err("invalid_response"),
+    );
+  });
+
+  it.each([
+    [401, "unauthenticated"],
+    [404, "not_found"],
+    [500, "unavailable"],
+    [429, "unavailable"],
+  ] as const)("donne, sur une réponse %i, %s", async (status, failure) => {
+    const { proposals } = answering(json({}, status));
+
+    expect(await proposals.validateBatch({ batchId: BATCH_ID, rejected: [] })).toEqual(
+      err(failure),
+    );
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const proposals = createProposals({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(await proposals.validateBatch({ batchId: BATCH_ID, rejected: [] })).toEqual(
+      err("unavailable"),
+    );
+  });
+});

@@ -2,10 +2,13 @@ import type { z } from "zod";
 
 import {
   AlreadyReviewedProblem,
+  BatchOpenProblem,
+  InvalidBatchProblem,
   InvalidProposalProblem,
   ProposalBatchesOutput,
   ProposalBatchOutput,
   ReviewedProposalOutput,
+  ValidatedBatchOutput,
 } from "@repo/contracts";
 import { err, ok, type Result } from "@repo/result";
 
@@ -14,6 +17,7 @@ import type { ProposalGateway } from "../application/proposal-gateway.ts";
 import type {
   BatchState,
   BatchSummary,
+  BatchValidationFailure,
   Proposal,
   ProposalFailure,
   ProposalKind,
@@ -108,6 +112,33 @@ const reviewRefusalOf = async (response: Response): Promise<ReviewFailure> => {
   return failureOf(response);
 };
 
+const batchConflictOf = async (response: Response): Promise<BatchValidationFailure> => {
+  const body: unknown = await response.json().catch(() => undefined);
+  if (BatchOpenProblem.safeParse(body).success) {
+    return "batch_open";
+  }
+  const invalid = InvalidBatchProblem.safeParse(body);
+  return invalid.success
+    ? {
+        reason: "invalid_batch",
+        errors: invalid.data.errors.map(({ path, message }) => ({ path, message })),
+      }
+    : "invalid_response";
+};
+
+const validationRefusalOf = async (response: Response): Promise<BatchValidationFailure> => {
+  if (response.status === UNAUTHORIZED) {
+    return "unauthenticated";
+  }
+  if (response.status === NOT_FOUND) {
+    return "not_found";
+  }
+  if (response.status === CONFLICT) {
+    return batchConflictOf(response);
+  }
+  return failureOf(response);
+};
+
 export const createHttpProposalGateway = ({
   apiUrl,
   fetch,
@@ -154,5 +185,21 @@ export const createHttpProposalGateway = ({
     }
     const { id, name, kind, status } = body.value;
     return ok({ id, name, kind: kindOf(kind), status: statusOf(status) });
+  },
+  validateBatch: async ({ batchId, rejected }) => {
+    const sent = await send(fetch, `${apiUrl}/v1/proposal-batches/${batchId}/validate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rejected }),
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    const response = sent.value;
+    if (response.status !== OK) {
+      return err(await validationRefusalOf(response));
+    }
+    const body = await parseJson(response, ValidatedBatchOutput);
+    return body.ok ? ok({ validated: body.value.validated, rejected: body.value.rejected }) : body;
   },
 });

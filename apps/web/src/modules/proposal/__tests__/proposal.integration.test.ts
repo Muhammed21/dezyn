@@ -241,3 +241,81 @@ describe("relecture d'une proposition par l'app web, contre la vraie API (ADR 00
       expect(await validatedNamesOf(fetch, { projectId })).toEqual([]);
     }));
 });
+
+const proposeAndCloseByAi = async (
+  app: App,
+  { userId, projectId, tokens }: { userId: string; projectId: string; tokens: readonly object[] },
+) => {
+  const accessToken = await aiOf(app, { userId });
+  const callTool = (name: string, args: object) =>
+    callMcp(app, {
+      token: accessToken,
+      method: "tools/call",
+      params: { name, arguments: args },
+    });
+  await callTool("write_tokens", { projectId, tokens });
+  await callTool("close_proposal_batch", { projectId });
+};
+
+const batchIdOf = async (
+  proposals: ReturnType<typeof createProposals>,
+  { projectId }: { projectId: string },
+) => {
+  const listed = await proposals.listBatches({ projectId });
+  return listed.ok ? (listed.value[0]?.id ?? "") : "";
+};
+
+describe("validation d'un lot par l'app web, contre la vraie API (ADR 0013 §4, ADR 0044 §6)", () => {
+  it("valider un lot fermé en rejetant une proposition ne valide que les autres tokens", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals, fetch } = await projectOf(app, db);
+      await proposeAndCloseByAi(app, {
+        userId,
+        projectId,
+        tokens: [makeColorToken({ name: "couleur.bleu.500" }), makeColorToken()],
+      });
+      const batchId = await batchIdOf(proposals, { projectId });
+      const [blueId = "", backgroundId = ""] = await proposalIdsOf(proposals, { projectId });
+
+      expect(await proposals.validateBatch({ batchId, rejected: [backgroundId] })).toEqual(
+        ok({ validated: [blueId], rejected: [backgroundId] }),
+      );
+      expect(await validatedNamesOf(fetch, { projectId })).toEqual(["couleur.bleu.500"]);
+    }));
+
+  it("valider un lot encore ouvert donne batch_open", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals } = await projectOf(app, db);
+      await proposeByAi(app, { userId, projectId, tokens: [makeColorToken()] });
+      const batchId = await batchIdOf(proposals, { projectId });
+
+      expect(await proposals.validateBatch({ batchId, rejected: [] })).toEqual(err("batch_open"));
+    }));
+
+  it("rejeter la cible d'une référence donne invalid_batch avec son erreur", () =>
+    withIdentityApp(async (app, db) => {
+      const { userId, projectId, proposals } = await projectOf(app, db);
+      await proposeAndCloseByAi(app, {
+        userId,
+        projectId,
+        tokens: [
+          makeColorToken({ name: "couleur.bleu.500" }),
+          makeColorToken({ $value: "{couleur.bleu.500}" }),
+        ],
+      });
+      const batchId = await batchIdOf(proposals, { projectId });
+      const [blueId = "", semanticId = ""] = await proposalIdsOf(proposals, { projectId });
+
+      expect(await proposals.validateBatch({ batchId, rejected: [blueId] })).toEqual(
+        err({
+          reason: "invalid_batch",
+          errors: [
+            {
+              path: `proposals.${semanticId}.$value`,
+              message: "Référence vers un token non validé",
+            },
+          ],
+        }),
+      );
+    }));
+});

@@ -15,11 +15,13 @@ import { err, ok, type Result } from "@repo/result";
 import type {
   Batch,
   BatchSummary,
+  BatchValidationFailure,
   Decision,
   Proposal,
   ProposalFailure,
   ReviewedProposal,
   ReviewFailure,
+  ValidatedBatch,
 } from "../../domain/proposal.ts";
 import { projectProposals } from "../project-proposals.tsx";
 import { proposalBatchRoute } from "../proposal-batch-route.tsx";
@@ -41,8 +43,14 @@ type ListBatches = (project: {
   readonly projectId: string;
 }) => Promise<Result<readonly BatchSummary[], ProposalFailure>>;
 
+type ValidateBatch = (validation: {
+  readonly batchId: string;
+  readonly rejected: readonly string[];
+}) => Promise<Result<ValidatedBatch, BatchValidationFailure>>;
+
 type Review = {
   readonly reviewProposal?: ReviewProposal;
+  readonly validateBatch?: ValidateBatch;
   readonly onReviewed?: (project: { readonly projectId: string }) => Promise<unknown>;
   readonly listBatches?: ListBatches;
 };
@@ -75,6 +83,7 @@ const renderBatch = async (
   readBatch: ReadBatch,
   {
     reviewProposal = () => new Promise(() => {}),
+    validateBatch = () => new Promise(() => {}),
     onReviewed = () => Promise.resolve(),
     listBatches,
   }: Review = {},
@@ -97,7 +106,7 @@ const renderBatch = async (
   const history = createMemoryHistory({ initialEntries: [`/lots/${BATCH_ID}`] });
   const router = createRouter({
     routeTree: root.addChildren([
-      proposalBatchRoute({ parent: root, readBatch, reviewProposal, onReviewed }),
+      proposalBatchRoute({ parent: root, readBatch, reviewProposal, validateBatch, onReviewed }),
       signIn,
     ]),
     history,
@@ -114,8 +123,9 @@ const renderBatch = async (
 
 type Screen = Awaited<ReturnType<typeof renderBatch>>["screen"];
 
-const proposalItems = (screen: Screen) =>
-  screen.getByRole("list", { name: "Propositions du lot" }).getByRole("listitem");
+const proposalList = (screen: Screen) => screen.getByRole("list", { name: "Propositions du lot" });
+
+const proposalItems = (screen: Screen) => proposalList(screen).getByRole("listitem");
 
 describe("page d'un lot de propositions (ADR 0012 §1, ADR 0044 §6)", () => {
   it("montre l'intention et l'état du lot, et mène aux tokens de son projet", async () => {
@@ -272,7 +282,7 @@ describe("relecture d'une proposition depuis la page du lot (ADR 0012 §1, ADR 0
     await expect
       .element(proposalItems(screen).nth(0).getByRole("button", { name: "Rejeter" }))
       .toBeVisible();
-    expect(screen.getByRole("button").elements()).toHaveLength(2);
+    expect(proposalList(screen).getByRole("button").elements()).toHaveLength(2);
   });
 
   it.each([
@@ -449,6 +459,276 @@ describe("relecture d'une proposition depuis la page du lot (ADR 0012 §1, ADR 0
     });
 
     await proposalItems(screen).nth(0).getByRole("button", { name: "Valider" }).click();
+
+    await expect.element(screen.getByText("Page de connexion")).toBeVisible();
+  });
+});
+
+const SECOND_ID = "3e8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
+
+const makeTwoProposedBatch = (overrides: Partial<Batch> = {}) =>
+  makeBatch({
+    proposals: [makeProposal(), makeProposal({ id: SECOND_ID, name: "couleur.fond.second" })],
+    ...overrides,
+  });
+
+const validateBatchButton = (screen: Screen) =>
+  screen.getByRole("button", { name: "Valider le lot" });
+
+const batchValidationOutcome = (screen: Screen) =>
+  screen.getByRole("region", { name: "Validation du lot" });
+
+describe("validation d'un lot fermé depuis sa page (ADR 0013 §4, ADR 0044 §6)", () => {
+  it("donne une case Rejeter dans le lot aux seules propositions Proposées, et un bouton Valider le lot", async () => {
+    const { screen } = await renderBatch(
+      reading(
+        makeBatch({
+          proposals: [makeProposal(), makeProposal({ id: SECOND_ID, status: "validated" })],
+        }),
+      ),
+    );
+
+    await expect.element(validateBatchButton(screen)).toBeVisible();
+    await expect
+      .element(proposalItems(screen).nth(0).getByRole("checkbox", { name: "Rejeter dans le lot" }))
+      .not.toBeChecked();
+    expect(screen.getByRole("checkbox").elements()).toHaveLength(1);
+  });
+
+  it.each([
+    ["un lot ouvert", makeBatch({ state: "open" })],
+    ["un lot dont l'état est inconnu", makeBatch({ state: "unknown" })],
+    [
+      "un lot sans proposition à relire",
+      makeBatch({ proposals: [makeProposal({ status: "validated" })] }),
+    ],
+  ])("ne propose pas de valider %s", async (_case, batch) => {
+    const { screen } = await renderBatch(reading(batch));
+
+    await expect.element(screen.getByRole("heading")).toBeVisible();
+    expect(screen.getByRole("checkbox").elements()).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Valider le lot" }).elements()).toHaveLength(0);
+  });
+
+  it("envoie le lot avec les seules propositions cochées comme rejetées", async () => {
+    const sent: { batchId: string; rejected: readonly string[] }[] = [];
+    const { screen } = await renderBatch(reading(makeTwoProposedBatch()), {
+      validateBatch: (validation) => {
+        sent.push(validation);
+        return new Promise(() => {});
+      },
+    });
+
+    await proposalItems(screen)
+      .nth(1)
+      .getByRole("checkbox", { name: "Rejeter dans le lot" })
+      .click();
+    await validateBatchButton(screen).click();
+
+    await expect.poll(() => sent).toEqual([{ batchId: BATCH_ID, rejected: [SECOND_ID] }]);
+  });
+
+  it("une case décochée n'est plus rejetée, et les autres le restent", async () => {
+    const sent: { batchId: string; rejected: readonly string[] }[] = [];
+    const { screen } = await renderBatch(reading(makeTwoProposedBatch()), {
+      validateBatch: (validation) => {
+        sent.push(validation);
+        return new Promise(() => {});
+      },
+    });
+    const boxOf = (index: number) =>
+      proposalItems(screen).nth(index).getByRole("checkbox", { name: "Rejeter dans le lot" });
+
+    await boxOf(0).click();
+    await boxOf(1).click();
+    await boxOf(0).click();
+    await validateBatchButton(screen).click();
+
+    await expect.poll(() => sent).toEqual([{ batchId: BATCH_ID, rejected: [SECOND_ID] }]);
+  });
+
+  it("désactive le bouton pendant l'envoi", async () => {
+    const { screen } = await renderBatch(reading(makeTwoProposedBatch()));
+
+    await validateBatchButton(screen).click();
+
+    await expect.element(validateBatchButton(screen)).toBeDisabled();
+  });
+
+  it("après la validation, l'annonce, puis relit le lot, les lots du projet et les tokens du projet", async () => {
+    const { readBatch, reads } = readingInTurn(
+      makeTwoProposedBatch(),
+      makeTwoProposedBatch({
+        proposals: [
+          makeProposal({ status: "validated" }),
+          makeProposal({ id: SECOND_ID, status: "rejected" }),
+        ],
+      }),
+    );
+    const reviewed: string[] = [];
+    const listed = { count: 0 };
+    const { screen } = await renderBatch(readBatch, {
+      validateBatch: () =>
+        Promise.resolve(ok({ validated: [makeProposal().id], rejected: [SECOND_ID] })),
+      onReviewed: ({ projectId }) => {
+        reviewed.push(projectId);
+        return Promise.resolve();
+      },
+      listBatches: () => {
+        listed.count += 1;
+        return Promise.resolve(
+          ok([
+            { id: BATCH_ID, intent: "Palette", state: "closed", toReview: 4 - 2 * listed.count },
+          ]),
+        );
+      },
+    });
+    await expect.element(screen.getByText("2 à relire")).toBeVisible();
+
+    await validateBatchButton(screen).click();
+
+    await expect
+      .element(batchValidationOutcome(screen))
+      .toHaveTextContent("Lot validé : 1 validées, 1 rejetées.");
+    await expect
+      .element(proposalItems(screen).nth(1).getByText("Rejetée", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText("0 à relire")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Valider le lot" }).elements()).toHaveLength(0);
+    expect(reads.count).toBe(2);
+    expect(reviewed).toEqual([PROJECT_ID]);
+  });
+
+  it("un lot rouvert entre-temps l'annonce, puis relit le lot", async () => {
+    const { readBatch, reads } = readingInTurn(
+      makeTwoProposedBatch(),
+      makeTwoProposedBatch({ state: "open" }),
+    );
+    const { screen } = await renderBatch(readBatch, {
+      validateBatch: () => Promise.resolve(err("batch_open")),
+    });
+
+    await validateBatchButton(screen).click();
+
+    await expect
+      .element(batchValidationOutcome(screen).getByRole("alert"))
+      .toHaveTextContent("Ce lot est encore ouvert : l'IA peut encore y écrire.");
+    await expect.element(screen.getByText("Ouvert", { exact: true })).toBeVisible();
+    expect(reads.count).toBe(2);
+  });
+
+  it("un lot invalide liste ses erreurs avec le nom de chaque proposition, sans relire le lot", async () => {
+    const { readBatch, reads } = readingInTurn(makeTwoProposedBatch());
+    const reviewed: string[] = [];
+    const unknownId = "7c8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
+    const { screen } = await renderBatch(readBatch, {
+      validateBatch: () =>
+        Promise.resolve(
+          err({
+            reason: "invalid_batch",
+            errors: [
+              {
+                path: `proposals.${makeProposal().id}.$value`,
+                message: "Référence vers un token non validé",
+              },
+              { path: `proposals.${SECOND_ID}.name`, message: "Nom déjà pris dans le projet" },
+              { path: `proposals.${unknownId}.name`, message: "Nom déjà pris dans le projet" },
+            ],
+          }),
+        ),
+      onReviewed: ({ projectId }) => {
+        reviewed.push(projectId);
+        return Promise.resolve();
+      },
+    });
+
+    await validateBatchButton(screen).click();
+
+    const alert = batchValidationOutcome(screen).getByRole("alert");
+    await expect.element(alert).toHaveTextContent("Ce lot est invalide :");
+    await expect
+      .element(alert.getByRole("listitem").nth(0))
+      .toHaveTextContent("couleur.fond.primaire · $value : Référence vers un token non validé");
+    await expect
+      .element(alert.getByRole("listitem").nth(1))
+      .toHaveTextContent("couleur.fond.second · name : Nom déjà pris dans le projet");
+    await expect
+      .element(alert.getByRole("listitem").nth(2))
+      .toHaveTextContent(`proposals.${unknownId}.name : Nom déjà pris dans le projet`);
+    await expect.element(validateBatchButton(screen)).toBeEnabled();
+    expect(reads.count).toBe(1);
+    expect(reviewed).toEqual([]);
+  });
+
+  it("montre tel quel un chemin qui ne désigne pas une proposition", async () => {
+    const { screen } = await renderBatch(reading(makeTwoProposedBatch()), {
+      validateBatch: () =>
+        Promise.resolve(
+          err({
+            reason: "invalid_batch",
+            errors: [{ path: "rejected.1", message: "Proposition hors du lot" }],
+          }),
+        ),
+    });
+
+    await validateBatchButton(screen).click();
+
+    await expect
+      .element(batchValidationOutcome(screen).getByRole("alert").getByRole("listitem"))
+      .toHaveTextContent("rejected.1 : Proposition hors du lot");
+  });
+
+  it("montre deux erreurs sur le même champ du lot, sans que React confonde leurs lignes", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const path = `proposals.${SECOND_ID}.name`;
+    const { screen } = await renderBatch(reading(makeTwoProposedBatch()), {
+      validateBatch: () =>
+        Promise.resolve(
+          err({
+            reason: "invalid_batch",
+            errors: [
+              { path, message: "Nom déjà pris dans le projet" },
+              { path, message: "Nom en conflit de groupe avec le token couleur" },
+            ],
+          }),
+        ),
+    });
+
+    await validateBatchButton(screen).click();
+
+    const alert = batchValidationOutcome(screen).getByRole("alert");
+    await expect
+      .element(alert.getByRole("listitem").nth(1))
+      .toHaveTextContent(
+        "couleur.fond.second · name : Nom en conflit de groupe avec le token couleur",
+      );
+    expect(alert.getByRole("listitem").elements()).toHaveLength(2);
+    expect(consoleError.mock.calls.flat().join(" ")).not.toContain("same key");
+    consoleError.mockRestore();
+  });
+
+  it.each([
+    ["not_found", "Ce lot est introuvable."],
+    ["unavailable", "La validation du lot est indisponible pour le moment."],
+    ["invalid_response", "La validation du lot est indisponible pour le moment."],
+  ] as const)("annonce l'échec %s de la validation", async (failure, message) => {
+    const { screen } = await renderBatch(reading(makeTwoProposedBatch()), {
+      validateBatch: () => Promise.resolve(err(failure)),
+    });
+
+    await validateBatchButton(screen).click();
+
+    await expect
+      .element(batchValidationOutcome(screen).getByRole("alert"))
+      .toHaveTextContent(message);
+  });
+
+  it("renvoie vers la connexion quand la session expire avant la validation", async () => {
+    const { screen } = await renderBatch(reading(makeTwoProposedBatch()), {
+      validateBatch: () => Promise.resolve(err("unauthenticated")),
+    });
+
+    await validateBatchButton(screen).click();
 
     await expect.element(screen.getByText("Page de connexion")).toBeVisible();
   });
