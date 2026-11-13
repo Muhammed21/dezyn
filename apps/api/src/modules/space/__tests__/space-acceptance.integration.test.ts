@@ -18,7 +18,7 @@ import {
   switchToTeam,
   tokenOf,
 } from "#testing/space-fixtures.ts";
-import { MySpaceOutput } from "@repo/contracts";
+import { AlreadyMemberProblem, EmailMismatchProblem, MySpaceOutput } from "@repo/contracts";
 import { schema } from "@repo/db";
 
 const PLAN_REQUIRED = "https://dezyn.dev/problems/plan-required";
@@ -183,8 +183,8 @@ describe("l'invité accepte l'invitation et devient éditeur (ADR 0011 §4, ADR 
         const response = await accept(app, { accessToken: grace.accessToken, token });
 
         expect(response.status).toBe(403);
-        expect(await response.json()).toMatchObject({
-          type: "about:blank",
+        expect(EmailMismatchProblem.parse(await response.json())).toMatchObject({
+          type: "https://dezyn.dev/problems/email-mismatch",
           title: "Invitation adressée à un autre email",
           status: 403,
         });
@@ -225,8 +225,8 @@ describe("l'invité accepte l'invitation et devient éditeur (ADR 0011 §4, ADR 
         const response = await accept(app, { accessToken: grace.accessToken, token });
 
         expect(response.status).toBe(409);
-        expect(await response.json()).toMatchObject({
-          type: "about:blank",
+        expect(AlreadyMemberProblem.parse(await response.json())).toMatchObject({
+          type: "https://dezyn.dev/problems/already-member",
           title: "Déjà membre de l'espace",
           status: 409,
         });

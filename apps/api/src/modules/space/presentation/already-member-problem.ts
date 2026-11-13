@@ -4,4 +4,8 @@ import type { MemberEnv } from "#platform/member-identity.ts";
 import { problemResponse } from "#platform/problem.ts";
 
 export const alreadyMemberProblem = (c: Context<MemberEnv>) =>
-  problemResponse(c, { type: "about:blank", title: "Déjà membre de l'espace", status: 409 });
+  problemResponse(c, {
+    type: "https://dezyn.dev/problems/already-member",
+    title: "Déjà membre de l'espace",
+    status: 409,
+  });
