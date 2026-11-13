@@ -18,6 +18,7 @@ import {
   switchToTeam,
   tokenOf,
 } from "#testing/space-fixtures.ts";
+import { MySpaceOutput } from "@repo/contracts";
 import { schema } from "@repo/db";
 
 const PLAN_REQUIRED = "https://dezyn.dev/problems/plan-required";
@@ -100,7 +101,7 @@ describe("l'invité accepte l'invitation et devient éditeur (ADR 0011 §4, ADR 
         const response = await accept(app, { accessToken: grace.accessToken, token });
 
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({
+        expect(MySpaceOutput.parse(await response.json())).toEqual({
           id: spaceId,
           name: ADA.name,
           plan: "team",

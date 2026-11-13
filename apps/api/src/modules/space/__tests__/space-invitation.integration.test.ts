@@ -13,6 +13,7 @@ import {
   switchToTeam,
   tokenOf,
 } from "#testing/space-fixtures.ts";
+import { SentInvitationOutput } from "@repo/contracts";
 import { schema } from "@repo/db";
 import { err } from "@repo/result";
 
@@ -30,7 +31,7 @@ describe("un propriétaire d'un espace Team invite un éditeur par email (ADR 00
         const before = Date.now();
 
         const response = await invite(app, { accessToken, spaceId });
-        const body = await response.json();
+        const body = SentInvitationOutput.parse(await response.json());
         const stored = await db.orm
           .select({ tokenHash: schema.spaceInvitation.tokenHash })
           .from(schema.spaceInvitation);
