@@ -28,6 +28,7 @@ export const makeAuth = (overrides: Partial<Auth> = {}): Auth => ({
 export const makeSpaces = (): SpaceUseCases => ({
   listMySpaces: () => Promise.resolve([]),
   readSpace: () => Promise.resolve(err("not_found")),
+  listMembers: () => Promise.resolve(err("not_found")),
   inviteMember: () => Promise.resolve(err("not_found")),
   acceptInvitation: () => Promise.resolve(err("gone")),
   leaveSpace: () => Promise.resolve(err("not_found")),

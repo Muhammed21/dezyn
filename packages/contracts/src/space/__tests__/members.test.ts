@@ -6,6 +6,7 @@ import {
   EmailMismatchProblem,
   checkOutputSchema,
   LastOwnerProblem,
+  MembersOutput,
   SelfRemovalProblem,
   SentInvitationOutput,
 } from "../../index.ts";
@@ -159,6 +160,37 @@ describe("refus « invitation adressée à un autre email » (ADR 0011)", () => 
   });
 });
 
+const makeMember = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  userId: MEMBER_ID,
+  name: "Grace Hopper",
+  email: "grace@dezyn.dev",
+  role: "editor",
+  ...overrides,
+});
+
+describe("membres d'un espace (ADR 0017 §1)", () => {
+  it("lit chaque membre avec son nom, son email et son rôle", () => {
+    const members = { members: [makeMember({ role: "owner" }), makeMember()] };
+
+    expect(MembersOutput.parse(members)).toEqual(members);
+  });
+
+  it("garde un rôle ajouté plus tard par le serveur (ADR 0023 §2)", () => {
+    expect(
+      MembersOutput.parse({ members: [makeMember({ role: "viewer" })] }).members[0]?.role,
+    ).toBe("viewer");
+  });
+
+  it.each([
+    ["un membre qui n'est pas un UUID", { userId: "grace" }],
+    ["un membre sans nom", { name: undefined }],
+    ["un membre sans email", { email: undefined }],
+    ["un membre sans rôle", { role: undefined }],
+  ])("refuse %s", (_case, overrides) => {
+    expect(MembersOutput.safeParse({ members: [makeMember(overrides)] }).success).toBe(false);
+  });
+});
+
 describe("conventions de sortie des membres et des invitations (ADR 0023 §4)", () => {
   it.each([
     ["SentInvitationOutput", SentInvitationOutput],
@@ -167,6 +199,7 @@ describe("conventions de sortie des membres et des invitations (ADR 0023 §4)", 
     ["SelfRemovalProblem", SelfRemovalProblem],
     ["AlreadyMemberProblem", AlreadyMemberProblem],
     ["EmailMismatchProblem", EmailMismatchProblem],
+    ["MembersOutput", MembersOutput],
   ])("%s les respecte", (name, schema) => {
     expect(checkOutputSchema(name, schema)).toEqual([]);
   });

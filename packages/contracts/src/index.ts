@@ -8,6 +8,7 @@ export {
   ChangedRoleOutput,
   EmailMismatchProblem,
   LastOwnerProblem,
+  MembersOutput,
   SelfRemovalProblem,
   SentInvitationOutput,
 } from "./space/members.ts";

@@ -75,6 +75,7 @@ const removalProblem = (c: Context<MemberEnv>, failure: RemovalFailure) => {
 export const spacesRoutes = ({
   listMySpaces,
   readSpace,
+  listMembers,
   inviteMember,
   leaveSpace,
   changeRole,
@@ -89,6 +90,14 @@ export const spacesRoutes = ({
       }
       const space = await readSpace({ spaceId, userId: c.get("identity").userId });
       return space.ok ? c.json(space.value) : c.notFound();
+    })
+    .get("/:spaceId/members", async (c) => {
+      const spaceId = spaceIdOf(c);
+      if (spaceId === undefined) {
+        return c.notFound();
+      }
+      const members = await listMembers({ spaceId, userId: c.get("identity").userId });
+      return members.ok ? c.json({ members: members.value }) : c.notFound();
     })
     .post("/:spaceId/invitations", validate("json", InvitationRequest), async (c) => {
       const spaceId = spaceIdOf(c);

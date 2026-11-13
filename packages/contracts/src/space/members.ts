@@ -37,3 +37,14 @@ export const EmailMismatchProblem = z.looseObject({
   title: z.string(),
   status: z.literal(403),
 });
+
+export const MembersOutput = z.looseObject({
+  members: z.array(
+    z.looseObject({
+      userId: Uuid,
+      name: z.string(),
+      email: z.string(),
+      role: openEnum(ROLES),
+    }),
+  ),
+});
