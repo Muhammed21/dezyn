@@ -13,6 +13,7 @@ import { createProjects } from "./modules/project/project-module.ts";
 import { projectProposals } from "./modules/proposal/presentation/project-proposals.tsx";
 import { proposalBatchRoute } from "./modules/proposal/presentation/proposal-batch-route.tsx";
 import { createProposals } from "./modules/proposal/proposal-module.ts";
+import { invitationRoute } from "./modules/space/presentation/invitation-route.tsx";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
 import { createSpaces } from "./modules/space/space-module.ts";
 import {
@@ -47,6 +48,7 @@ const appRouter = ({
         signOut: identity.signOut,
       }),
       signInRoute({ parent: root, signIn: identity.signIn }),
+      invitationRoute({ parent: root, acceptInvitation: spaces.acceptInvitation }),
       signUpRoute({ parent: root, signUp: identity.signUp }),
       spaceProjectsRoute({
         parent: root,
