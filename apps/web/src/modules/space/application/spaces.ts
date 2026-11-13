@@ -12,4 +12,5 @@ export const spaceUseCases = ({ gateway }: { readonly gateway: SpaceGateway }) =
     readonly spaceId: string;
   }): Promise<Result<Space, SpaceFailure>> =>
     Uuid.safeParse(spaceId).success ? gateway.readSpace({ spaceId }) : err("not_found"),
+  acceptInvitation: ({ token }: { readonly token: string }) => gateway.acceptInvitation({ token }),
 });

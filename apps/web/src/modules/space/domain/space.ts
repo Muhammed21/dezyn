@@ -29,6 +29,15 @@ export type Space = {
 
 export type SpaceFailure = "unauthenticated" | "not_found" | "unavailable" | "invalid_response";
 
+export type AcceptanceFailure =
+  | "unauthenticated"
+  | "gone"
+  | "email_mismatch"
+  | "already_member"
+  | "plan_required"
+  | "unavailable"
+  | "invalid_response";
+
 export const planOf = (value: string): Plan => PLANS.find((plan) => plan === value) ?? "unknown";
 
 export const roleOf = (value: string): Role => ROLES.find((role) => role === value) ?? "unknown";

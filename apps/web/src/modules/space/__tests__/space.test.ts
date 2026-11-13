@@ -211,3 +211,77 @@ describe("lecture d'un espace du membre dans l'app web (ADR 0044 §5)", () => {
     expect(await spaces.readSpace({ spaceId: SPACE_ID })).toEqual(err("invalid_response"));
   });
 });
+
+const TOKEN = "q3Zt8kV0yXlN2mB7cR4wE1sD6fG9hJ5aL0pO3iU8tYk";
+
+const problem = (body: Readonly<Record<string, unknown>>, status: number) =>
+  json({ title: "Refus", status, ...body }, status);
+
+describe("acceptation d'une invitation dans l'app web (ADR 0011, ADR 0044 §6)", () => {
+  it("envoie l'acceptation du jeton à l'API avec le cookie du navigateur", async () => {
+    const { spaces, calls } = answering(json(makeSpace({ role: "editor" })));
+
+    await spaces.acceptInvitation({ token: TOKEN });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/v1/invitations/${TOKEN}/accept`,
+        init: { method: "POST", credentials: "include" },
+      },
+    ]);
+  });
+
+  it("donne l'espace rejoint avec le rôle du membre et ses actions permises", async () => {
+    const { spaces } = answering(
+      json(makeSpace({ plan: "team", role: "editor", allowedActions: ["space.read"] })),
+    );
+
+    expect(await spaces.acceptInvitation({ token: TOKEN })).toEqual(
+      ok({
+        id: makeSpace().id,
+        name: "Studio Ada",
+        plan: "team",
+        role: "editor",
+        allowedActions: ["space.read"],
+      }),
+    );
+  });
+
+  it.each([
+    ["gone", problem({ type: "about:blank" }, 410)],
+    ["email_mismatch", problem({ type: "https://dezyn.dev/problems/email-mismatch" }, 403)],
+    ["already_member", problem({ type: "https://dezyn.dev/problems/already-member" }, 409)],
+    [
+      "plan_required",
+      problem({ type: "https://dezyn.dev/problems/plan-required", requiredPlan: "team" }, 403),
+    ],
+    ["unauthenticated", json({}, 401)],
+    ["unavailable", json({}, 500)],
+    ["unavailable", json({}, 429)],
+  ] as const)("donne %s", async (failure, response) => {
+    const { spaces } = answering(response);
+
+    expect(await spaces.acceptInvitation({ token: TOKEN })).toEqual(err(failure));
+  });
+
+  it.each([
+    ["un 403 sans type connu", problem({ type: "about:blank" }, 403)],
+    ["un 409 sans type connu", problem({ type: "about:blank" }, 409)],
+    ["un 403 qui n'est pas du JSON", () => new Response("<html>", { status: 403 })],
+    ["un 404", json({}, 404)],
+    ["un espace rejoint sans rôle", json(makeSpace({ role: undefined }))],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { spaces } = answering(response);
+
+    expect(await spaces.acceptInvitation({ token: TOKEN })).toEqual(err("invalid_response"));
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const spaces = createSpaces({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(await spaces.acceptInvitation({ token: TOKEN })).toEqual(err("unavailable"));
+  });
+});
