@@ -15,13 +15,22 @@ import { proposalBatchRoute } from "./modules/proposal/presentation/proposal-bat
 import { createProposals } from "./modules/proposal/proposal-module.ts";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
 import { createSpaces } from "./modules/space/space-module.ts";
-import { projectTokensRoute } from "./modules/token/presentation/project-tokens-route.tsx";
+import {
+  projectTokensRoute,
+  refreshProjectTokens,
+} from "./modules/token/presentation/project-tokens-route.tsx";
 import { createTokens } from "./modules/token/token-module.ts";
 import { configOf } from "./platform/config.ts";
 
 const fetchFromBrowser = (url: string, init: RequestInit) => window.fetch(url, init);
 
-const appRouter = (apiUrl: string) => {
+const appRouter = ({
+  apiUrl,
+  queryClient,
+}: {
+  readonly apiUrl: string;
+  readonly queryClient: QueryClient;
+}) => {
   const identity = createIdentity({ apiUrl, fetch: fetchFromBrowser });
   const spaces = createSpaces({ apiUrl, fetch: fetchFromBrowser });
   const projects = createProjects({ apiUrl, fetch: fetchFromBrowser });
@@ -51,7 +60,12 @@ const appRouter = (apiUrl: string) => {
         ProjectProposals: projectProposals({ listBatches: proposals.listBatches }),
       }),
       projectHistoryRoute({ parent: root, readHistory: projectHistory.readHistory }),
-      proposalBatchRoute({ parent: root, readBatch: proposals.readBatch }),
+      proposalBatchRoute({
+        parent: root,
+        readBatch: proposals.readBatch,
+        reviewProposal: proposals.reviewProposal,
+        onReviewed: refreshProjectTokens(queryClient),
+      }),
     ]),
   });
 };
@@ -62,6 +76,7 @@ const config = configOf({
   dev: import.meta.env.DEV,
 });
 const container = document.getElementById("root");
+const queryClient = new QueryClient();
 
 if (config.kind === "redirect") {
   window.location.replace(config.to);
@@ -69,8 +84,8 @@ if (config.kind === "redirect") {
   createRoot(container).render(
     <StrictMode>
       {config.kind === "ready" ? (
-        <QueryClientProvider client={new QueryClient()}>
-          <RouterProvider router={appRouter(config.apiUrl)} />
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={appRouter({ apiUrl: config.apiUrl, queryClient })} />
         </QueryClientProvider>
       ) : (
         <p role="alert">{config.message}</p>

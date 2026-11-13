@@ -31,3 +31,14 @@ export type Batch = {
 };
 
 export type ProposalFailure = "unauthenticated" | "not_found" | "unavailable" | "invalid_response";
+
+export type Decision = "validate" | "reject";
+
+export type ReviewedProposal = Pick<Proposal, "id" | "name" | "kind" | "status">;
+
+export type ProposalError = { readonly path: string; readonly message: string };
+
+export type ReviewFailure =
+  | ProposalFailure
+  | "already_reviewed"
+  | { readonly reason: "invalid_proposal"; readonly errors: readonly ProposalError[] };

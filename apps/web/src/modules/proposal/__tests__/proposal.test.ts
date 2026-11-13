@@ -270,3 +270,134 @@ describe("lecture d'un lot de propositions dans l'app web (ADR 0044 §6)", () =>
     expect(await proposals.readBatch({ batchId: BATCH_ID })).toEqual(err("invalid_response"));
   });
 });
+
+const PROPOSAL_ID = "2d8f3c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b";
+
+const makeReviewedOutput = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  id: PROPOSAL_ID,
+  name: "couleur.fond.primaire",
+  kind: "create",
+  status: "validated",
+  ...overrides,
+});
+
+const problem = (body: Readonly<Record<string, unknown>>, status = 409) =>
+  json({ title: "Refus", status, ...body }, status);
+
+describe("relecture d'une proposition dans l'app web (ADR 0012 §1, ADR 0044 §6)", () => {
+  it.each(["validate", "reject"] as const)(
+    "envoie la décision %s à l'API avec le cookie du navigateur",
+    async (decision) => {
+      const { proposals, calls } = answering(json(makeReviewedOutput()));
+
+      await proposals.reviewProposal({ proposalId: PROPOSAL_ID, decision });
+
+      expect(calls).toEqual([
+        {
+          url: `${API_URL}/v1/proposals/${PROPOSAL_ID}/${decision}`,
+          init: { method: "POST", credentials: "include" },
+        },
+      ]);
+    },
+  );
+
+  it("donne la proposition relue avec son nouveau statut", async () => {
+    const { proposals } = answering(
+      json(makeReviewedOutput({ kind: "update", status: "rejected" })),
+    );
+
+    expect(await proposals.reviewProposal({ proposalId: PROPOSAL_ID, decision: "reject" })).toEqual(
+      ok({ id: PROPOSAL_ID, name: "couleur.fond.primaire", kind: "update", status: "rejected" }),
+    );
+  });
+
+  it("garde une nature et un statut que l'app ne connaît pas (ADR 0023 §2)", async () => {
+    const { proposals } = answering(
+      json(makeReviewedOutput({ kind: "delete", status: "archived" })),
+    );
+
+    const reviewed = await proposals.reviewProposal({
+      proposalId: PROPOSAL_ID,
+      decision: "validate",
+    });
+
+    expect(reviewed.ok && [reviewed.value.kind, reviewed.value.status]).toEqual([
+      "unknown",
+      "unknown",
+    ]);
+  });
+
+  it("donne not_found pour un identifiant qui n'est pas un UUID, sans appeler l'API", async () => {
+    const { proposals, calls } = answering(json(makeReviewedOutput()));
+
+    expect(
+      await proposals.reviewProposal({ proposalId: "proposition-1", decision: "validate" }),
+    ).toEqual(err("not_found"));
+    expect(calls).toEqual([]);
+  });
+
+  it("donne already_reviewed pour une proposition déjà relue", async () => {
+    const { proposals } = answering(
+      problem({ type: "https://dezyn.dev/problems/already-reviewed" }),
+    );
+
+    expect(
+      await proposals.reviewProposal({ proposalId: PROPOSAL_ID, decision: "validate" }),
+    ).toEqual(err("already_reviewed"));
+  });
+
+  it("donne invalid_proposal avec chaque erreur de la proposition", async () => {
+    const errors = [
+      { path: "name", message: "Nom déjà pris dans le projet" },
+      { path: "$value", message: "Référence vers un token non validé" },
+    ];
+    const { proposals } = answering(
+      problem({ type: "https://dezyn.dev/problems/invalid-proposal", errors }),
+    );
+
+    expect(
+      await proposals.reviewProposal({ proposalId: PROPOSAL_ID, decision: "validate" }),
+    ).toEqual(err({ reason: "invalid_proposal", errors }));
+  });
+
+  it.each([
+    ["un 409 d'un autre type", problem({ type: "about:blank" })],
+    [
+      "une proposition invalide sans erreurs",
+      problem({ type: "https://dezyn.dev/problems/invalid-proposal" }),
+    ],
+    ["un 409 qui n'est pas du JSON", () => new Response("<html>", { status: 409 })],
+    ["un refus d'origine", problem({ type: "about:blank" }, 403)],
+    ["une proposition relue sans statut", json(makeReviewedOutput({ status: undefined }))],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { proposals } = answering(response);
+
+    expect(
+      await proposals.reviewProposal({ proposalId: PROPOSAL_ID, decision: "validate" }),
+    ).toEqual(err("invalid_response"));
+  });
+
+  it.each([
+    [401, "unauthenticated"],
+    [404, "not_found"],
+    [500, "unavailable"],
+    [429, "unavailable"],
+  ] as const)("donne, sur une réponse %i, %s", async (status, failure) => {
+    const { proposals } = answering(json({}, status));
+
+    expect(await proposals.reviewProposal({ proposalId: PROPOSAL_ID, decision: "reject" })).toEqual(
+      err(failure),
+    );
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const proposals = createProposals({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(
+      await proposals.reviewProposal({ proposalId: PROPOSAL_ID, decision: "validate" }),
+    ).toEqual(err("unavailable"));
+  });
+});

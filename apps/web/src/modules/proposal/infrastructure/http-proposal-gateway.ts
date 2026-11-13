@@ -1,6 +1,12 @@
 import type { z } from "zod";
 
-import { ProposalBatchesOutput, ProposalBatchOutput } from "@repo/contracts";
+import {
+  AlreadyReviewedProblem,
+  InvalidProposalProblem,
+  ProposalBatchesOutput,
+  ProposalBatchOutput,
+  ReviewedProposalOutput,
+} from "@repo/contracts";
 import { err, ok, type Result } from "@repo/result";
 
 import { failureOf, type Fetch, parseJson, send } from "../../../platform/http.ts";
@@ -12,11 +18,13 @@ import type {
   ProposalFailure,
   ProposalKind,
   ProposalStatus,
+  ReviewFailure,
 } from "../domain/proposal.ts";
 
 const OK = 200;
 const UNAUTHORIZED = 401;
 const NOT_FOUND = 404;
+const CONFLICT = 409;
 
 type BatchSummaryOutput = z.infer<typeof ProposalBatchesOutput>["batches"][number];
 
@@ -73,6 +81,33 @@ const read = async <Body>(
   return parseJson(response, schema);
 };
 
+const conflictOf = async (response: Response): Promise<ReviewFailure> => {
+  const body: unknown = await response.json().catch(() => undefined);
+  if (AlreadyReviewedProblem.safeParse(body).success) {
+    return "already_reviewed";
+  }
+  const invalid = InvalidProposalProblem.safeParse(body);
+  return invalid.success
+    ? {
+        reason: "invalid_proposal",
+        errors: invalid.data.errors.map(({ path, message }) => ({ path, message })),
+      }
+    : "invalid_response";
+};
+
+const reviewRefusalOf = async (response: Response): Promise<ReviewFailure> => {
+  if (response.status === UNAUTHORIZED) {
+    return "unauthenticated";
+  }
+  if (response.status === NOT_FOUND) {
+    return "not_found";
+  }
+  if (response.status === CONFLICT) {
+    return conflictOf(response);
+  }
+  return failureOf(response);
+};
+
 export const createHttpProposalGateway = ({
   apiUrl,
   fetch,
@@ -101,5 +136,23 @@ export const createHttpProposalGateway = ({
       state: stateOf(state),
       proposals: proposals.map(proposalOf),
     });
+  },
+  reviewProposal: async ({ proposalId, decision }) => {
+    const sent = await send(fetch, `${apiUrl}/v1/proposals/${proposalId}/${decision}`, {
+      method: "POST",
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    const response = sent.value;
+    if (response.status !== OK) {
+      return err(await reviewRefusalOf(response));
+    }
+    const body = await parseJson(response, ReviewedProposalOutput);
+    if (!body.ok) {
+      return body;
+    }
+    const { id, name, kind, status } = body.value;
+    return ok({ id, name, kind: kindOf(kind), status: statusOf(status) });
   },
 });
