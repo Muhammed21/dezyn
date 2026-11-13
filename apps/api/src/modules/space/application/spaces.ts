@@ -11,12 +11,16 @@ import {
 } from "../domain/space.ts";
 import type { InvitationFailure, SentInvitation } from "./invite-member.ts";
 import type { DepartureFailure } from "./leave-space.ts";
+import type { SpaceMember } from "./list-members.ts";
 import type { RemovalFailure, RoleChangeFailure } from "./manage-members.ts";
 import type { MembershipKey } from "./membership-reader.ts";
 
 export type SpaceUseCases = {
   readonly listMySpaces: (userId: string) => Promise<readonly MySpace[]>;
   readonly readSpace: (key: MembershipKey) => Promise<Result<MySpace, "not_found">>;
+  readonly listMembers: (
+    key: MembershipKey,
+  ) => Promise<Result<readonly SpaceMember[], "not_found">>;
   readonly inviteMember: (request: {
     readonly spaceId: string;
     readonly userId: string;

@@ -15,3 +15,10 @@ export const StoredMembership = z.object({
   userId: z.string(),
   role: StoredRole,
 });
+
+export const StoredMember = z.object({
+  userId: z.string(),
+  name: z.string(),
+  email: z.string(),
+  role: StoredRole,
+});

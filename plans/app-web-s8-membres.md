@@ -25,7 +25,7 @@ Un propriétaire invite, change un rôle ou retire un membre depuis l'app web, e
   - 409 `https://dezyn.dev/problems/last-owner`.
 - `DELETE /v1/spaces/:spaceId/members/:memberId` : 204, permis par `member.manage`.
   - 409 `https://dezyn.dev/problems/self-removal`.
-- La liste des membres d'un espace arrive avec la tranche 2.
+- `GET /v1/spaces/:spaceId/members` : `{ members: [{ userId, name, email, role }] }`, par ordre d'arrivée, permis par `space.read`.
 
 ## Critères d'acceptation
 
@@ -49,7 +49,7 @@ Chaque tranche suit RED, GREEN, MUTATE, KILL MUTANTS, REFACTOR. Une PR par tranc
 ### Tranche 2 : l'API liste les membres d'un espace
 
 **Valeur** : l'app sait qui changer de rôle ou retirer.
-**Chemin** : `GET /v1/spaces/:spaceId/members` → `{ members: [{ userId, email, role }] }`, permis par `space.read`.
+**Chemin** : `GET /v1/spaces/:spaceId/members` → `{ members: [{ userId, name, email, role }] }`, permis par `space.read`.
 
 ### Tranche 3 : un invité accepte son invitation
 
@@ -91,6 +91,7 @@ Chaque tranche suit RED, GREEN, MUTATE, KILL MUTANTS, REFACTOR. Une PR par tranc
 
 - Un éditeur qui invite reçoit 403 « Accès refusé » : le web le lit en `forbidden`, et le critère « `not_found` » de #210 devient `forbidden`.
 - La liste des membres est permise par `space.read` : un éditeur voit aussi les membres.
+- La liste suit l'arrivée dans l'adhésion en cours : un changement de rôle ne déplace pas un membre, un retour après un retrait le place à sa date de retour.
 - Les refus qui partagent un statut reçoivent un `type` propre, comme dans S6.
 
 ---
