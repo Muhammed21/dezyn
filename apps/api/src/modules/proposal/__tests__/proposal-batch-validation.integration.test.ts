@@ -19,7 +19,7 @@ import {
   PRIMARY_BLUE,
   seedValidatedToken,
 } from "#testing/token-fixtures.ts";
-import { ValidatedBatchOutput } from "@repo/contracts";
+import { BatchOpenProblem, InvalidBatchProblem, ValidatedBatchOutput } from "@repo/contracts";
 
 import { postgresProposalStore } from "../infrastructure/postgres-proposals.ts";
 
@@ -108,8 +108,8 @@ describe("seul un lot fermé se valide en entier (ADR 0013 §4)", () => {
 
       expect(response.status).toBe(409);
       expect(response.headers.get("content-type")).toContain("application/problem+json");
-      expect(await response.json()).toMatchObject({
-        type: "about:blank",
+      expect(BatchOpenProblem.parse(await response.json())).toMatchObject({
+        type: "https://dezyn.dev/problems/batch-open",
         title: "Lot ouvert",
         status: 409,
       });
@@ -498,8 +498,8 @@ describe("un lot se valide cibles d'abord, et tout ou rien", () => {
       });
 
       expect(response.status).toBe(409);
-      expect(await response.json()).toMatchObject({
-        type: "about:blank",
+      expect(InvalidBatchProblem.parse(await response.json())).toMatchObject({
+        type: "https://dezyn.dev/problems/invalid-batch",
         title: "Lot invalide",
         status: 409,
         errors: [

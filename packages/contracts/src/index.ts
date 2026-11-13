@@ -9,6 +9,8 @@ export { HistoryOutput } from "./history/history.ts";
 export {
   AlreadyReviewedProblem,
   BATCH_STATES,
+  BatchOpenProblem,
+  InvalidBatchProblem,
   InvalidProposalProblem,
   PROPOSAL_KINDS,
   PROPOSAL_STATUSES,

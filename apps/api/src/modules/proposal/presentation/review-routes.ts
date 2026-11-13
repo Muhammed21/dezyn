@@ -66,7 +66,7 @@ const batchProblemOf = (
   rejected: readonly string[],
 ): Problem => {
   if (failure === "batch_open") {
-    return { type: "about:blank", title: "Lot ouvert", status: 409 };
+    return { type: "https://dezyn.dev/problems/batch-open", title: "Lot ouvert", status: 409 };
   }
   if (failure.code === "unknown_propositions") {
     return invalidRequest(
@@ -78,7 +78,7 @@ const batchProblemOf = (
     );
   }
   return {
-    type: "about:blank",
+    type: "https://dezyn.dev/problems/invalid-batch",
     title: "Lot invalide",
     status: 409,
     errors: issuesOfCheck(failure.failure).map(({ path, message }) => ({

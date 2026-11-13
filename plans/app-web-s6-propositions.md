@@ -17,8 +17,8 @@ Un éditeur valide ou rejette depuis l'app web une proposition écrite par l'IA,
   - 409 « Proposition déjà relue » (`https://dezyn.dev/problems/already-reviewed`).
   - 409 « Proposition invalide » avec `errors` (`https://dezyn.dev/problems/invalid-proposal`).
 - `POST /v1/proposal-batches/:batchId/validate` `{ rejected: [uuid] }` : `{ id, state: "closed", validated, rejected }`.
-  - 409 « Lot ouvert ».
-  - 409 « Lot invalide » avec `errors`.
+  - 409 « Lot ouvert » (`https://dezyn.dev/problems/batch-open`).
+  - 409 « Lot invalide » avec `errors` (`https://dezyn.dev/problems/invalid-batch`).
   - 400 pour une proposition hors du lot.
 - Le contrôle d'`Origin` couvre déjà toute écriture par cookie sur `/v1` (S2).
 - `kind` vaut `create` ou `update` ; les suppressions de l'ADR 0026 arrivent avec leur propre chantier.
@@ -61,9 +61,15 @@ Chaque tranche suit RED, GREEN, MUTATE, KILL MUTANTS, REFACTOR. Une PR par tranc
 **Valeur** : la relecture une par une, cœur de l'ADR 0012.
 **Chemin** : `reviewProposal` du module `proposal` → écriture par cookie avec `Origin` → les tokens du projet sont relus.
 
+### Tranche 4 bis : les deux 409 de la validation d'un lot ont leur propre `type`
+
+**Valeur** : le web distingue « lot ouvert » de « lot invalide » sans lire le titre.
+**Chemin** : `review-routes.ts` répond `https://dezyn.dev/problems/batch-open` et `https://dezyn.dev/problems/invalid-batch`.
+
 ### Tranche 4 : un éditeur valide un lot fermé en rejetant certaines propositions
 
-Selon la question 2.
+**Valeur** : l'éditeur relit un lot entier d'un seul envoi (ADR 0013 §4).
+**Chemin** : `validateBatch` du module `proposal` → `POST /v1/proposal-batches/:batchId/validate` avec les propositions rejetées → le lot, les lots et les tokens du projet sont relus.
 
 ## Hors périmètre
 
