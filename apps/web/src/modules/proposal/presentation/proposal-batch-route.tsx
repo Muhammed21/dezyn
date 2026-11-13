@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type AnyRootRoute, createRoute, Link, Navigate } from "@tanstack/react-router";
+import { useState } from "react";
 
 import type { Result } from "@repo/result";
 
 import type {
   Batch,
   BatchState,
+  BatchValidationFailure,
   Decision,
   Proposal,
   ProposalFailure,
@@ -13,6 +15,7 @@ import type {
   ProposalStatus,
   ReviewedProposal,
   ReviewFailure,
+  ValidatedBatch,
 } from "../domain/proposal.ts";
 
 type ReadBatch = (batch: { readonly batchId: string }) => Promise<Result<Batch, ProposalFailure>>;
@@ -22,10 +25,16 @@ type ReviewProposal = (review: {
   readonly decision: Decision;
 }) => Promise<Result<ReviewedProposal, ReviewFailure>>;
 
+type ValidateBatch = (validation: {
+  readonly batchId: string;
+  readonly rejected: readonly string[];
+}) => Promise<Result<ValidatedBatch, BatchValidationFailure>>;
+
 type OnReviewed = (project: { readonly projectId: string }) => Promise<unknown>;
 
 type Review = {
   readonly reviewProposal: ReviewProposal;
+  readonly validateBatch: ValidateBatch;
   readonly onReviewed: OnReviewed;
 };
 
@@ -36,6 +45,15 @@ const REVIEW_MESSAGES: Readonly<
   not_found: "Cette proposition est introuvable.",
   unavailable: "La relecture est indisponible pour le moment.",
   invalid_response: "La relecture est indisponible pour le moment.",
+};
+
+const VALIDATION_MESSAGES: Readonly<
+  Record<Exclude<BatchValidationFailure, "unauthenticated" | { readonly reason: string }>, string>
+> = {
+  batch_open: "Ce lot est encore ouvert : l'IA peut encore y écrire.",
+  not_found: "Ce lot est introuvable.",
+  unavailable: "La validation du lot est indisponible pour le moment.",
+  invalid_response: "La validation du lot est indisponible pour le moment.",
 };
 
 const READING_MESSAGES: Readonly<Record<Exclude<ProposalFailure, "unauthenticated">, string>> = {
@@ -85,15 +103,104 @@ const ReviewRefusal = ({ failure }: { readonly failure: ReviewFailure }) => {
   );
 };
 
+const PROPOSAL_PATH = /^proposals\.([^.]+)\.(.+)$/;
+
+const fieldOf = (path: string, proposals: readonly Proposal[]) => {
+  const [, id, field] = PROPOSAL_PATH.exec(path) ?? [];
+  const proposal = proposals.find((candidate) => candidate.id === id);
+  return proposal === undefined ? path : `${proposal.name} · ${field}`;
+};
+
+const ValidationRefusal = ({
+  failure,
+  proposals,
+}: {
+  readonly failure: BatchValidationFailure;
+  readonly proposals: readonly Proposal[];
+}) => {
+  if (failure === "unauthenticated") {
+    return <Navigate to="/connexion" />;
+  }
+  if (typeof failure === "string") {
+    return <p role="alert">{VALIDATION_MESSAGES[failure]}</p>;
+  }
+  return (
+    <div role="alert">
+      <p>Ce lot est invalide :</p>
+      <ul>
+        {failure.errors.map(({ path, message }) => (
+          <li key={`${path}:${message}`}>
+            {fieldOf(path, proposals)} : {message}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const BatchValidation = ({
+  batch: { id: batchId, projectId, state, proposals },
+  rejected,
+  review: { validateBatch, onReviewed },
+}: {
+  readonly batch: Batch;
+  readonly rejected: readonly string[];
+  readonly review: Review;
+}) => {
+  const queryClient = useQueryClient();
+  const { data, isPending, mutate } = useMutation({
+    mutationFn: validateBatch,
+    onSuccess: async (result) => {
+      if (result.ok) {
+        await Promise.all([
+          onReviewed({ projectId }),
+          queryClient.invalidateQueries({ queryKey: ["proposal-batch", batchId] }),
+          queryClient.invalidateQueries({ queryKey: ["proposal-batches", projectId] }),
+        ]);
+      }
+      if (!result.ok && result.error === "batch_open") {
+        await queryClient.invalidateQueries({ queryKey: ["proposal-batch", batchId] });
+      }
+    },
+  });
+  const validatable =
+    state === "closed" && proposals.some((proposal) => proposal.status === "proposed");
+  return (
+    <section aria-label="Validation du lot">
+      {validatable ? (
+        <button type="button" disabled={isPending} onClick={() => mutate({ batchId, rejected })}>
+          Valider le lot
+        </button>
+      ) : null}
+      {!isPending && data?.ok === true ? (
+        <p>
+          Lot validé : {data.value.validated.length} validées, {data.value.rejected.length}{" "}
+          rejetées.
+        </p>
+      ) : null}
+      {!isPending && data?.ok === false ? (
+        <ValidationRefusal failure={data.error} proposals={proposals} />
+      ) : null}
+    </section>
+  );
+};
+
+type Rejection = {
+  readonly checked: boolean;
+  readonly toggle: () => void;
+};
+
 const ProposalItem = ({
   proposal,
   batchId,
   projectId,
+  rejection,
   review: { reviewProposal, onReviewed },
 }: {
   readonly proposal: Proposal;
   readonly batchId: string;
   readonly projectId: string;
+  readonly rejection: Rejection | undefined;
   readonly review: Review;
 }) => {
   const queryClient = useQueryClient();
@@ -131,6 +238,12 @@ const ProposalItem = ({
           </button>
         </>
       ) : null}
+      {rejection === undefined ? null : (
+        <label>
+          <input type="checkbox" checked={rejection.checked} onChange={rejection.toggle} />
+          Rejeter dans le lot
+        </label>
+      )}
       {!isPending && data?.ok === false ? <ReviewRefusal failure={data.error} /> : null}
     </li>
   );
@@ -145,6 +258,7 @@ const ProposalBatch = ({
   readonly readBatch: ReadBatch;
   readonly review: Review;
 }) => {
+  const [rejected, setRejected] = useState<readonly string[]>([]);
   const { data } = useQuery({
     queryKey: ["proposal-batch", batchId],
     queryFn: () => readBatch({ batchId }),
@@ -160,6 +274,16 @@ const ProposalBatch = ({
     );
   }
   const { projectId, intent, state, proposals } = data.value;
+  const rejectionOf = ({ id, status }: Proposal): Rejection | undefined =>
+    state === "closed" && status === "proposed"
+      ? {
+          checked: rejected.includes(id),
+          toggle: () =>
+            setRejected((current) =>
+              current.includes(id) ? current.filter((other) => other !== id) : [...current, id],
+            ),
+        }
+      : undefined;
   return (
     <main>
       <h1>{intent ?? "Sans intention"}</h1>
@@ -174,10 +298,12 @@ const ProposalBatch = ({
             proposal={proposal}
             batchId={batchId}
             projectId={projectId}
+            rejection={rejectionOf(proposal)}
             review={review}
           />
         ))}
       </ul>
+      <BatchValidation batch={data.value} rejected={rejected} review={review} />
     </main>
   );
 };
@@ -186,11 +312,13 @@ export const proposalBatchRoute = ({
   parent,
   readBatch,
   reviewProposal,
+  validateBatch,
   onReviewed,
 }: {
   readonly parent: AnyRootRoute;
   readonly readBatch: ReadBatch;
   readonly reviewProposal: ReviewProposal;
+  readonly validateBatch: ValidateBatch;
   readonly onReviewed: OnReviewed;
 }) => {
   const route = createRoute({
@@ -202,7 +330,7 @@ export const proposalBatchRoute = ({
         <ProposalBatch
           batchId={batchId}
           readBatch={readBatch}
-          review={{ reviewProposal, onReviewed }}
+          review={{ reviewProposal, validateBatch, onReviewed }}
         />
       );
     },

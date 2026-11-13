@@ -42,3 +42,13 @@ export type ReviewFailure =
   | ProposalFailure
   | "already_reviewed"
   | { readonly reason: "invalid_proposal"; readonly errors: readonly ProposalError[] };
+
+export type ValidatedBatch = {
+  readonly validated: readonly string[];
+  readonly rejected: readonly string[];
+};
+
+export type BatchValidationFailure =
+  | ProposalFailure
+  | "batch_open"
+  | { readonly reason: "invalid_batch"; readonly errors: readonly ProposalError[] };
