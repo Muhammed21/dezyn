@@ -285,3 +285,99 @@ describe("acceptation d'une invitation dans l'app web (ADR 0011, ADR 0044 §6)",
     expect(await spaces.acceptInvitation({ token: TOKEN })).toEqual(err("unavailable"));
   });
 });
+
+const INVITATION = {
+  id: "2c5d6e7f-8a9b-4f2a-9c1e-7b3d4e8a9f10",
+  email: "grace@dezyn.test",
+  expiresAt: "2026-11-21T10:00:00.000Z",
+};
+
+describe("invitation d'un membre depuis l'app web (ADR 0011, ADR 0017 §1)", () => {
+  it("envoie l'email de l'invité à l'API avec le cookie du navigateur", async () => {
+    const { spaces, calls } = answering(json(INVITATION, 201));
+
+    await spaces.inviteMember({ spaceId: SPACE_ID, email: INVITATION.email });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/v1/spaces/${SPACE_ID}/invitations`,
+        init: {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: INVITATION.email }),
+          credentials: "include",
+        },
+      },
+    ]);
+  });
+
+  it("donne l'invitation envoyée avec son email et sa date d'expiration", async () => {
+    const { spaces } = answering(json(INVITATION, 201));
+
+    expect(await spaces.inviteMember({ spaceId: SPACE_ID, email: INVITATION.email })).toEqual(
+      ok({
+        id: INVITATION.id,
+        email: INVITATION.email,
+        expiresAt: new Date(INVITATION.expiresAt),
+      }),
+    );
+  });
+
+  it("donne not_found sans appeler l'API quand l'identifiant n'est pas un UUID", async () => {
+    const { spaces, calls } = answering(json(INVITATION, 201));
+
+    expect(await spaces.inviteMember({ spaceId: "espace-1", email: INVITATION.email })).toEqual(
+      err("not_found"),
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it.each([
+    ["invalid_email", problem({ type: "about:blank" }, 400)],
+    ["unauthenticated", json({}, 401)],
+    ["not_found", problem({ type: "about:blank" }, 404)],
+    [
+      "plan_required",
+      problem({ type: "https://dezyn.dev/problems/plan-required", requiredPlan: "team" }, 403),
+    ],
+    ["forbidden", problem({ type: "about:blank" }, 403)],
+    ["forbidden", () => new Response("<html>", { status: 403 })],
+    ["already_member", problem({ type: "https://dezyn.dev/problems/already-member" }, 409)],
+    ["unavailable", problem({ type: "about:blank" }, 503)],
+    ["unavailable", json({}, 500)],
+    ["unavailable", json({}, 429)],
+  ] as const)("donne %s", async (failure, response) => {
+    const { spaces } = answering(response);
+
+    expect(await spaces.inviteMember({ spaceId: SPACE_ID, email: INVITATION.email })).toEqual(
+      err(failure),
+    );
+  });
+
+  it.each([
+    ["un 409 sans type connu", problem({ type: "about:blank" }, 409)],
+    ["un 200 au lieu d'un 201", json(INVITATION, 200)],
+    ["une invitation sans date d'expiration", json({ ...INVITATION, expiresAt: undefined }, 201)],
+    [
+      "une invitation dont l'identifiant n'est pas un UUID",
+      json({ ...INVITATION, id: "i-1" }, 201),
+    ],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { spaces } = answering(response);
+
+    expect(await spaces.inviteMember({ spaceId: SPACE_ID, email: INVITATION.email })).toEqual(
+      err("invalid_response"),
+    );
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const spaces = createSpaces({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(await spaces.inviteMember({ spaceId: SPACE_ID, email: INVITATION.email })).toEqual(
+      err("unavailable"),
+    );
+  });
+});

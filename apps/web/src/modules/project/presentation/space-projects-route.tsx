@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type AnyRootRoute, createRoute, Link, Navigate } from "@tanstack/react-router";
-import { type SubmitEvent, useState } from "react";
+import { type ComponentType, type SubmitEvent, useState } from "react";
 
 import type { Result } from "@repo/result";
 
@@ -19,6 +19,8 @@ type CreateProject = (project: ProjectToCreate) => Promise<Result<Project, Proje
 type ReadSpace = (space: {
   readonly spaceId: string;
 }) => Promise<Result<{ readonly allowedActions: readonly string[] }, unknown>>;
+
+type InviteMember = ComponentType<{ readonly spaceId: string }>;
 
 const UNKNOWN_SPACE = "Cet espace est introuvable.";
 
@@ -99,11 +101,13 @@ const SpaceProjects = ({
   listProjects,
   createProject,
   readSpace,
+  InviteMember,
 }: {
   readonly spaceId: string;
   readonly listProjects: ListProjects;
   readonly createProject: CreateProject;
   readonly readSpace: ReadSpace;
+  readonly InviteMember: InviteMember;
 }) => {
   const { data } = useQuery({
     queryKey: ["projects", spaceId],
@@ -113,8 +117,9 @@ const SpaceProjects = ({
     queryKey: ["space", spaceId],
     queryFn: () => readSpace({ spaceId }),
   });
-  const canCreateProject =
-    space?.ok === true && space.value.allowedActions.includes("project.create");
+  const allowedActions = space?.ok === true ? space.value.allowedActions : [];
+  const canCreateProject = allowedActions.includes("project.create");
+  const canInviteMember = allowedActions.includes("member.invite");
   if (data === undefined) {
     return <p>Chargement des projets…</p>;
   }
@@ -142,6 +147,7 @@ const SpaceProjects = ({
         </ul>
       )}
       {canCreateProject && <CreateProjectForm spaceId={spaceId} createProject={createProject} />}
+      {canInviteMember && <InviteMember spaceId={spaceId} />}
     </main>
   );
 };
@@ -151,11 +157,13 @@ export const spaceProjectsRoute = ({
   listProjects,
   createProject,
   readSpace,
+  InviteMember,
 }: {
   readonly parent: AnyRootRoute;
   readonly listProjects: ListProjects;
   readonly createProject: CreateProject;
   readonly readSpace: ReadSpace;
+  readonly InviteMember: InviteMember;
 }) => {
   const route = createRoute({
     getParentRoute: () => parent,
@@ -168,6 +176,7 @@ export const spaceProjectsRoute = ({
           listProjects={listProjects}
           createProject={createProject}
           readSpace={readSpace}
+          InviteMember={InviteMember}
         />
       );
     },

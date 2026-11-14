@@ -1,7 +1,7 @@
 import { Uuid } from "@repo/contracts";
 import { err, type Result } from "@repo/result";
 
-import type { Space, SpaceFailure } from "../domain/space.ts";
+import type { InvitationFailure, SentInvitation, Space, SpaceFailure } from "../domain/space.ts";
 import type { SpaceGateway } from "./space-gateway.ts";
 
 export const spaceUseCases = ({ gateway }: { readonly gateway: SpaceGateway }) => ({
@@ -13,4 +13,12 @@ export const spaceUseCases = ({ gateway }: { readonly gateway: SpaceGateway }) =
   }): Promise<Result<Space, SpaceFailure>> =>
     Uuid.safeParse(spaceId).success ? gateway.readSpace({ spaceId }) : err("not_found"),
   acceptInvitation: ({ token }: { readonly token: string }) => gateway.acceptInvitation({ token }),
+  inviteMember: async ({
+    spaceId,
+    email,
+  }: {
+    readonly spaceId: string;
+    readonly email: string;
+  }): Promise<Result<SentInvitation, InvitationFailure>> =>
+    Uuid.safeParse(spaceId).success ? gateway.inviteMember({ spaceId, email }) : err("not_found"),
 });
