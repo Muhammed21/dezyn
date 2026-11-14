@@ -570,3 +570,81 @@ describe("changement de rôle d'un membre depuis l'app web (ADR 0017)", () => {
     ).toEqual(err("unavailable"));
   });
 });
+
+const noContent = () => new Response(null, { status: 204 });
+
+describe("retrait d'un membre depuis l'app web (ADR 0017 §2)", () => {
+  it("demande le retrait du membre à l'API avec le cookie du navigateur", async () => {
+    const { spaces, calls } = answering(noContent);
+
+    await spaces.removeMember({ spaceId: SPACE_ID, memberId: MEMBER_ID });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/v1/spaces/${SPACE_ID}/members/${MEMBER_ID}`,
+        init: { method: "DELETE", credentials: "include" },
+      },
+    ]);
+  });
+
+  it("donne ok sur un 204", async () => {
+    const { spaces } = answering(noContent);
+
+    expect(await spaces.removeMember({ spaceId: SPACE_ID, memberId: MEMBER_ID })).toEqual(
+      ok(undefined),
+    );
+  });
+
+  it.each([
+    ["l'espace", { spaceId: "espace-1", memberId: MEMBER_ID }],
+    ["le membre", { spaceId: SPACE_ID, memberId: "membre-1" }],
+  ])(
+    "donne not_found sans appeler l'API quand l'identifiant de %s n'est pas un UUID",
+    async (_case, removal) => {
+      const { spaces, calls } = answering(noContent);
+
+      expect(await spaces.removeMember(removal)).toEqual(err("not_found"));
+      expect(calls).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["unauthenticated", json({}, 401)],
+    ["not_found", problem({ type: "about:blank" }, 404)],
+    ["forbidden", problem({ type: "about:blank" }, 403)],
+    ["self_removal", problem({ type: "https://dezyn.dev/problems/self-removal" }, 409)],
+    ["unavailable", json({}, 500)],
+    ["unavailable", json({}, 503)],
+    ["unavailable", json({}, 429)],
+  ] as const)("donne %s", async (failure, response) => {
+    const { spaces } = answering(response);
+
+    expect(await spaces.removeMember({ spaceId: SPACE_ID, memberId: MEMBER_ID })).toEqual(
+      err(failure),
+    );
+  });
+
+  it.each([
+    ["un 409 sans type connu", problem({ type: "about:blank" }, 409)],
+    ["un 409 qui n'est pas du JSON", () => new Response("<html>", { status: 409 })],
+    ["un 200 au lieu d'un 204", json({}, 200)],
+    ["un 400", json({}, 400)],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { spaces } = answering(response);
+
+    expect(await spaces.removeMember({ spaceId: SPACE_ID, memberId: MEMBER_ID })).toEqual(
+      err("invalid_response"),
+    );
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const spaces = createSpaces({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(await spaces.removeMember({ spaceId: SPACE_ID, memberId: MEMBER_ID })).toEqual(
+      err("unavailable"),
+    );
+  });
+});

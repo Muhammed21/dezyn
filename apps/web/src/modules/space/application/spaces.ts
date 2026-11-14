@@ -6,6 +6,7 @@ import type {
   ChangedRole,
   InvitationFailure,
   MembersFailure,
+  RemovalFailure,
   RoleChangeFailure,
   SentInvitation,
   Space,
@@ -48,5 +49,15 @@ export const spaceUseCases = ({ gateway }: { readonly gateway: SpaceGateway }) =
   }): Promise<Result<ChangedRole, RoleChangeFailure>> =>
     Uuid.safeParse(spaceId).success && Uuid.safeParse(memberId).success
       ? gateway.changeRole({ spaceId, memberId, role })
+      : err("not_found"),
+  removeMember: async ({
+    spaceId,
+    memberId,
+  }: {
+    readonly spaceId: string;
+    readonly memberId: string;
+  }): Promise<Result<undefined, RemovalFailure>> =>
+    Uuid.safeParse(spaceId).success && Uuid.safeParse(memberId).success
+      ? gateway.removeMember({ spaceId, memberId })
       : err("not_found"),
 });

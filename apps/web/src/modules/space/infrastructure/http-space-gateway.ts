@@ -9,6 +9,7 @@ import {
   MySpaceOutput,
   MySpacesOutput,
   PlanRequiredProblem,
+  SelfRemovalProblem,
   SentInvitationOutput,
 } from "@repo/contracts";
 import { err, ok } from "@repo/result";
@@ -20,6 +21,7 @@ import {
   type InvitationFailure,
   knownActionsOf,
   planOf,
+  type RemovalFailure,
   type RoleChangeFailure,
   roleOf,
   type Space,
@@ -27,6 +29,7 @@ import {
 
 const OK = 200;
 const CREATED = 201;
+const NO_CONTENT = 204;
 const BAD_REQUEST = 400;
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -101,6 +104,22 @@ const roleChangeRefusalOf = async (response: Response): Promise<RoleChangeFailur
   }
   if (response.status === CONFLICT) {
     return (await parseJson(response, LastOwnerProblem)).ok ? "last_owner" : "invalid_response";
+  }
+  return failureOf(response);
+};
+
+const removalRefusalOf = async (response: Response): Promise<RemovalFailure> => {
+  if (response.status === UNAUTHORIZED) {
+    return "unauthenticated";
+  }
+  if (response.status === NOT_FOUND) {
+    return "not_found";
+  }
+  if (response.status === FORBIDDEN) {
+    return "forbidden";
+  }
+  if (response.status === CONFLICT) {
+    return (await parseJson(response, SelfRemovalProblem)).ok ? "self_removal" : "invalid_response";
   }
   return failureOf(response);
 };
@@ -223,5 +242,15 @@ export const createHttpSpaceGateway = ({
     }
     const body = await parseJson(response, ChangedRoleOutput);
     return body.ok ? ok({ userId: body.value.userId, role: roleOf(body.value.role) }) : body;
+  },
+  removeMember: async ({ spaceId, memberId }) => {
+    const sent = await send(fetch, `${apiUrl}/v1/spaces/${spaceId}/members/${memberId}`, {
+      method: "DELETE",
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    const response = sent.value;
+    return response.status === NO_CONTENT ? ok(undefined) : err(await removalRefusalOf(response));
   },
 });

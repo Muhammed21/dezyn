@@ -354,3 +354,60 @@ describe("changement de rôle par l'app web, contre la vraie API (ADR 0017)", ()
       ).toEqual(err("last_owner"));
     }));
 });
+
+const graceJoined = async (
+  app: App,
+  db: Parameters<typeof personalSpaceOf>[0],
+  outbox: ReturnType<typeof makeOutbox>,
+) => {
+  const { ada, spaceId, token } = await invitedGrace(app, db, outbox);
+  const grace = await signedInAs(app, GRACE);
+  await grace.spaces.acceptInvitation({ token });
+  return { ada, grace, spaceId };
+};
+
+describe("retrait d'un membre par l'app web, contre la vraie API (ADR 0017 §2)", () => {
+  it("Ada propriétaire retire Grace : Grace n'est plus dans la liste des membres", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, grace, spaceId } = await graceJoined(app, db, outbox);
+
+        const removed = await ada.spaces.removeMember({ spaceId, memberId: grace.userId });
+
+        expect(removed).toEqual(ok(undefined));
+        const members = await ada.spaces.listMembers({ spaceId });
+        expect(members.ok && members.value.map(({ email }) => email)).toEqual([ADA.email]);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("Grace éditrice qui tente de retirer Ada reçoit forbidden", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, grace, spaceId } = await graceJoined(app, db, outbox);
+
+        expect(await grace.spaces.removeMember({ spaceId, memberId: ada.userId })).toEqual(
+          err("forbidden"),
+        );
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("Ada qui se retire elle-même reçoit self_removal", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, spaceId } = await graceJoined(app, db, outbox);
+
+        expect(await ada.spaces.removeMember({ spaceId, memberId: ada.userId })).toEqual(
+          err("self_removal"),
+        );
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+});

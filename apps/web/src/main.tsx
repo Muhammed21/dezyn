@@ -62,6 +62,7 @@ const appRouter = ({
           listMembers: spaces.listMembers,
           readSpace: spaces.readSpace,
           changeRole: spaces.changeRole,
+          removeMember: spaces.removeMember,
         }),
       }),
       projectTokensRoute({

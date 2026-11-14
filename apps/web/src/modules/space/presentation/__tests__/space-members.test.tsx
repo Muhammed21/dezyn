@@ -13,9 +13,11 @@ import { render } from "vitest-browser-react";
 import { err, ok, type Result } from "@repo/result";
 
 import type {
+  Action,
   AssignableRole,
   ChangedRole,
   MembersFailure,
+  RemovalFailure,
   RoleChangeFailure,
   Space,
   SpaceFailure,
@@ -38,6 +40,11 @@ type RoleChange = {
 };
 
 type ChangeRole = (change: RoleChange) => Promise<Result<ChangedRole, RoleChangeFailure>>;
+
+type RemoveMember = (removal: {
+  readonly spaceId: string;
+  readonly memberId: string;
+}) => Promise<Result<undefined, RemovalFailure>>;
 
 const makeMember = (overrides: Partial<SpaceMember> = {}): SpaceMember => ({
   userId: "7b3d4e8a-9f10-4c5d-8e7f-8a9b4f2a9c1e",
@@ -73,6 +80,11 @@ const makeSpace = (overrides: Partial<Space> = {}): Space => ({
 
 const pending = () => new Promise<never>(() => {});
 
+const neverRemoves: RemoveMember = pending;
+
+const MEMBER_MANAGEMENT: readonly Action[] = ["space.read", "member.manage"];
+const READ_ONLY: readonly Action[] = ["space.read"];
+
 const readEditorSpace: ReadSpace = () => Promise.resolve(ok(makeSpace(EDITOR_RIGHTS)));
 
 const readOwnerSpace: ReadSpace = () => Promise.resolve(ok(makeSpace(OWNER_RIGHTS)));
@@ -85,16 +97,18 @@ const renderSpaceMembers = async ({
   listMembers,
   readSpace = readEditorSpace,
   changeRole = pending,
+  removeMember = neverRemoves,
   history = createMemoryHistory({ initialEntries: [`/espaces/${SPACE_ID}`] }),
   queryClient = new QueryClient(),
 }: {
   readonly listMembers: ListMembers;
   readonly readSpace?: ReadSpace;
   readonly changeRole?: ChangeRole;
+  readonly removeMember?: RemoveMember;
   readonly history?: RouterHistory;
   readonly queryClient?: QueryClient;
 }) => {
-  const SpaceMembers = spaceMembers({ listMembers, readSpace, changeRole });
+  const SpaceMembers = spaceMembers({ listMembers, readSpace, changeRole, removeMember });
   const root = createRootRoute();
   const spacePage = createRoute({
     getParentRoute: () => root,
@@ -234,7 +248,7 @@ describe("changement de rôle d'un membre (ADR 0017)", () => {
     expect(screen.getByRole("button", { name: "Rendre éditeur Grace Hopper" }).query()).toBeNull();
   });
 
-  it("aucun bouton pour un membre dont le rôle est inconnu de l'app", async () => {
+  it("aucun bouton de rôle pour un membre dont le rôle est inconnu de l'app, seulement « Retirer »", async () => {
     const screen = await renderSpaceMembers({
       listMembers: () =>
         Promise.resolve(ok([makeMember({ name: "Alan Turing", role: "unknown" }), GRACE])),
@@ -242,7 +256,14 @@ describe("changement de rôle d'un membre (ADR 0017)", () => {
     });
 
     await expect.element(promoteGraceButton(screen)).toBeVisible();
-    expect(memberList(screen).getByRole("listitem").first().getByRole("button").query()).toBeNull();
+    expect(
+      memberList(screen)
+        .getByRole("listitem")
+        .first()
+        .getByRole("button")
+        .elements()
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Retirer Alan Turing"]);
   });
 
   it.each([
@@ -422,6 +443,188 @@ describe("changement de rôle d'un membre (ADR 0017)", () => {
     });
 
     await demoteAdaButton(screen).click();
+
+    await expect.element(screen.getByText("Page de connexion")).toBeVisible();
+  });
+});
+
+const listingAdaAndGrace: ListMembers = () => Promise.resolve(ok([ADA, GRACE]));
+const readingSpaceWith =
+  (allowedActions: readonly Action[]): ReadSpace =>
+  () =>
+    Promise.resolve(ok(makeSpace({ allowedActions })));
+const failingSpaceRead: ReadSpace = () => Promise.resolve(err("unavailable"));
+
+const removeButton = (screen: Screen, name: string) =>
+  screen.getByRole("button", { name: `Retirer ${name}` });
+
+describe("retrait d'un membre (ADR 0017 §2)", () => {
+  it("avec member.manage, chaque membre a son bouton « Retirer », y compris ma ligne", async () => {
+    const screen = await renderSpaceMembers({
+      listMembers: listingAdaAndGrace,
+      readSpace: readingSpaceWith(MEMBER_MANAGEMENT),
+    });
+
+    await expect.element(removeButton(screen, "Ada Lovelace")).toHaveTextContent("Retirer");
+    await expect.element(removeButton(screen, "Grace Hopper")).toHaveTextContent("Retirer");
+  });
+
+  it("lit l'espace de la page pour connaître les actions permises", async () => {
+    const asked: string[] = [];
+    const screen = await renderSpaceMembers({
+      listMembers: listingAdaAndGrace,
+      readSpace: ({ spaceId }) => {
+        asked.push(spaceId);
+        return Promise.resolve(ok(makeSpace({ allowedActions: MEMBER_MANAGEMENT })));
+      },
+    });
+
+    await expect.element(removeButton(screen, "Grace Hopper")).toBeVisible();
+    expect(asked).toEqual([SPACE_ID]);
+  });
+
+  it("reprend l'espace déjà lu par la page", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(
+      ["space", SPACE_ID],
+      ok(makeSpace({ allowedActions: MEMBER_MANAGEMENT })),
+    );
+
+    const screen = await renderSpaceMembers({
+      listMembers: listingAdaAndGrace,
+      readSpace: pending,
+      queryClient,
+    });
+
+    await expect.element(removeButton(screen, "Grace Hopper")).toBeVisible();
+  });
+
+  it.each([
+    ["sans member.manage", readingSpaceWith(READ_ONLY)],
+    ["quand la lecture de l'espace échoue", failingSpaceRead],
+    ["tant que l'espace n'est pas lu", pending],
+  ])("n'affiche aucun bouton « Retirer » %s", async (_case, readSpace) => {
+    const screen = await renderSpaceMembers({ listMembers: listingAdaAndGrace, readSpace });
+
+    await expect.element(memberList(screen)).toHaveTextContent("Grace Hopper");
+    expect(screen.getByRole("button").query()).toBeNull();
+  });
+
+  it("retire le membre cliqué de l'espace de la page, et désactive son bouton pendant le retrait", async () => {
+    const removals: { readonly spaceId: string; readonly memberId: string }[] = [];
+    const screen = await renderSpaceMembers({
+      listMembers: listingAdaAndGrace,
+      readSpace: readingSpaceWith(MEMBER_MANAGEMENT),
+      removeMember: (removal) => {
+        removals.push(removal);
+        return pending();
+      },
+    });
+
+    await removeButton(screen, "Grace Hopper").click();
+
+    await expect.element(removeButton(screen, "Grace Hopper")).toBeDisabled();
+    await expect.element(removeButton(screen, "Ada Lovelace")).toBeEnabled();
+    expect(removals).toEqual([{ spaceId: SPACE_ID, memberId: GRACE.userId }]);
+  });
+
+  it("après un retrait réussi, la liste est relue et le membre retiré disparaît", async () => {
+    const listings: (readonly SpaceMember[])[] = [[ADA, GRACE], [ADA]];
+    const screen = await renderSpaceMembers({
+      listMembers: () => Promise.resolve(ok(listings.shift() ?? [ADA])),
+      readSpace: readingSpaceWith(MEMBER_MANAGEMENT),
+      removeMember: () => Promise.resolve(ok(undefined)),
+    });
+
+    await removeButton(screen, "Grace Hopper").click();
+
+    await expect.element(memberList(screen)).not.toHaveTextContent("Grace Hopper");
+    await expect.element(memberList(screen)).toHaveTextContent("Ada Lovelace");
+    expect(screen.getByRole("alert").query()).toBeNull();
+  });
+
+  it("un retrait réussi relit les membres, pas l'espace", async () => {
+    const spaceReads: string[] = [];
+    const listings: (readonly SpaceMember[])[] = [[ADA, GRACE], [ADA]];
+    const screen = await renderSpaceMembers({
+      listMembers: () => Promise.resolve(ok(listings.shift() ?? [ADA])),
+      readSpace: ({ spaceId }) => {
+        spaceReads.push(spaceId);
+        return Promise.resolve(ok(makeSpace({ allowedActions: MEMBER_MANAGEMENT })));
+      },
+      removeMember: () => Promise.resolve(ok(undefined)),
+    });
+
+    await removeButton(screen, "Grace Hopper").click();
+
+    await expect.element(memberList(screen)).not.toHaveTextContent("Grace Hopper");
+    expect(spaceReads).toEqual([SPACE_ID]);
+  });
+
+  it("un retrait refusé ne relit pas la liste des membres", async () => {
+    const memberReads: string[] = [];
+    const screen = await renderSpaceMembers({
+      listMembers: ({ spaceId }) => {
+        memberReads.push(spaceId);
+        return Promise.resolve(ok([ADA, GRACE]));
+      },
+      readSpace: readingSpaceWith(MEMBER_MANAGEMENT),
+      removeMember: () => Promise.resolve(err("forbidden")),
+    });
+
+    await removeButton(screen, "Grace Hopper").click();
+
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+    expect(memberReads).toEqual([SPACE_ID]);
+  });
+
+  it.each([
+    ["self_removal", "Vous ne pouvez pas vous retirer vous-même de l'espace."],
+    ["forbidden", "Vous n'avez pas le droit de gérer les membres de cet espace."],
+    ["not_found", "Ce membre est introuvable."],
+    ["unavailable", "Le retrait est indisponible pour le moment."],
+    ["invalid_response", "Le retrait est indisponible pour le moment."],
+  ] as const)("annonce l'échec %s dans la section Membres", async (failure, message) => {
+    const screen = await renderSpaceMembers({
+      listMembers: listingAdaAndGrace,
+      readSpace: readingSpaceWith(MEMBER_MANAGEMENT),
+      removeMember: () => Promise.resolve(err(failure)),
+    });
+
+    await removeButton(screen, "Grace Hopper").click();
+
+    await expect
+      .element(screen.getByRole("region", { name: "Membres" }).getByRole("alert"))
+      .toHaveTextContent(message);
+    await expect.element(memberList(screen)).toHaveTextContent("Grace Hopper");
+  });
+
+  it("un nouvel essai efface le message de l'échec précédent", async () => {
+    const outcomes: Promise<Result<undefined, RemovalFailure>>[] = [
+      Promise.resolve(err("forbidden")),
+    ];
+    const screen = await renderSpaceMembers({
+      listMembers: listingAdaAndGrace,
+      readSpace: readingSpaceWith(MEMBER_MANAGEMENT),
+      removeMember: () => outcomes.shift() ?? pending(),
+    });
+    await removeButton(screen, "Grace Hopper").click();
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+
+    await removeButton(screen, "Grace Hopper").click();
+
+    await expect.element(removeButton(screen, "Grace Hopper")).toBeDisabled();
+    expect(screen.getByRole("alert").query()).toBeNull();
+  });
+
+  it("renvoie vers la connexion quand le retrait trouve la session expirée", async () => {
+    const screen = await renderSpaceMembers({
+      listMembers: listingAdaAndGrace,
+      readSpace: readingSpaceWith(MEMBER_MANAGEMENT),
+      removeMember: () => Promise.resolve(err("unauthenticated")),
+    });
+
+    await removeButton(screen, "Grace Hopper").click();
 
     await expect.element(screen.getByText("Page de connexion")).toBeVisible();
   });
