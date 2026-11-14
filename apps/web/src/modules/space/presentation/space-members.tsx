@@ -7,6 +7,7 @@ import type {
   AssignableRole,
   ChangedRole,
   MembersFailure,
+  RemovalFailure,
   Role,
   RoleChangeFailure,
   Space,
@@ -26,6 +27,11 @@ type ChangeRole = (change: {
   readonly role: AssignableRole;
 }) => Promise<Result<ChangedRole, RoleChangeFailure>>;
 
+type RemoveMember = (removal: {
+  readonly spaceId: string;
+  readonly memberId: string;
+}) => Promise<Result<undefined, RemovalFailure>>;
+
 const UNAVAILABLE = "Les membres sont indisponibles pour le moment.";
 
 const MEMBERS_MESSAGES: Readonly<Record<Exclude<MembersFailure, "unauthenticated">, string>> = {
@@ -44,6 +50,16 @@ const ROLE_CHANGE_MESSAGES: Readonly<
   not_found: "Ce membre est introuvable.",
   unavailable: ROLE_CHANGE_UNAVAILABLE,
   invalid_response: ROLE_CHANGE_UNAVAILABLE,
+};
+
+const REMOVAL_UNAVAILABLE = "Le retrait est indisponible pour le moment.";
+
+const REMOVAL_MESSAGES: Readonly<Record<Exclude<RemovalFailure, "unauthenticated">, string>> = {
+  self_removal: "Vous ne pouvez pas vous retirer vous-même de l'espace.",
+  forbidden: "Vous n'avez pas le droit de gérer les membres de cet espace.",
+  not_found: "Ce membre est introuvable.",
+  unavailable: REMOVAL_UNAVAILABLE,
+  invalid_response: REMOVAL_UNAVAILABLE,
 };
 
 const ROLE_LABELS: Readonly<Record<Role, string>> = {
@@ -87,11 +103,15 @@ const Members = ({
   canManage,
   changingMemberId,
   onChange,
+  removingMemberId,
+  onRemove,
 }: {
   readonly members: Result<readonly SpaceMember[], MembersFailure> | undefined;
   readonly canManage: boolean;
   readonly changingMemberId: string | undefined;
   readonly onChange: (change: { readonly memberId: string; readonly role: AssignableRole }) => void;
+  readonly removingMemberId: string | undefined;
+  readonly onRemove: (memberId: string) => void;
 }) => {
   if (members === undefined) {
     return <p>Chargement des membres…</p>;
@@ -109,11 +129,21 @@ const Members = ({
         <li key={member.userId}>
           {member.name} · {member.email} · {ROLE_LABELS[member.role]}
           {canManage && (
-            <RoleChangeButton
-              member={member}
-              changing={changingMemberId === member.userId}
-              onChange={onChange}
-            />
+            <>
+              <RoleChangeButton
+                member={member}
+                changing={changingMemberId === member.userId}
+                onChange={onChange}
+              />
+              <button
+                type="button"
+                aria-label={`Retirer ${member.name}`}
+                disabled={removingMemberId === member.userId}
+                onClick={() => onRemove(member.userId)}
+              >
+                Retirer
+              </button>
+            </>
           )}
         </li>
       ))}
@@ -128,14 +158,23 @@ const RoleChangeOutcome = ({ failure }: { readonly failure: RoleChangeFailure })
     <p role="alert">{ROLE_CHANGE_MESSAGES[failure]}</p>
   );
 
+const RemovalOutcome = ({ failure }: { readonly failure: RemovalFailure }) =>
+  failure === "unauthenticated" ? (
+    <Navigate to="/connexion" />
+  ) : (
+    <p role="alert">{REMOVAL_MESSAGES[failure]}</p>
+  );
+
 export const spaceMembers = ({
   listMembers,
   readSpace,
   changeRole,
+  removeMember,
 }: {
   readonly listMembers: ListMembers;
   readonly readSpace: ReadSpace;
   readonly changeRole: ChangeRole;
+  readonly removeMember: RemoveMember;
 }) =>
   function SpaceMembers({ spaceId }: { readonly spaceId: string }) {
     const queryClient = useQueryClient();
@@ -164,8 +203,18 @@ export const spaceMembers = ({
         }
       },
     });
+    const removal = useMutation({
+      mutationFn: removeMember,
+      onSuccess: async (result) => {
+        if (result.ok) {
+          await queryClient.invalidateQueries({ queryKey: ["members", spaceId] });
+        }
+      },
+    });
     const canManage = space?.ok === true && space.value.allowedActions.includes("member.manage");
     const failure = !isPending && changed?.ok === false ? changed.error : undefined;
+    const removalFailure =
+      !removal.isPending && removal.data?.ok === false ? removal.data.error : undefined;
     return (
       <section aria-labelledby="membres">
         <h2 id="membres">Membres</h2>
@@ -174,8 +223,11 @@ export const spaceMembers = ({
           canManage={canManage}
           changingMemberId={isPending ? variables.memberId : undefined}
           onChange={({ memberId, role }) => mutate({ spaceId, memberId, role })}
+          removingMemberId={removal.isPending ? removal.variables.memberId : undefined}
+          onRemove={(memberId) => removal.mutate({ spaceId, memberId })}
         />
         {failure !== undefined && <RoleChangeOutcome failure={failure} />}
+        {removalFailure !== undefined && <RemovalOutcome failure={removalFailure} />}
       </section>
     );
   };

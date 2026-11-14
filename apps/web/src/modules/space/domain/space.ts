@@ -38,6 +38,14 @@ export type SpaceMember = {
 
 export type MembersFailure = SpaceFailure;
 
+export type RemovalFailure =
+  | "unauthenticated"
+  | "not_found"
+  | "forbidden"
+  | "self_removal"
+  | "unavailable"
+  | "invalid_response";
+
 export type AcceptanceFailure =
   | "unauthenticated"
   | "gone"
