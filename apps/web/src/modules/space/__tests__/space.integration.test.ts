@@ -301,3 +301,56 @@ describe("liste des membres par l'app web, contre la vraie API (ADR 0044 §5)", 
       expect(await spaces.listMembers({ spaceId: graceSpaceId })).toEqual(err("not_found"));
     }));
 });
+
+describe("changement de rôle par l'app web, contre la vraie API (ADR 0017)", () => {
+  it("Ada promeut Grace propriétaire : la liste des membres la montre propriétaire", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, spaceId, token } = await invitedGrace(app, db, outbox);
+        const grace = await signedInAs(app, GRACE);
+        await grace.spaces.acceptInvitation({ token });
+
+        const changed = await ada.spaces.changeRole({
+          spaceId,
+          memberId: grace.userId,
+          role: "owner",
+        });
+
+        expect(changed).toEqual(ok({ userId: grace.userId, role: "owner" }));
+        const members = await ada.spaces.listMembers({ spaceId });
+        expect(members.ok && members.value.map(({ email, role }) => ({ email, role }))).toEqual([
+          { email: ADA.email, role: "owner" },
+          { email: GRACE.email, role: "owner" },
+        ]);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("Grace éditrice qui tente de changer le rôle d'Ada reçoit forbidden", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, spaceId, token } = await invitedGrace(app, db, outbox);
+        const grace = await signedInAs(app, GRACE);
+        await grace.spaces.acceptInvitation({ token });
+
+        expect(
+          await grace.spaces.changeRole({ spaceId, memberId: ada.userId, role: "editor" }),
+        ).toEqual(err("forbidden"));
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("Ada, seule propriétaire, qui se rétrograde reçoit last_owner", () =>
+    withIdentityApp(async (app, db) => {
+      const ada = await signedInAs(app, ADA);
+      const spaceId = await personalSpaceOf(db, ada.userId);
+
+      expect(
+        await ada.spaces.changeRole({ spaceId, memberId: ada.userId, role: "editor" }),
+      ).toEqual(err("last_owner"));
+    }));
+});

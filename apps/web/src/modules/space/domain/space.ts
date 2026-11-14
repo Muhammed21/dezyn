@@ -63,6 +63,21 @@ export type InvitationFailure =
   | "unavailable"
   | "invalid_response";
 
+export type AssignableRole = (typeof ROLES)[number];
+
+export type ChangedRole = {
+  readonly userId: string;
+  readonly role: Role;
+};
+
+export type RoleChangeFailure =
+  | "unauthenticated"
+  | "not_found"
+  | "forbidden"
+  | "last_owner"
+  | "unavailable"
+  | "invalid_response";
+
 export const planOf = (value: string): Plan => PLANS.find((plan) => plan === value) ?? "unknown";
 
 export const roleOf = (value: string): Role => ROLES.find((role) => role === value) ?? "unknown";

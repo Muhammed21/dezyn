@@ -58,7 +58,11 @@ const appRouter = ({
         createProject: projects.createProject,
         readSpace: spaces.readSpace,
         InviteMember: inviteMemberForm({ inviteMember: spaces.inviteMember }),
-        SpaceMembers: spaceMembers({ listMembers: spaces.listMembers }),
+        SpaceMembers: spaceMembers({
+          listMembers: spaces.listMembers,
+          readSpace: spaces.readSpace,
+          changeRole: spaces.changeRole,
+        }),
       }),
       projectTokensRoute({
         parent: root,

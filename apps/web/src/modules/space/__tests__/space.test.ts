@@ -473,3 +473,100 @@ describe("liste des membres d'un espace dans l'app web (ADR 0044 §5)", () => {
     expect(await spaces.listMembers({ spaceId: SPACE_ID })).toEqual(err("invalid_response"));
   });
 });
+
+const MEMBER_ID = "9f10a2c5-d6e7-4f8a-9b4f-2a9c1e7b3d4e";
+
+describe("changement de rôle d'un membre depuis l'app web (ADR 0017)", () => {
+  it("envoie le nouveau rôle du membre à l'API avec le cookie du navigateur", async () => {
+    const { spaces, calls } = answering(json({ userId: MEMBER_ID, role: "owner" }));
+
+    await spaces.changeRole({ spaceId: SPACE_ID, memberId: MEMBER_ID, role: "owner" });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/v1/spaces/${SPACE_ID}/members/${MEMBER_ID}`,
+        init: {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ role: "owner" }),
+          credentials: "include",
+        },
+      },
+    ]);
+  });
+
+  it.each(["owner", "editor"] as const)(
+    "donne le membre avec son nouveau rôle %s",
+    async (role) => {
+      const { spaces } = answering(json({ userId: MEMBER_ID, role }));
+
+      expect(await spaces.changeRole({ spaceId: SPACE_ID, memberId: MEMBER_ID, role })).toEqual(
+        ok({ userId: MEMBER_ID, role }),
+      );
+    },
+  );
+
+  it("garde un rôle rendu inconnu de l'app (ADR 0023 §2)", async () => {
+    const { spaces } = answering(json({ userId: MEMBER_ID, role: "viewer" }));
+
+    expect(
+      await spaces.changeRole({ spaceId: SPACE_ID, memberId: MEMBER_ID, role: "editor" }),
+    ).toEqual(ok({ userId: MEMBER_ID, role: "unknown" }));
+  });
+
+  it.each([
+    ["de l'espace", { spaceId: "espace-1", memberId: MEMBER_ID }],
+    ["du membre", { spaceId: SPACE_ID, memberId: "membre-1" }],
+  ])(
+    "donne not_found sans appeler l'API quand l'identifiant %s n'est pas un UUID",
+    async (_case, ids) => {
+      const { spaces, calls } = answering(json({ userId: MEMBER_ID, role: "owner" }));
+
+      expect(await spaces.changeRole({ ...ids, role: "owner" })).toEqual(err("not_found"));
+      expect(calls).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["unauthenticated", json({}, 401)],
+    ["not_found", problem({ type: "about:blank" }, 404)],
+    ["forbidden", problem({ type: "about:blank" }, 403)],
+    ["last_owner", problem({ type: "https://dezyn.dev/problems/last-owner" }, 409)],
+    ["unavailable", problem({ type: "about:blank" }, 503)],
+    ["unavailable", json({}, 500)],
+    ["unavailable", json({}, 429)],
+  ] as const)("donne %s", async (failure, response) => {
+    const { spaces } = answering(response);
+
+    expect(
+      await spaces.changeRole({ spaceId: SPACE_ID, memberId: MEMBER_ID, role: "editor" }),
+    ).toEqual(err(failure));
+  });
+
+  it.each([
+    ["un 409 sans type connu", problem({ type: "about:blank" }, 409)],
+    ["un 409 dont le corps n'est pas du JSON", () => new Response("<html>", { status: 409 })],
+    ["un 400", problem({ type: "about:blank" }, 400)],
+    ["un 201 au lieu d'un 200", json({ userId: MEMBER_ID, role: "editor" }, 201)],
+    ["un membre sans rôle", json({ userId: MEMBER_ID })],
+    ["un membre dont l'identifiant n'est pas un UUID", json({ userId: "u-1", role: "editor" })],
+    ["un corps qui n'est pas du JSON", () => new Response("<html>", { status: 200 })],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { spaces } = answering(response);
+
+    expect(
+      await spaces.changeRole({ spaceId: SPACE_ID, memberId: MEMBER_ID, role: "editor" }),
+    ).toEqual(err("invalid_response"));
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const spaces = createSpaces({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(
+      await spaces.changeRole({ spaceId: SPACE_ID, memberId: MEMBER_ID, role: "editor" }),
+    ).toEqual(err("unavailable"));
+  });
+});

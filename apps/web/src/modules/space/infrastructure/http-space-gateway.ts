@@ -2,7 +2,9 @@ import type { z } from "zod";
 
 import {
   AlreadyMemberProblem,
+  ChangedRoleOutput,
   EmailMismatchProblem,
+  LastOwnerProblem,
   MembersOutput,
   MySpaceOutput,
   MySpacesOutput,
@@ -18,10 +20,12 @@ import {
   type InvitationFailure,
   knownActionsOf,
   planOf,
+  type RoleChangeFailure,
   roleOf,
   type Space,
 } from "../domain/space.ts";
 
+const OK = 200;
 const CREATED = 201;
 const BAD_REQUEST = 400;
 const UNAUTHORIZED = 401;
@@ -81,6 +85,22 @@ const invitationRefusalOf = async (response: Response): Promise<InvitationFailur
     return (await parseJson(response, AlreadyMemberProblem)).ok
       ? "already_member"
       : "invalid_response";
+  }
+  return failureOf(response);
+};
+
+const roleChangeRefusalOf = async (response: Response): Promise<RoleChangeFailure> => {
+  if (response.status === UNAUTHORIZED) {
+    return "unauthenticated";
+  }
+  if (response.status === NOT_FOUND) {
+    return "not_found";
+  }
+  if (response.status === FORBIDDEN) {
+    return "forbidden";
+  }
+  if (response.status === CONFLICT) {
+    return (await parseJson(response, LastOwnerProblem)).ok ? "last_owner" : "invalid_response";
   }
   return failureOf(response);
 };
@@ -187,5 +207,21 @@ export const createHttpSpaceGateway = ({
           })),
         )
       : body;
+  },
+  changeRole: async ({ spaceId, memberId, role }) => {
+    const sent = await send(fetch, `${apiUrl}/v1/spaces/${spaceId}/members/${memberId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    const response = sent.value;
+    if (response.status !== OK) {
+      return err(await roleChangeRefusalOf(response));
+    }
+    const body = await parseJson(response, ChangedRoleOutput);
+    return body.ok ? ok({ userId: body.value.userId, role: roleOf(body.value.role) }) : body;
   },
 });

@@ -2,8 +2,11 @@ import type { Result } from "@repo/result";
 
 import type {
   AcceptanceFailure,
+  AssignableRole,
+  ChangedRole,
   InvitationFailure,
   MembersFailure,
+  RoleChangeFailure,
   SentInvitation,
   Space,
   SpaceFailure,
@@ -25,4 +28,9 @@ export type SpaceGateway = {
   readonly listMembers: (space: {
     readonly spaceId: string;
   }) => Promise<Result<readonly SpaceMember[], MembersFailure>>;
+  readonly changeRole: (change: {
+    readonly spaceId: string;
+    readonly memberId: string;
+    readonly role: AssignableRole;
+  }) => Promise<Result<ChangedRole, RoleChangeFailure>>;
 };
