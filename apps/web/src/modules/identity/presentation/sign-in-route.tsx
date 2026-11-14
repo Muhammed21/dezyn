@@ -5,6 +5,7 @@ import { type SubmitEvent, useState } from "react";
 import type { Result } from "@repo/result";
 
 import type { SignInFailure } from "../application/identity-gateway.ts";
+import { returnPathOf } from "../domain/return-path.ts";
 import type { Credentials, Session } from "../domain/session.ts";
 
 type SignIn = (credentials: Credentials) => Promise<Result<Session, SignInFailure>>;
@@ -16,7 +17,13 @@ const FAILURE_MESSAGES: Readonly<Record<SignInFailure, string>> = {
   invalid_response: "La connexion est impossible pour le moment.",
 };
 
-const SignInForm = ({ signIn }: { readonly signIn: SignIn }) => {
+const SignInForm = ({
+  signIn,
+  redirect,
+}: {
+  readonly signIn: SignIn;
+  readonly redirect: string | undefined;
+}) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
@@ -26,7 +33,7 @@ const SignInForm = ({ signIn }: { readonly signIn: SignIn }) => {
     onSuccess: async (result) => {
       if (result.ok) {
         queryClient.removeQueries();
-        await navigate({ to: "/" });
+        await navigate({ to: redirect ?? "/" });
       }
     },
   });
@@ -61,7 +68,9 @@ const SignInForm = ({ signIn }: { readonly signIn: SignIn }) => {
         </button>
       </form>
       {!isPending && data?.ok === false && <p role="alert">{FAILURE_MESSAGES[data.error]}</p>}
-      <Link to="/inscription">Créer un compte</Link>
+      <Link to="/inscription" search={{ redirect }}>
+        Créer un compte
+      </Link>
     </main>
   );
 };
@@ -72,9 +81,16 @@ export const signInRoute = ({
 }: {
   readonly parent: AnyRootRoute;
   readonly signIn: SignIn;
-}) =>
-  createRoute({
+}) => {
+  const route = createRoute({
     getParentRoute: () => parent,
     path: "/connexion",
-    component: () => <SignInForm signIn={signIn} />,
+    validateSearch: (search: Readonly<Record<string, unknown>>) => ({
+      redirect: returnPathOf(search["redirect"]),
+    }),
+    component: function SignInFormPage() {
+      return <SignInForm signIn={signIn} redirect={route.useSearch().redirect} />;
+    },
   });
+  return route;
+};
