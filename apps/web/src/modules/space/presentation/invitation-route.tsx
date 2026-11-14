@@ -19,9 +19,15 @@ const ACCEPTANCE_MESSAGES: Readonly<Record<Exclude<AcceptanceFailure, "unauthent
     invalid_response: "L'acceptation est indisponible pour le moment.",
   };
 
-const AcceptanceRefusal = ({ failure }: { readonly failure: AcceptanceFailure }) =>
+const AcceptanceRefusal = ({
+  failure,
+  token,
+}: {
+  readonly failure: AcceptanceFailure;
+  readonly token: string;
+}) =>
   failure === "unauthenticated" ? (
-    <Navigate to="/connexion" />
+    <Navigate to="/connexion" search={{ redirect: `/invitations/${token}` }} />
   ) : (
     <p role="alert">{ACCEPTANCE_MESSAGES[failure]}</p>
   );
@@ -50,7 +56,9 @@ const Invitation = ({
       <button type="button" disabled={isPending} onClick={() => mutate({ token })}>
         Accepter l'invitation
       </button>
-      {!isPending && data?.ok === false ? <AcceptanceRefusal failure={data.error} /> : null}
+      {!isPending && data?.ok === false ? (
+        <AcceptanceRefusal failure={data.error} token={token} />
+      ) : null}
     </main>
   );
 };

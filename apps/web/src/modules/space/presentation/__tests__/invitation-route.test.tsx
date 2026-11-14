@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouter,
   RouterProvider,
+  useRouterState,
 } from "@tanstack/react-router";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
@@ -30,6 +31,11 @@ const makeSpace = (overrides: Partial<Space> = {}): Space => ({
   ...overrides,
 });
 
+const SignInPage = () => {
+  const href = useRouterState({ select: (state) => state.location.href });
+  return <p>Page de connexion {href}</p>;
+};
+
 const renderInvitation = async (
   acceptInvitation: AcceptInvitation,
   { queryClient = new QueryClient() }: { readonly queryClient?: QueryClient } = {},
@@ -38,7 +44,7 @@ const renderInvitation = async (
   const signIn = createRoute({
     getParentRoute: () => root,
     path: "/connexion",
-    component: () => <p>Page de connexion</p>,
+    component: SignInPage,
   });
   const spacePage = createRoute({
     getParentRoute: () => root,
@@ -125,11 +131,15 @@ describe("page d'une invitation (ADR 0011, ADR 0044 §6)", () => {
     await expect.element(acceptButton(screen)).toBeEnabled();
   });
 
-  it("renvoie vers la connexion quand l'invité n'a pas de session", async () => {
+  it("renvoie vers la connexion avec l'adresse de l'invitation quand l'invité n'a pas de session", async () => {
     const screen = await renderInvitation(() => Promise.resolve(err("unauthenticated")));
 
     await acceptButton(screen).click();
 
-    await expect.element(screen.getByText("Page de connexion")).toBeVisible();
+    await expect
+      .element(screen.getByText(/^Page de connexion/))
+      .toHaveTextContent(
+        `Page de connexion /connexion?redirect=${encodeURIComponent(`/invitations/${TOKEN}`)}`,
+      );
   });
 });

@@ -56,6 +56,11 @@ Chaque tranche suit RED, GREEN, MUTATE, KILL MUTANTS, REFACTOR. Une PR par tranc
 **Valeur** : une invitation acceptée ajoute le membre.
 **Chemin** : page `/invitations/$token` → `acceptInvitation` → l'espace rejoint.
 
+### Tranche 3 bis : après la connexion ou l'inscription, l'invité revient sur son invitation
+
+**Valeur** : un invité sans session accepte son invitation sans rouvrir l'email.
+**Chemin** : `/invitations/$token` renvoie vers `/connexion?redirect=/invitations/<token>` → `/connexion` et `/inscription` suivent un chemin interne après la connexion ou l'inscription, et transmettent le paramètre de l'une à l'autre.
+
 ### Tranche 4 : un propriétaire invite un membre par email
 
 **Valeur** : le propriétaire fait entrer quelqu'un dans son espace.
@@ -79,7 +84,6 @@ Chaque tranche suit RED, GREEN, MUTATE, KILL MUTANTS, REFACTOR. Une PR par tranc
 ## Hors périmètre
 
 - Quitter un espace (`DELETE …/members/me`).
-- Revenir sur l'invitation après la connexion : un invité sans session est renvoyé vers `/connexion` et rouvre le lien de l'email.
 
 ## Avant chaque PR
 
@@ -93,6 +97,8 @@ Chaque tranche suit RED, GREEN, MUTATE, KILL MUTANTS, REFACTOR. Une PR par tranc
 - La liste des membres est permise par `space.read` : un éditeur voit aussi les membres.
 - La liste suit l'arrivée dans l'adhésion en cours : un changement de rôle ne déplace pas un membre, un retour après un retrait le place à sa date de retour.
 - Les refus qui partagent un statut reçoivent un `type` propre, comme dans S6.
+- L'adresse de retour n'accepte qu'un chemin interne : elle commence par `/`, mais ni par `//` ni par `/\`. Toute autre valeur mène à `/`.
+- De retour sur l'invitation, l'invité clique encore « Accepter l'invitation » : l'acceptation reste un clic explicite.
 
 ---
 

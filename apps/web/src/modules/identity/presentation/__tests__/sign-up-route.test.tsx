@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouter,
   RouterProvider,
+  useRouterState,
 } from "@tanstack/react-router";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
@@ -19,7 +20,16 @@ const ADA: Session = { userId: "4f2a9c1e-7b3d-4e8a-9f10-2c5d6e7f8a9b", email: "a
 
 type SignUp = (registration: Registration) => Promise<Result<Session, SignUpFailure>>;
 
-const renderSignUp = (signUp: SignUp, queryClient: QueryClient = new QueryClient()) => {
+const SignInPage = () => {
+  const href = useRouterState({ select: (state) => state.location.href });
+  return <p>Page de connexion {href}</p>;
+};
+
+const renderSignUp = (
+  signUp: SignUp,
+  queryClient: QueryClient = new QueryClient(),
+  at = "/inscription",
+) => {
   const root = createRootRoute();
   const home = createRoute({
     getParentRoute: () => root,
@@ -29,11 +39,18 @@ const renderSignUp = (signUp: SignUp, queryClient: QueryClient = new QueryClient
   const signIn = createRoute({
     getParentRoute: () => root,
     path: "/connexion",
-    component: () => <p>Page de connexion</p>,
+    component: SignInPage,
+  });
+  const invitation = createRoute({
+    getParentRoute: () => root,
+    path: "/invitations/$token",
+    component: function InvitationPage() {
+      return <p>Page de l'invitation {invitation.useParams().token}</p>;
+    },
   });
   const router = createRouter({
-    routeTree: root.addChildren([signUpRoute({ parent: root, signUp }), home, signIn]),
-    history: createMemoryHistory({ initialEntries: ["/inscription"] }),
+    routeTree: root.addChildren([signUpRoute({ parent: root, signUp }), home, signIn, invitation]),
+    history: createMemoryHistory({ initialEntries: [at] }),
   });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -150,5 +167,63 @@ describe("page d'inscription (ADR 0044 §7)", () => {
     await screen.getByRole("link", { name: "Se connecter" }).click();
 
     await expect.element(screen.getByText("Page de connexion")).toBeVisible();
+  });
+});
+
+const INVITATION = "/invitations/q3Zt8kV0yXlN2mB7cR4wE1sD6fG9hJ5aL0pO3iU8tYk";
+
+describe("retour après l'inscription (ADR 0044 §7)", () => {
+  it("mène au chemin interne de l'adresse de retour", async () => {
+    const screen = await renderSignUp(
+      () => Promise.resolve(ok(ADA)),
+      new QueryClient(),
+      `/inscription?redirect=${encodeURIComponent(INVITATION)}`,
+    );
+
+    await submit(screen, REGISTRATION);
+
+    await expect
+      .element(screen.getByText("Page de l'invitation q3Zt8kV0yXlN2mB7cR4wE1sD6fG9hJ5aL0pO3iU8tYk"))
+      .toBeVisible();
+  });
+
+  it.each(["//evil.example", "https://evil.example", "/\\evil.example", "invitations", ""])(
+    "ignore l'adresse de retour %j et mène à l'accueil",
+    async (redirect) => {
+      const screen = await renderSignUp(
+        () => Promise.resolve(ok(ADA)),
+        new QueryClient(),
+        `/inscription?redirect=${encodeURIComponent(redirect)}`,
+      );
+
+      await submit(screen, REGISTRATION);
+
+      await expect.element(screen.getByText("Accueil")).toBeVisible();
+    },
+  );
+
+  it("transmet l'adresse de retour à la connexion", async () => {
+    const screen = await renderSignUp(
+      () => Promise.resolve(ok(ADA)),
+      new QueryClient(),
+      `/inscription?redirect=${encodeURIComponent(INVITATION)}`,
+    );
+
+    await screen.getByRole("link", { name: "Se connecter" }).click();
+
+    await expect
+      .element(screen.getByText(/^Page de connexion/))
+      .toHaveTextContent(`/connexion?redirect=${encodeURIComponent(INVITATION)}`);
+  });
+
+  it("sans adresse de retour, mène à la connexion sans paramètre", async () => {
+    const screen = await renderSignUp(() => Promise.resolve(ok(ADA)));
+
+    await screen.getByRole("link", { name: "Se connecter" }).click();
+
+    await expect
+      .element(screen.getByText(/^Page de connexion/))
+      .toHaveTextContent("Page de connexion /connexion");
+    expect(screen.getByText(/redirect/).elements()).toHaveLength(0);
   });
 });
