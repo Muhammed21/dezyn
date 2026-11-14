@@ -61,6 +61,10 @@ const refusing =
   () =>
     Promise.resolve(err(failure));
 
+const InviteMemberStub = ({ spaceId }: { readonly spaceId: string }) => (
+  <p>Invitation dans l'espace {spaceId}</p>
+);
+
 const renderSpaceProjects = ({
   listProjects = listing([]),
   createProject = refusing("unavailable"),
@@ -87,7 +91,13 @@ const renderSpaceProjects = ({
   });
   const router = createRouter({
     routeTree: root.addChildren([
-      spaceProjectsRoute({ parent: root, listProjects, createProject, readSpace }),
+      spaceProjectsRoute({
+        parent: root,
+        listProjects,
+        createProject,
+        readSpace,
+        InviteMember: InviteMemberStub,
+      }),
       signIn,
       projectPage,
     ]),
@@ -354,5 +364,32 @@ describe("création de projet selon les actions permises de l'espace (ADR 0044 �
       .poll(() => screen.getByRole("button", { name: "Créer le projet" }).elements())
       .toHaveLength(0);
     await expect.element(projectList(screen)).toHaveTextContent("Site vitrine");
+  });
+});
+
+describe("invitation d'un membre selon les actions permises de l'espace (ADR 0017 §1)", () => {
+  it("propose l'invitation dans l'espace de l'adresse quand l'espace permet member.invite", async () => {
+    const screen = await renderSpaceProjects({ readSpace: allowing(OWNER_ACTIONS) });
+
+    await expect.element(screen.getByText(`Invitation dans l'espace ${SPACE_ID}`)).toBeVisible();
+  });
+
+  it("ne propose pas l'invitation quand l'espace permet de créer un projet sans permettre d'inviter", async () => {
+    const screen = await renderSpaceProjects({
+      readSpace: allowing(["space.read", "project.create"]),
+    });
+
+    await expect.element(screen.getByRole("button", { name: "Créer le projet" })).toBeVisible();
+    expect(screen.getByText(/^Invitation dans l'espace/).elements()).toHaveLength(0);
+  });
+
+  it("ne propose pas l'invitation à un éditeur", async () => {
+    const screen = await renderSpaceProjects({
+      listProjects: listing([makeProject()]),
+      readSpace: allowing(EDITOR_ACTIONS),
+    });
+
+    await expect.element(projectList(screen)).toHaveTextContent("Site vitrine");
+    expect(screen.getByText(/^Invitation dans l'espace/).elements()).toHaveLength(0);
   });
 });

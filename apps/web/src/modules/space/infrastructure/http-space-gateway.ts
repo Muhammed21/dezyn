@@ -6,6 +6,7 @@ import {
   MySpaceOutput,
   MySpacesOutput,
   PlanRequiredProblem,
+  SentInvitationOutput,
 } from "@repo/contracts";
 import { err, ok } from "@repo/result";
 
@@ -13,12 +14,15 @@ import { failureOf, type Fetch, parseJson, send } from "../../../platform/http.t
 import type { SpaceGateway } from "../application/space-gateway.ts";
 import {
   type AcceptanceFailure,
+  type InvitationFailure,
   knownActionsOf,
   planOf,
   roleOf,
   type Space,
 } from "../domain/space.ts";
 
+const CREATED = 201;
+const BAD_REQUEST = 400;
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const NOT_FOUND = 404;
@@ -57,6 +61,27 @@ const refusalOf = async (response: Response): Promise<AcceptanceFailure> => {
     return "already_member";
   }
   return PlanRequiredProblem.safeParse(body).success ? "plan_required" : "invalid_response";
+};
+
+const invitationRefusalOf = async (response: Response): Promise<InvitationFailure> => {
+  if (response.status === BAD_REQUEST) {
+    return "invalid_email";
+  }
+  if (response.status === UNAUTHORIZED) {
+    return "unauthenticated";
+  }
+  if (response.status === NOT_FOUND) {
+    return "not_found";
+  }
+  if (response.status === FORBIDDEN) {
+    return (await parseJson(response, PlanRequiredProblem)).ok ? "plan_required" : "forbidden";
+  }
+  if (response.status === CONFLICT) {
+    return (await parseJson(response, AlreadyMemberProblem)).ok
+      ? "already_member"
+      : "invalid_response";
+  }
+  return failureOf(response);
 };
 
 export const createHttpSpaceGateway = ({
@@ -112,5 +137,27 @@ export const createHttpSpaceGateway = ({
     }
     const body = await parseJson(response, MySpaceOutput);
     return body.ok ? ok(spaceOf(body.value)) : body;
+  },
+  inviteMember: async ({ spaceId, email }) => {
+    const sent = await send(fetch, `${apiUrl}/v1/spaces/${spaceId}/invitations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    const response = sent.value;
+    if (response.status !== CREATED) {
+      return err(await invitationRefusalOf(response));
+    }
+    const body = await parseJson(response, SentInvitationOutput);
+    return body.ok
+      ? ok({
+          id: body.value.id,
+          email: body.value.email,
+          expiresAt: new Date(body.value.expiresAt),
+        })
+      : body;
   },
 });

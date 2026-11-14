@@ -14,6 +14,7 @@ import { projectProposals } from "./modules/proposal/presentation/project-propos
 import { proposalBatchRoute } from "./modules/proposal/presentation/proposal-batch-route.tsx";
 import { createProposals } from "./modules/proposal/proposal-module.ts";
 import { invitationRoute } from "./modules/space/presentation/invitation-route.tsx";
+import { inviteMemberForm } from "./modules/space/presentation/invite-member.tsx";
 import { mySpacesRoute } from "./modules/space/presentation/my-spaces-route.tsx";
 import { createSpaces } from "./modules/space/space-module.ts";
 import {
@@ -55,6 +56,7 @@ const appRouter = ({
         listProjects: projects.listProjects,
         createProject: projects.createProject,
         readSpace: spaces.readSpace,
+        InviteMember: inviteMemberForm({ inviteMember: spaces.inviteMember }),
       }),
       projectTokensRoute({
         parent: root,

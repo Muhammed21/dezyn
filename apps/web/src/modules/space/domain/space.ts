@@ -38,6 +38,22 @@ export type AcceptanceFailure =
   | "unavailable"
   | "invalid_response";
 
+export type SentInvitation = {
+  readonly id: string;
+  readonly email: string;
+  readonly expiresAt: Date;
+};
+
+export type InvitationFailure =
+  | "unauthenticated"
+  | "not_found"
+  | "invalid_email"
+  | "forbidden"
+  | "plan_required"
+  | "already_member"
+  | "unavailable"
+  | "invalid_response";
+
 export const planOf = (value: string): Plan => PLANS.find((plan) => plan === value) ?? "unknown";
 
 export const roleOf = (value: string): Role => ROLES.find((role) => role === value) ?? "unknown";

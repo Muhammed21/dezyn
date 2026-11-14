@@ -195,3 +195,66 @@ describe("acceptation d'une invitation par l'app web, contre la vraie API (ADR 0
     );
   });
 });
+
+describe("invitation d'un membre par l'app web, contre la vraie API (ADR 0011, ADR 0017 §1)", () => {
+  it("un propriétaire d'un espace Team invite Grace : l'email d'invitation part vers elle", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const ada = await signedInAs(app, ADA);
+        const spaceId = await personalSpaceOf(db, ada.userId);
+        await switchToTeam(db, spaceId);
+
+        const invited = await ada.spaces.inviteMember({ spaceId, email: GRACE.email });
+
+        expect(invited).toEqual(
+          ok({ id: expect.stringMatching(UUID), email: GRACE.email, expiresAt: expect.any(Date) }),
+        );
+        expect(outbox.sent.at(-1)?.to).toBe(GRACE.email);
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("un éditeur qui tente d'inviter reçoit forbidden", () =>
+    withIdentityApp(async (app, db) => {
+      const ada = await signedInAs(app, ADA);
+      const spaceId = await seedTeamSpaceWith(db, { userId: ada.userId, role: "editor" });
+
+      expect(await ada.spaces.inviteMember({ spaceId, email: GRACE.email })).toEqual(
+        err("forbidden"),
+      );
+    }));
+
+  it("inviter dans un espace Free donne plan_required", () =>
+    withIdentityApp(async (app, db) => {
+      const ada = await signedInAs(app, ADA);
+      const spaceId = await personalSpaceOf(db, ada.userId);
+
+      expect(await ada.spaces.inviteMember({ spaceId, email: GRACE.email })).toEqual(
+        err("plan_required"),
+      );
+    }));
+
+  it("inviter quelqu'un qui est déjà membre donne already_member", () =>
+    withIdentityApp(async (app, db) => {
+      const ada = await signedInAs(app, ADA);
+      const spaceId = await personalSpaceOf(db, ada.userId);
+      await switchToTeam(db, spaceId);
+
+      expect(await ada.spaces.inviteMember({ spaceId, email: ADA.email })).toEqual(
+        err("already_member"),
+      );
+    }));
+
+  it("un email invalide donne invalid_email", () =>
+    withIdentityApp(async (app, db) => {
+      const ada = await signedInAs(app, ADA);
+      const spaceId = await personalSpaceOf(db, ada.userId);
+      await switchToTeam(db, spaceId);
+
+      expect(await ada.spaces.inviteMember({ spaceId, email: "pas-un-email" })).toEqual(
+        err("invalid_email"),
+      );
+    }));
+});
