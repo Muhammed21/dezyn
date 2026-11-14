@@ -2,8 +2,11 @@ import { Uuid } from "@repo/contracts";
 import { err, type Result } from "@repo/result";
 
 import type {
+  AssignableRole,
+  ChangedRole,
   InvitationFailure,
   MembersFailure,
+  RoleChangeFailure,
   SentInvitation,
   Space,
   SpaceFailure,
@@ -34,4 +37,16 @@ export const spaceUseCases = ({ gateway }: { readonly gateway: SpaceGateway }) =
     readonly spaceId: string;
   }): Promise<Result<readonly SpaceMember[], MembersFailure>> =>
     Uuid.safeParse(spaceId).success ? gateway.listMembers({ spaceId }) : err("not_found"),
+  changeRole: async ({
+    spaceId,
+    memberId,
+    role,
+  }: {
+    readonly spaceId: string;
+    readonly memberId: string;
+    readonly role: AssignableRole;
+  }): Promise<Result<ChangedRole, RoleChangeFailure>> =>
+    Uuid.safeParse(spaceId).success && Uuid.safeParse(memberId).success
+      ? gateway.changeRole({ spaceId, memberId, role })
+      : err("not_found"),
 });
