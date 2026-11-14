@@ -29,6 +29,15 @@ export type Space = {
 
 export type SpaceFailure = "unauthenticated" | "not_found" | "unavailable" | "invalid_response";
 
+export type SpaceMember = {
+  readonly userId: string;
+  readonly name: string;
+  readonly email: string;
+  readonly role: Role;
+};
+
+export type MembersFailure = SpaceFailure;
+
 export type AcceptanceFailure =
   | "unauthenticated"
   | "gone"

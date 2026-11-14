@@ -381,3 +381,95 @@ describe("invitation d'un membre depuis l'app web (ADR 0011, ADR 0017 §1)", () 
     );
   });
 });
+
+const makeMember = (overrides: Readonly<Record<string, unknown>> = {}) => ({
+  userId: "7b3d4e8a-9f10-4c5d-8e7f-8a9b4f2a9c1e",
+  name: "Ada Lovelace",
+  email: "ada@dezyn.test",
+  role: "owner",
+  ...overrides,
+});
+
+describe("liste des membres d'un espace dans l'app web (ADR 0044 §5)", () => {
+  it("demande les membres de l'espace à l'API avec le cookie du navigateur", async () => {
+    const { spaces, calls } = answering(json({ members: [] }));
+
+    await spaces.listMembers({ spaceId: SPACE_ID });
+
+    expect(calls).toEqual([
+      {
+        url: `${API_URL}/v1/spaces/${SPACE_ID}/members`,
+        init: { method: "GET", credentials: "include" },
+      },
+    ]);
+  });
+
+  it("donne chaque membre avec son nom, son email et son rôle, dans l'ordre de l'API", async () => {
+    const ada = makeMember({ name: "Ada Lovelace", email: "ada@dezyn.test", role: "owner" });
+    const grace = makeMember({
+      userId: "9f10a2c5-d6e7-4f8a-9b4f-2a9c1e7b3d4e",
+      name: "Grace Hopper",
+      email: "grace@dezyn.test",
+      role: "editor",
+    });
+    const { spaces } = answering(json({ members: [ada, grace] }));
+
+    expect(await spaces.listMembers({ spaceId: SPACE_ID })).toEqual(
+      ok([
+        { userId: ada.userId, name: "Ada Lovelace", email: "ada@dezyn.test", role: "owner" },
+        { userId: grace.userId, name: "Grace Hopper", email: "grace@dezyn.test", role: "editor" },
+      ]),
+    );
+  });
+
+  it("garde un membre dont le rôle est inconnu de l'app (ADR 0023 §2)", async () => {
+    const { spaces } = answering(json({ members: [makeMember({ role: "viewer" })] }));
+
+    const listed = await spaces.listMembers({ spaceId: SPACE_ID });
+
+    expect(listed.ok && listed.value.map(({ role }) => role)).toEqual(["unknown"]);
+  });
+
+  it("donne not_found pour un identifiant qui n'est pas un UUID, sans appeler l'API", async () => {
+    const { spaces, calls } = answering(json({ members: [] }));
+
+    expect(await spaces.listMembers({ spaceId: "espace-1" })).toEqual(err("not_found"));
+    expect(calls).toEqual([]);
+  });
+
+  it.each([
+    [401, "unauthenticated"],
+    [404, "not_found"],
+    [500, "unavailable"],
+    [503, "unavailable"],
+    [429, "unavailable"],
+    [403, "invalid_response"],
+  ] as const)("donne, sur une réponse %i, %s", async (status, failure) => {
+    const { spaces } = answering(json({}, status));
+
+    expect(await spaces.listMembers({ spaceId: SPACE_ID })).toEqual(err(failure));
+  });
+
+  it("donne unavailable quand l'API est injoignable", async () => {
+    const spaces = createSpaces({
+      apiUrl: API_URL,
+      fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    expect(await spaces.listMembers({ spaceId: SPACE_ID })).toEqual(err("unavailable"));
+  });
+
+  it.each([
+    ["un membre sans email", json({ members: [makeMember({ email: undefined })] })],
+    [
+      "un membre dont l'identifiant n'est pas un UUID",
+      json({ members: [makeMember({ userId: "u-1" })] }),
+    ],
+    ["un corps sans liste", json({})],
+    ["un corps qui n'est pas du JSON", () => new Response("<html>", { status: 200 })],
+  ])("donne invalid_response sur %s", async (_case, response) => {
+    const { spaces } = answering(response);
+
+    expect(await spaces.listMembers({ spaceId: SPACE_ID })).toEqual(err("invalid_response"));
+  });
+});

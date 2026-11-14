@@ -21,6 +21,7 @@ type ReadSpace = (space: {
 }) => Promise<Result<{ readonly allowedActions: readonly string[] }, unknown>>;
 
 type InviteMember = ComponentType<{ readonly spaceId: string }>;
+type SpaceMembers = ComponentType<{ readonly spaceId: string }>;
 
 const UNKNOWN_SPACE = "Cet espace est introuvable.";
 
@@ -102,12 +103,14 @@ const SpaceProjects = ({
   createProject,
   readSpace,
   InviteMember,
+  SpaceMembers,
 }: {
   readonly spaceId: string;
   readonly listProjects: ListProjects;
   readonly createProject: CreateProject;
   readonly readSpace: ReadSpace;
   readonly InviteMember: InviteMember;
+  readonly SpaceMembers: SpaceMembers;
 }) => {
   const { data } = useQuery({
     queryKey: ["projects", spaceId],
@@ -148,6 +151,7 @@ const SpaceProjects = ({
       )}
       {canCreateProject && <CreateProjectForm spaceId={spaceId} createProject={createProject} />}
       {canInviteMember && <InviteMember spaceId={spaceId} />}
+      <SpaceMembers spaceId={spaceId} />
     </main>
   );
 };
@@ -158,12 +162,14 @@ export const spaceProjectsRoute = ({
   createProject,
   readSpace,
   InviteMember,
+  SpaceMembers,
 }: {
   readonly parent: AnyRootRoute;
   readonly listProjects: ListProjects;
   readonly createProject: CreateProject;
   readonly readSpace: ReadSpace;
   readonly InviteMember: InviteMember;
+  readonly SpaceMembers: SpaceMembers;
 }) => {
   const route = createRoute({
     getParentRoute: () => parent,
@@ -177,6 +183,7 @@ export const spaceProjectsRoute = ({
           createProject={createProject}
           readSpace={readSpace}
           InviteMember={InviteMember}
+          SpaceMembers={SpaceMembers}
         />
       );
     },

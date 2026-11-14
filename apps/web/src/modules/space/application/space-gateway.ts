@@ -3,9 +3,11 @@ import type { Result } from "@repo/result";
 import type {
   AcceptanceFailure,
   InvitationFailure,
+  MembersFailure,
   SentInvitation,
   Space,
   SpaceFailure,
+  SpaceMember,
 } from "../domain/space.ts";
 
 export type SpacesFailure = "unauthenticated" | "unavailable" | "invalid_response";
@@ -20,4 +22,7 @@ export type SpaceGateway = {
     readonly spaceId: string;
     readonly email: string;
   }) => Promise<Result<SentInvitation, InvitationFailure>>;
+  readonly listMembers: (space: {
+    readonly spaceId: string;
+  }) => Promise<Result<readonly SpaceMember[], MembersFailure>>;
 };
