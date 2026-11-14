@@ -136,7 +136,7 @@ const invitedGrace = async (
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email: GRACE.email }),
   });
-  return { spaceId, token: tokenOf(outbox.sent.at(-1)) };
+  return { ada, spaceId, token: tokenOf(outbox.sent.at(-1)) };
 };
 
 describe("acceptation d'une invitation par l'app web, contre la vraie API (ADR 0011, ADR 0044 §6)", () => {
@@ -256,5 +256,48 @@ describe("invitation d'un membre par l'app web, contre la vraie API (ADR 0011, A
       expect(await ada.spaces.inviteMember({ spaceId, email: "pas-un-email" })).toEqual(
         err("invalid_email"),
       );
+    }));
+});
+
+describe("liste des membres par l'app web, contre la vraie API (ADR 0044 §5)", () => {
+  const ADA_AND_GRACE = [
+    { userId: expect.stringMatching(UUID), name: ADA.name, email: ADA.email, role: "owner" },
+    { userId: expect.stringMatching(UUID), name: GRACE.name, email: GRACE.email, role: "editor" },
+  ];
+
+  it("après l'acceptation de Grace, Ada propriétaire voit Ada puis Grace avec leurs rôles", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { ada, spaceId, token } = await invitedGrace(app, db, outbox);
+        const grace = await signedInAs(app, GRACE);
+        await grace.spaces.acceptInvitation({ token });
+
+        expect(await ada.spaces.listMembers({ spaceId })).toEqual(ok(ADA_AND_GRACE));
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("Grace éditrice voit la même liste des membres", () => {
+    const outbox = makeOutbox();
+    return withIdentityApp(
+      async (app, db) => {
+        const { spaceId, token } = await invitedGrace(app, db, outbox);
+        const grace = await signedInAs(app, GRACE);
+        await grace.spaces.acceptInvitation({ token });
+
+        expect(await grace.spaces.listMembers({ spaceId })).toEqual(ok(ADA_AND_GRACE));
+      },
+      { mailer: outbox.mailer },
+    );
+  });
+
+  it("les membres de l'espace personnel d'un autre donnent not_found", () =>
+    withIdentityApp(async (app, db) => {
+      const { spaces } = await signedInAda(app);
+      const graceSpaceId = await personalSpaceOf(db, await signUp(app, makeClientIp(), GRACE));
+
+      expect(await spaces.listMembers({ spaceId: graceSpaceId })).toEqual(err("not_found"));
     }));
 });

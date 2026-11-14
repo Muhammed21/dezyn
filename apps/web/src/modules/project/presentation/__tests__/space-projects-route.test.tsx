@@ -65,6 +65,10 @@ const InviteMemberStub = ({ spaceId }: { readonly spaceId: string }) => (
   <p>Invitation dans l'espace {spaceId}</p>
 );
 
+const SpaceMembersStub = ({ spaceId }: { readonly spaceId: string }) => (
+  <p>Membres de l'espace {spaceId}</p>
+);
+
 const renderSpaceProjects = ({
   listProjects = listing([]),
   createProject = refusing("unavailable"),
@@ -97,6 +101,7 @@ const renderSpaceProjects = ({
         createProject,
         readSpace,
         InviteMember: InviteMemberStub,
+        SpaceMembers: SpaceMembersStub,
       }),
       signIn,
       projectPage,
@@ -391,5 +396,22 @@ describe("invitation d'un membre selon les actions permises de l'espace (ADR 001
 
     await expect.element(projectList(screen)).toHaveTextContent("Site vitrine");
     expect(screen.getByText(/^Invitation dans l'espace/).elements()).toHaveLength(0);
+  });
+});
+
+describe("membres de l'espace sur la page de l'espace (ADR 0044 §5)", () => {
+  it("montre les membres de l'espace de l'adresse au propriétaire", async () => {
+    const screen = await renderSpaceProjects({ readSpace: allowing(OWNER_ACTIONS) });
+
+    await expect.element(screen.getByText(`Membres de l'espace ${SPACE_ID}`)).toBeVisible();
+  });
+
+  it("montre aussi les membres de l'espace de l'adresse à un éditeur", async () => {
+    const screen = await renderSpaceProjects({
+      listProjects: listing([makeProject()]),
+      readSpace: allowing(EDITOR_ACTIONS),
+    });
+
+    await expect.element(screen.getByText(`Membres de l'espace ${SPACE_ID}`)).toBeVisible();
   });
 });

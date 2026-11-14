@@ -3,6 +3,7 @@ import type { z } from "zod";
 import {
   AlreadyMemberProblem,
   EmailMismatchProblem,
+  MembersOutput,
   MySpaceOutput,
   MySpacesOutput,
   PlanRequiredProblem,
@@ -158,6 +159,33 @@ export const createHttpSpaceGateway = ({
           email: body.value.email,
           expiresAt: new Date(body.value.expiresAt),
         })
+      : body;
+  },
+  listMembers: async ({ spaceId }) => {
+    const sent = await send(fetch, `${apiUrl}/v1/spaces/${spaceId}/members`, { method: "GET" });
+    if (!sent.ok) {
+      return sent;
+    }
+    const response = sent.value;
+    if (response.status === UNAUTHORIZED) {
+      return err("unauthenticated");
+    }
+    if (response.status === NOT_FOUND) {
+      return err("not_found");
+    }
+    if (!response.ok) {
+      return err(failureOf(response));
+    }
+    const body = await parseJson(response, MembersOutput);
+    return body.ok
+      ? ok(
+          body.value.members.map(({ userId, name, email, role }) => ({
+            userId,
+            name,
+            email,
+            role: roleOf(role),
+          })),
+        )
       : body;
   },
 });
